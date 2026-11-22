@@ -85,6 +85,7 @@ nextLine:SetWidth(WIDTH - 28)
 local source = ns.Font(P, false, 9, 0.42, 0.43, 0.47)
 
 local state = {}
+ns.panelState = state
 
 -- skip a step (or go back to the one your skill is on)
 local skipBack = ns.IconButton(P, "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up", 16, function() return T("stepBack") end)
@@ -388,7 +389,7 @@ function ns.PlacePanel()
     if side == "left" then
       P:SetPoint("TOPRIGHT", frame, "TOPLEFT", -14, 0)
     else
-      P:SetPoint("TOPLEFT", frame, "TOPRIGHT", 22, 0)
+      P:SetPoint("TOPLEFT", frame, "TOPRIGHT", 56, 0)   -- clear of the profession tabs along its right edge
     end
   else
     P.docked = false

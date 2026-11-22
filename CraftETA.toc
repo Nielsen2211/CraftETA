@@ -22,5 +22,6 @@ Extra.lua
 Farm.lua
 Home.lua
 Crafters.lua
+RecipeCard.lua
 Settings.lua
 Minimap.lua
