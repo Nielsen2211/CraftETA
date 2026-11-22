@@ -37,8 +37,14 @@ etaAll:SetPoint("RIGHT", P, "RIGHT", -14, 0)
 
 local warn = ns.Font(P, true, 11, 1, 0.6, 0.35)
 warn:SetPoint("TOPLEFT", etaAll, "BOTTOMLEFT", 0, -8)
-warn:SetPoint("RIGHT", P, "RIGHT", -14, 0)
+warn:SetPoint("RIGHT", P, "RIGHT", -34, 0)
 warn:SetWordWrap(true)
+-- the map button beside it: an arrow to the trainer (Places.lua)
+local warnPin = ns.MapButton(P, function()
+  return (ns.db and ns.db.lang == "da") and "Vis træneren på kortet" or "Show the trainer on the map"
+end, function() if ns.panelState and ns.panelState.prof then ns.ShowTrainer(ns.panelState.prof) end end)
+warnPin:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, 0)
+warnPin:Hide()
 
 -- the step
 local stepHead = ns.Font(P, true, 10, 0.55, 0.58, 0.64)
@@ -180,6 +186,7 @@ function ns.RefreshPanel()
   prevChoice:Hide(); nextChoice:Hide()
   wipe(state)
   if not guide then
+    warnPin:Hide()
     profIcon:Hide()
     profText:SetText(T("noProf"))
     for _, w in ipairs({ bar, etaRank, etaAll, warn, stepHead, recipeName, recipeCount, note, craftBtn, addList, status, nextLine, source }) do w:Hide() end
@@ -224,9 +231,10 @@ function ns.RefreshPanel()
     warn:SetText(T("learnRank", names[nextRank.at] or "") .. ": " .. (nextRank[ns.Faction()] or "")
       .. ((UnitLevel("player") or 0) < nextRank.lvl and ("  (level " .. nextRank.lvl .. ")") or ""))
     warn:Show()
+    warnPin:ClearAllPoints(); warnPin:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, y - 8); warnPin:Show()
     y = y - 8 - warn:GetStringHeight() - 4
   else
-    warn:SetText(""); warn:Hide()
+    warn:SetText(""); warn:Hide(); warnPin:Hide()
   end
 
   -- the step: the one your skill is on, or one you skipped ahead to
