@@ -755,7 +755,9 @@ end
 
 local RANK_NAMES = { [75] = "Apprentice", [150] = "Journeyman", [225] = "Expert", [300] = "Artisan" }
 
-function ns.ShowTimeline(id, guide, skill, current, data)
+function ns.ShowTimeline(id, guide, skill, current, data, below)
+  tl:ClearAllPoints()
+  tl:SetPoint("TOPLEFT", X, -48 - (below or 0))
   local rank = skill and skill.rank or 0
   local max = skill and skill.max or 0
   tlName:SetText(guide.name)

@@ -115,6 +115,7 @@ local function Control(i)
     b = ns.Button(H, "", 86, 20)
     controls[i] = b
   end
+  b:ClearAllPoints() -- each page places its own
   return b
 end
 
@@ -496,20 +497,36 @@ local function BuildGuide()
   for _, id in ipairs(ORDER) do
     if skills[id] then mine[#mine + 1] = id end
   end
-  if #mine == 0 then mine = { 186, 182, 393, 356 } end
+  if #mine == 0 then state.allProfs = true end
+  -- your professions, or all twelve: follow a route you haven't learned yet
+  local list = state.allProfs and ORDER or mine
   local found = false
-  for _, id in ipairs(mine) do if id == state.guide then found = true end end
-  if not found then state.guide = mine[1] end
-  for i, id in ipairs(mine) do
-    if i > 5 then break end
+  for _, id in ipairs(list) do if id == state.guide then found = true end end
+  if not found then state.guide = list[1] end
+  local PER_ROW = 6
+  for i, id in ipairs(list) do
     local b = Control(i)
-    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -18)
+    b:ClearAllPoints()
+    b:SetPoint("TOPLEFT", X + ((i - 1) % PER_ROW) * 90, -18 - math.floor((i - 1) / PER_ROW) * 24)
     b:SetText(ns.ProfName(id))
     local on = id == state.guide
-    b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
+    local have = skills[id] ~= nil
+    b.label:SetTextColor(on and 1 or (have and 0.75 or 0.5), on and 0.82 or (have and 0.77 or 0.52), on and 0.3 or (have and 0.8 or 0.56))
     b:SetScript("OnClick", function() state.guide, state.offset = id, 0; ns.RefreshHub() end)
     b:Show()
   end
+  local toggle = Control(#list + 1)
+  toggle:ClearAllPoints()
+  toggle:SetPoint("TOPRIGHT", H, "TOPRIGHT", -18, -18)
+  toggle:SetText(state.allProfs and T("myProfs") or T("allProfs"))
+  toggle.label:SetTextColor(1, 0.82, 0.3)
+  toggle:SetScript("OnClick", function()
+    state.allProfs = not state.allProfs
+    state.offset = 0
+    ns.RefreshHub()
+  end)
+  toggle:SetShown(#mine > 0)
+  local extra = (math.ceil(#list / PER_ROW) - 1) * 24
   local id = state.guide
   local guide = Guide(id)
   local crafting = ns.GUIDES[id] ~= nil
@@ -541,7 +558,15 @@ local function BuildGuide()
         lines[#lines + 1] = "|cff8c8f96" .. T("toRank", target) .. ":|r " .. T("crafts", crafts)
           .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.Money(cost)) or "") .. (eta and ("  ·  " .. T("eta", eta)) or "")
       end
-      lines[#lines + 1] = "|cff8c8f96" .. T("openWindow") .. "|r"
+      if skill then
+        lines[#lines + 1] = "|cff8c8f96" .. T("openWindow") .. "|r"
+      else
+        -- a profession you don't have: what the whole route takes
+        local crafts, mats = ns.Plan(id, 1, 300)
+        local cost, unknown = ns.Cost(mats)
+        lines[#lines + 1] = "|cff8c8f96" .. T("wholeRoute") .. ":|r " .. T("crafts", crafts)
+          .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.Money(cost)) or "")
+      end
     else
       lines[#lines + 1] = ("|cffffd24a%d-%d:|r %s"):format(step[1], step[2], step.what)
       lines[#lines + 1] = "|cff8c8f96" .. T("where") .. "|r " .. step[f]
@@ -549,7 +574,7 @@ local function BuildGuide()
     if step.note then lines[#lines + 1] = "|cffbfb899" .. step.note .. "|r" end
   end
   -- the route as a bar on top (Home.lua draws it), the step text under it, then the steps
-  local tlH = ns.ShowTimeline and ns.ShowTimeline(id, guide, skill, current, data) or 0
+  local tlH = (ns.ShowTimeline and ns.ShowTimeline(id, guide, skill, current, data, extra) or 0) + extra
   detail:ClearAllPoints()
   detail:SetPoint("TOPLEFT", X, TOP - tlH - 10)
   detail:SetText(table.concat(lines, "\n"))
