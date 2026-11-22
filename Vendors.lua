@@ -144,11 +144,12 @@ ns.On("MERCHANT_SHOW", function()
   ns.db.vendors = ns.db.vendors or {}
   local npc = Plain(UnitName("npc"))
   local zone = Plain(GetZoneText and GetZoneText())
+  local spot = ns.PlayerSpot and ns.PlayerSpot()   -- for the map arrow (Places.lua)
   local list = {}
   for _, item in ipairs(ns.ListItems and ns.ListItems() or {}) do list[item.name] = true end
   for name, s in pairs(MerchantItems()) do
     if ns.VENDOR_ITEMS[name] or list[name] then
-      ns.db.vendors[name] = { npc = npc, zone = zone, price = s.price }
+      ns.db.vendors[name] = { npc = npc, zone = zone, price = s.price, spot = spot }
     end
   end
   if not button and MerchantFrame then
