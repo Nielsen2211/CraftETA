@@ -2,7 +2,7 @@
 local _, ns = ...
 local T = ns.T
 
-local W = ns.Window("CraftETASettings", 330)
+local W = ns.Window("CraftETASettings", 380)
 -- on top of every other CraftETA window, and fully solid so nothing behind it shows through
 W:SetFrameStrata("DIALOG")
 W:SetToplevel(true)
@@ -59,8 +59,11 @@ function W.Build()
     r.fill:SetShown(on)
     r.box:SetColorTexture(on and 0.3 or 0.16, on and 0.25 or 0.17, on and 0.12 or 0.21)
     r.tx:SetText(text)
+    -- a long text wraps onto two lines: the row grows with it instead of squeezing the lines together
+    local rh = math.max(22, math.ceil(r.tx:GetStringHeight()) + 8)
+    r:SetHeight(rh)
     r:Show()
-    y = y - 22
+    y = y - rh
   end
   local db = ns.db
   section(T("settings"))
@@ -73,6 +76,7 @@ function W.Build()
   add(T("minimapOpt"), db.minimap, function() db.minimap = not db.minimap; ns.UpdateMinimapButton() end)
   add(T("tooltipOpt"), db.tooltip, function() db.tooltip = not db.tooltip end)
   add(T("cdAlertOpt"), db.cdAlert, function() db.cdAlert = not db.cdAlert end)
+  add(T("trainerOpt"), db.trainerButton ~= false, function() db.trainerButton = not (db.trainerButton ~= false) end)
   add(T("trackReminderOpt"), db.trackReminder, function() db.trackReminder = not db.trackReminder; ns.trackDismissed = nil; ns.UpdateTrackBanner() end)
   add(T("guildAskOpt"), db.guildAsk, function() db.guildAsk = not db.guildAsk end)
   add(T("guildShareOpt"), db.guildShare, function() db.guildShare = not db.guildShare end)
