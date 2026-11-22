@@ -23,6 +23,15 @@ ns.VENDOR_ITEMS = {
   ["Refreshing Spring Water"] = COOK, ["Ice Cold Milk"] = COOK,
 }
 
+-- what one costs at a vendor, in copper (the vendor list price; a vendor you have seen wins)
+ns.VENDOR_PRICE = {
+  ["Coarse Thread"] = 10, ["Fine Thread"] = 100, ["Heavy Silken Thread"] = 2000, ["Rune Thread"] = 5000,
+  ["Red Dye"] = 50, ["Blue Dye"] = 50, ["Green Dye"] = 100, ["Yellow Dye"] = 500, ["Salt"] = 50,
+  ["Empty Vial"] = 4, ["Leaded Vial"] = 40, ["Crystal Vial"] = 500,
+  ["Weak Flux"] = 100, ["Strong Flux"] = 2000, ["Copper Rod"] = 124,
+  ["Mild Spices"] = 2, ["Hot Spices"] = 40, ["Soothing Spices"] = 160,
+}
+
 -- where, by faction
 local WHERE = {
   trade = { h = "Trade Supplies in Orgrimmar, Undercity, Thunder Bluff and most towns",
@@ -51,10 +60,23 @@ function ns.AtVendor(name)
   return ns.db and ns.db.vendorMode ~= "ah" and ns.VendorSells(name) or false
 end
 
--- what one costs at the vendor, when you have seen it
+-- what one costs at the vendor: the price you saw there, else the list, else 4 times what a vendor pays
+-- (the game's usual mark-up). Second value: true when it is that guess
 function ns.VendorCost(name)
   local v = Learned(name)
-  return v and v.price or nil
+  if v and v.price then return v.price end
+  if ns.VENDOR_PRICE[name] then return ns.VENDOR_PRICE[name] end
+  if not ns.VendorSells(name) then return nil end
+  local sell = ns.VendorPrice and ns.VendorPrice(ns.ItemID(name))
+  return sell and sell * 4 or nil, true
+end
+
+-- the price of a material the way you get it: at a vendor when Settings say vendor (or nobody sells it on
+-- the auction house), else the auction house
+function ns.MatPrice(name)
+  local vendor = ns.VendorSells(name) and ns.VendorCost(name)
+  if vendor and ns.AtVendor(name) then return vendor end
+  return ns.Price(name) or vendor or nil
 end
 
 -- the tooltip lines: where it is sold, and the vendor you last saw it at

@@ -577,7 +577,8 @@ function ns.RefreshList()
       local s = ns.db.scanned[item.name]
       local est
       if item.still > 0 and item.vendor then
-        est = ns.VendorCost(item.name) and math.ceil(ns.VendorCost(item.name) * item.still) or nil
+        local vc = ns.VendorCost(item.name)
+        est = vc and math.ceil(vc * item.still) or nil
       elseif item.still > 0 then
         if s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
           est = Estimate(s, math.min(item.still, s.qty))

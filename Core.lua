@@ -419,6 +419,21 @@ local function Share(step, skill)
 end
 ns.Share = Share
 
+-- buying it on the auction house costs less than its materials (Heavy Leather, Bolt of Runecloth):
+-- then the plan buys it rather than making it. No price for it or one of its materials: make it
+local function CheaperToBuy(name, entry)
+  local buy = ns.MatPrice and ns.MatPrice(name)
+  if not buy then return false end
+  local runs, make = math.max(1, entry[2]), 0
+  local list = entry[3]
+  for m = 1, #list, 2 do
+    local p = ns.MatPrice(list[m])
+    if not p then return false end
+    make = make + p * list[m + 1] / runs
+  end
+  return buy * (entry[4] or 1) < make
+end
+
 -- crafts and materials from the skill you have up to `target`
 -- returns crafts, mats { [name] = count }, ordered names
 function ns.Plan(profID, skill, target)
@@ -458,6 +473,7 @@ function ns.Plan(profID, skill, target)
       local entry = recipes[name]
       -- what you already have of it counts too (24 Bolt of Runecloth in your bags: no Runecloth to buy for them)
       local short = (mats[name] or 0) - (made[name] or 0) - (entry and ns.Have(name) or 0)
+      if short > 0 and entry and CheaperToBuy(name, entry) then short = 0 end
       if short > 0 and entry then
         local runs = math.ceil(short / (entry[4] or 1))
         made[name] = (made[name] or 0) + runs * (entry[4] or 1)
@@ -488,7 +504,7 @@ function ns.Cost(mats)
   for name, count in pairs(mats) do
     local missing = math.max(0, count - ns.Have(name))
     if missing > 0 then
-      local price = ns.Price(name)
+      local price = ns.MatPrice(name)
       if price then total = total + price * missing else unknown = true end
     end
   end

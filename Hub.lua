@@ -284,7 +284,7 @@ local function MatsTip(tip, r)
   local mats = r.m or {}
   for i = 1, #mats, 2 do
     local name, n = mats[i], mats[i + 1]
-    local price = ns.Price(name)
+    local price = ns.MatPrice(name)
     local have = ns.Have(name)
     tip:AddDoubleLine(("%dx %s |cff8c8f96(%s %d)|r"):format(n, name, T("have"), have),
       price and ns.Money(price * n) or T("unknownPrice"), 0.85, 0.87, 0.9, 1, 1, 1)

@@ -207,7 +207,7 @@ local function Update()
     if sell then
       money[#money + 1] = T("rcSells", ns.Money(sell * yield))
       if cost > 0 then
-        local profit = sell * yield - cost
+        local profit = math.floor(sell * yield * 0.95) - cost   -- the auction house keeps 5%
         money[#money + 1] = (profit >= 0 and "|cff73d973" or "|cffe6594d") .. T("rcProfit", (profit < 0 and "-" or "") .. ns.Money(math.abs(profit))) .. "|r"
       end
     end

@@ -80,7 +80,7 @@ function ns.CraftCost(r)
   local cost, missing = 0, false
   local mats = r.m or {}
   for i = 1, #mats, 2 do
-    local price = ns.Price(mats[i])
+    local price = ns.MatPrice(mats[i])
     if price then cost = cost + price * mats[i + 1] else missing = true end
   end
   return cost, missing
