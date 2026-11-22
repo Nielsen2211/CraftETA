@@ -1057,6 +1057,20 @@ local function FavorItems(f)
     all[id] = shown
     if e.n then byName[e.n] = true end
   end
+  -- the recipes (FavorRecipes.lua): the profession's vendor, usable when you have the profession
+  local learnedNames = {}
+  for name in pairs(byName) do learnedNames[(name:gsub("^[^:]+:%s*", ""))] = true end
+  local skills = ns.Skills(true)
+  for k, v in ipairs(FAVOR_VENDORS) do
+    local list = v.prof and ns.FAVOR_RECIPES and ns.FAVOR_RECIPES[v.prof]
+    for _, r in ipairs(list or {}) do
+      if not learnedNames[r[1]] then
+        local mine = skills[v.prof]
+        all["r:" .. r[1]] = { n = r[1], c = r[3], v = v[f], i = ns.ProfIcon(v.prof), u = mine ~= nil,
+          skill = r[2], rep = r[4], prof = v.prof, canNow = mine and mine.rank >= r[2] }
+      end
+    end
+  end
   for _, r in ipairs(FAVOR_REWARDS) do
     local name = type(r.n) == "table" and (r.n[f] or (ns.db.lang == "da" and r.n[2] or r.n[1])) or r.n
     if not byName[name] then
@@ -1176,7 +1190,7 @@ function win:Refresh()
     t.icon:SetTexture(e.i or 134400)
     t.name:SetText(e.n)
     t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4)
-    t.sub:SetText(e.v or "")
+    t.sub:SetText((e.v or "") .. (e.skill and ("  ·  " .. e.skill) or "") .. (e.rep and ("  ·  |cffffd24a" .. (e.rep == 2 and "Honored" or "Friendly") .. "|r") or ""))
     t.cost:SetText(e.c .. " favor")
     local inCart = cart[id]
     local short = e.c - have
@@ -1188,6 +1202,10 @@ function win:Refresh()
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       if type(id) == "number" then GameTooltip:SetItemByID(id) else GameTooltip:SetText(e.n, 1, 1, 1) end
       if e.shared then GameTooltip:AddLine(L("From your guild (%s)", "Fra din guild (%s)"):format(type(e.shared) == "string" and e.shared or "?"), 0.55, 0.58, 0.64) end
+      if e.prof then
+        GameTooltip:AddLine(L("Recipe: %s %d", "Opskrift: %s %d"):format(ns.ProfName(e.prof), e.skill), e.canNow and 0.35 or 1, e.canNow and 0.9 or 0.42, e.canNow and 0.4 or 0.32)
+        if e.rep then GameTooltip:AddLine(L("Needs %s reputation", "Kræver %s reputation"):format(e.rep == 2 and "Honored" or "Friendly"), 1, 0.82, 0.3) end
+      end
       if e.wiki then GameTooltip:AddLine(L("Price from Warcraft Wiki; the vendor's own price replaces it once you open the vendor.", "Pris fra Warcraft Wiki; handlerens egen pris erstatter den, når du åbner handleren."), 0.55, 0.58, 0.64, true) end
       GameTooltip:AddLine(" ")
       GameTooltip:AddDoubleLine(L("Costs", "Koster"), e.c .. " Merchant's Favor", 0.85, 0.87, 0.9, 1, 0.82, 0.3)
