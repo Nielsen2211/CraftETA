@@ -595,7 +595,9 @@ for i, key in ipairs({ "crates", "shop" }) do
   local b = ns.Button(cheap, "", 150, 20)
   b:SetPoint("TOPLEFT", 12 + (i - 1) * 156, -8)
   b.key = key
-  b:SetScript("OnClick", function() ns.db.favorTab = key; favorScroll = 0; page:Refresh() end)
+  b:SetScript("OnClick", function()
+    if key == "shop" then ns.ToggleFavorShop() else ns.db.favorTab = key; page:Refresh() end
+  end)
   tabs[i] = b
 end
 -- the basket: what you want from the favor vendors, and what reaching it costs
@@ -819,12 +821,12 @@ function page:Refresh()
   page:UpdateFill()
 
   -- the bottom card: the cheapest crates, or what you can buy for favor
-  local tab = ns.db.favorTab or "crates"
+  local tab = "crates"
   local shopList = ns.db.favorShop and ns.db.favorShop[f] or {}
   local shopN = 0
   for _ in pairs(shopList) do shopN = shopN + 1 end
   tabs[1]:SetText(L("Cheapest crates", "Billigste kasser"))
-  tabs[2]:SetText(L("Buy for favor", "Køb for favor") .. (shopN > 0 and (" (" .. shopN .. ")") or ""))
+  tabs[2]:SetText(L("Buy for favor", "Køb for favor") .. (shopN > 0 and (" (" .. shopN .. ")") or "") .. "  »")
   for _, b in ipairs(tabs) do
     local on = b.key == tab
     b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
@@ -840,87 +842,6 @@ function page:Refresh()
     t:SetPoint("TOPLEFT", 16 + ((k - 1) % COLS) * (CHEAP_W + 8), -34 - math.floor((k - 1) / COLS) * CHEAP_H)
   end
 
-  if tab == "shop" then
-    usableSwitch:SetOn(not ns.db.favorAll)
-    usableLabel:SetText(L("Only what I can use", "Kun det jeg kan bruge"))
-    local list = {}
-    for id, e in pairs(shopList) do
-      if ns.db.favorAll or e.u then list[#list + 1] = { id = id, e = e } end
-    end
-    table.sort(list, function(a, b) if a.e.c ~= b.e.c then return a.e.c < b.e.c end return a.e.n < b.e.n end)
-    local first = math.min(favorScroll or 0, math.max(0, #list - fit))
-    first = first - first % COLS
-    favorScroll = first
-    if #list == 0 then
-      planEmpty:Hide()
-      cheapNote:ClearAllPoints(); cheapNote:SetPoint("TOPLEFT", 16, -40); cheapNote:SetPoint("RIGHT", cheap, "RIGHT", -16, 0)
-      cheapNote:SetJustifyH("LEFT"); cheapNote:SetWordWrap(true)
-      cheapNote:SetText(shopN == 0 and L("Open the favor vendors once (%s): CraftETA then remembers what they sell and what it costs.",
-          "Åbn favor-handlerne én gang (%s): så husker CraftETA, hvad de sælger, og hvad det koster."):format(f == "h" and "Crossroads" or "Three Corners")
-        or L("Nothing you can use. Switch off \"Only what I can use\" to see everything.", "Intet du kan bruge. Slå \"Kun det jeg kan bruge\" fra for at se alt."))
-      cheapNote:Show()
-    end
-    for k = 1, math.min(#list - first, fit) do
-      local it, t = list[first + k], Tile(k)
-      local e = it.e
-      Place(t, k)
-      t.icon:SetTexture(e.i or 134400)
-      t.name:SetText(e.n)
-      t.sub:SetText(e.v or "")
-      t.per:SetText(e.c .. " favor")
-      local short = e.c - (have or 0)
-      local inCart = Cart()[it.id]
-      t.fav:SetText(inCart and ("|cffffd24a" .. L("%d in basket", "%d i kurven"):format(inCart) .. "|r")
-        or (short <= 0 and ("|cff73d973" .. L("you can buy it", "du kan købe den") .. "|r") or L("%d to go", "%d mangler"):format(short)))
-      t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4)
-      local id, cost = it.id, e.c
-      Tip(t, function(tip)
-        tip:SetItemByID(id)
-        tip:AddLine(" ")
-        tip:AddDoubleLine(L("Costs", "Koster"), cost .. " Merchant's Favor", 0.85, 0.87, 0.9, 1, 0.82, 0.3)
-        if e.v then tip:AddDoubleLine(L("Sold by", "Sælges af"), e.v, 0.85, 0.87, 0.9, 1, 1, 1) end
-        tip:AddLine(L("Click: in the basket  ·  Right-click: out", "Klik: i kurven  ·  Højreklik: ud"), 0.55, 0.58, 0.64)
-      end)
-      t:SetScript("OnMouseUp", function(_, button)
-        local c = Cart()
-        if button == "RightButton" then
-          c[id] = (c[id] or 0) > 1 and c[id] - 1 or nil
-        else
-          c[id] = (c[id] or 0) + 1
-        end
-        page:Refresh()
-      end)
-      t:Show()
-    end
-    -- the basket: favor it needs, and what the cheapest way there costs
-    local n, need = 0, 0
-    for id, q in pairs(Cart()) do
-      local e = shopList[id]
-      if e then n = n + q; need = need + e.c * q end
-    end
-    local missing = math.max(0, need - (have or 0))
-    local costText = ""
-    if missing > 0 then
-      local _, got, g = ns.FavorPlan(missing)
-      costText = "  ·  " .. (got < missing and "~" or "") .. ns.Money(math.max(0, g)) .. L(" on the AH", " på AH")
-    end
-    cartText:SetText(n == 0 and L("Click things to put them in the basket", "Klik på ting for at lægge dem i kurven")
-      or (L("Basket: %d  ·  %d favor", "Kurv: %d  ·  %d favor"):format(n, need)
-        .. (missing > 0 and ("  ·  " .. L("%d to go", "%d mangler"):format(missing)) or ("  ·  |cff73d973" .. L("you have it", "du har det") .. "|r")) .. costText))
-    cartGoal:SetText(L("Plan it", "Planlæg det"))
-    cartGoal:SetEnabled(n > 0 and missing > 0)
-    cartGoal:SetScript("OnClick", function() ns.db.favorGoal = need; favorScroll = 0; ns.RefreshHub() end)
-    cartGoal.tip = L("Makes the basket's favor your goal: the plan above shows the cheapest way there.", "Gør kurvens favor til dit mål: planen ovenfor viser den billigste vej.")
-    cartClear:SetText(L("Empty", "Tøm"))
-    cartClear:SetShown(n > 0)
-    cartClear:SetScript("OnClick", function() wipe(Cart()); page:Refresh() end)
-    if #list > fit then
-      cheapNote:ClearAllPoints(); cheapNote:SetPoint("TOPRIGHT", usableLabel, "TOPLEFT", -14, 0); cheapNote:SetJustifyH("RIGHT")
-      cheapNote:SetText(L("%d-%d of %d  ·  scroll", "%d til %d af %d  ·  scroll"):format(first + 1, math.min(#list, first + fit), #list))
-      cheapNote:Show()
-    end
-    return
-  end
 
   -- the cheapest crates per favor
   local stock, rows = StockNow(), {}
@@ -955,6 +876,176 @@ function page:Refresh()
   end
 end
 page:SetScript("OnShow", function(self) C_Timer.After(0, function() if self:IsShown() then self:Refresh() end end) end)
+
+---------------------------------------------------------------------------
+-- Buy for favor: a window of its own. What the favor vendors sell (learned when you open them), a basket,
+-- and what reaching the basket's favor costs the cheapest way
+---------------------------------------------------------------------------
+local SW, SH = 620, 540
+local win = ns.Window("CraftETAFavorShop", SW, "|cffffffffBuy for|r |cffffd24afavor|r")
+win:SetHeight(SH)
+win:SetFrameStrata("DIALOG")
+local wHave = ns.Font(win, true, 12, 1, 0.82, 0.3); wHave:SetPoint("TOPRIGHT", -40, -13); wHave:SetJustifyH("RIGHT")
+local wSwitch = ns.Switch(win, function() ns.db.favorAll = not ns.db.favorAll; favorScroll = 0; win:Refresh() end)
+wSwitch:SetPoint("TOPRIGHT", -14, -44)
+local wSwitchLabel = ns.Font(win, false, 10, 0.6, 0.62, 0.67); wSwitchLabel:SetPoint("RIGHT", wSwitch, "LEFT", -6, 0)
+local wCount = ns.Font(win, false, 10, 0.5, 0.52, 0.57); wCount:SetPoint("TOPLEFT", 16, -46)
+local wEmpty = ns.Font(win, false, 11, 0.6, 0.62, 0.67); wEmpty:SetPoint("TOPLEFT", 16, -80); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
+wEmpty:SetWordWrap(true); wEmpty:SetJustifyH("LEFT")
+
+local WCOLS, WT_H = 2, 46
+local WT_W = math.floor((SW - 32 - 8) / WCOLS)
+local WROWS = 8
+local wTiles = {}
+local function WTile(i)
+  if wTiles[i] then return wTiles[i] end
+  local t = CreateFrame("Button", nil, win)
+  t:SetSize(WT_W, WT_H - 6)
+  t:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  t.bg = t:CreateTexture(nil, "BACKGROUND"); t.bg:SetAllPoints(); t.bg:SetColorTexture(0.086, 0.094, 0.122, 1)
+  t.mark = t:CreateTexture(nil, "BORDER"); t.mark:SetPoint("TOPLEFT"); t.mark:SetPoint("BOTTOMLEFT"); t.mark:SetWidth(2)
+  t.icon = t:CreateTexture(nil, "ARTWORK"); t.icon:SetSize(30, 30); t.icon:SetPoint("LEFT", 8, 0); t.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  t.cost = ns.Font(t, true, 11, 1, 0.82, 0.3); t.cost:SetPoint("TOPRIGHT", -10, -6); t.cost:SetJustifyH("RIGHT")
+  t.state = ns.Font(t, false, 9, 0.5, 0.52, 0.57); t.state:SetPoint("BOTTOMRIGHT", -10, 6); t.state:SetJustifyH("RIGHT")
+  t.name = ns.Font(t, true, 11, 0.9, 0.91, 0.94); t.name:SetPoint("TOPLEFT", t.icon, "TOPRIGHT", 9, 0)
+  t.name:SetPoint("RIGHT", t.cost, "LEFT", -8, 0); t.name:SetWordWrap(false)
+  t.sub = ns.Font(t, false, 9, 0.5, 0.52, 0.57); t.sub:SetPoint("BOTTOMLEFT", t.icon, "BOTTOMRIGHT", 9, 0)
+  t.sub:SetPoint("RIGHT", t.state, "LEFT", -8, 0); t.sub:SetWordWrap(false)
+  local hl = t:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.05)
+  t:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  wTiles[i] = t
+  return t
+end
+local wMore = ns.Font(win, false, 9, 0.45, 0.47, 0.52); wMore:SetPoint("TOPRIGHT", -16, -68 - WROWS * WT_H); wMore:SetJustifyH("RIGHT")
+
+-- the basket card
+local basket = CreateFrame("Frame", nil, win)
+basket:SetPoint("BOTTOMLEFT", 12, 12); basket:SetPoint("BOTTOMRIGHT", -12, 12); basket:SetHeight(66)
+local bBg = basket:CreateTexture(nil, "BACKGROUND"); bBg:SetAllPoints(); bBg:SetColorTexture(0.086, 0.094, 0.122, 1)
+local bEdge = basket:CreateTexture(nil, "BORDER"); bEdge:SetPoint("TOPLEFT"); bEdge:SetPoint("TOPRIGHT"); bEdge:SetHeight(1)
+bEdge:SetColorTexture(0.47, 0.38, 0.16, 1)
+local bIcon = basket:CreateTexture(nil, "ARTWORK"); bIcon:SetSize(34, 34); bIcon:SetPoint("LEFT", 14, 0)
+bIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10_Blue"); bIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+local bTitle = ns.Font(basket, true, 14, 0.9, 0.91, 0.94); bTitle:SetPoint("TOPLEFT", bIcon, "TOPRIGHT", 12, 0)
+local bSub = ns.Font(basket, false, 10, 0.6, 0.62, 0.67); bSub:SetPoint("BOTTOMLEFT", bIcon, "BOTTOMRIGHT", 12, 1)
+local bPlan = ns.Primary(ns.Button(basket, "", 140, 30), 12); bPlan:SetPoint("RIGHT", -14, 0)
+local bClear = ns.Button(basket, "", 64, 30); bClear:SetPoint("RIGHT", bPlan, "LEFT", -8, 0)
+bClear.label:SetTextColor(0.85, 0.87, 0.9)
+bTitle:SetPoint("RIGHT", bClear, "LEFT", -10, 0); bSub:SetPoint("RIGHT", bClear, "LEFT", -10, 0)
+bTitle:SetWordWrap(false); bSub:SetWordWrap(false)
+
+win:EnableMouseWheel(true)
+win:SetScript("OnMouseWheel", function(_, delta)
+  favorScroll = math.max(0, favorScroll - delta * WCOLS)
+  win:Refresh()
+end)
+
+function win:Refresh()
+  if not self:IsShown() or not ns.db then return end
+  local f = ns.Faction()
+  local have = ns.FavorNow() or 0
+  local shopList = ns.db.favorShop and ns.db.favorShop[f] or {}
+  local shopN = 0
+  for _ in pairs(shopList) do shopN = shopN + 1 end
+  self.title:SetText(L("|cffffffffBuy for|r |cffffd24afavor|r", "|cffffffffKøb for|r |cffffd24afavor|r"))
+  wHave:SetText(L("You have %d favor", "Du har %d favor"):format(have))
+  wSwitch:SetOn(not ns.db.favorAll)
+  wSwitchLabel:SetText(L("Only what I can use", "Kun det jeg kan bruge"))
+
+  local list = {}
+  for id, e in pairs(shopList) do
+    if ns.db.favorAll or e.u then list[#list + 1] = { id = id, e = e } end
+  end
+  table.sort(list, function(a, b) if a.e.c ~= b.e.c then return a.e.c < b.e.c end return a.e.n < b.e.n end)
+  wCount:SetText(L("%d things  ·  click: in the basket  ·  right-click: out", "%d ting  ·  klik: i kurven  ·  højreklik: ud"):format(#list))
+  local fit = WROWS * WCOLS
+  favorScroll = math.min(favorScroll, math.max(0, #list - fit))
+  favorScroll = favorScroll - favorScroll % WCOLS
+  wEmpty:SetShown(#list == 0)
+  wEmpty:SetText(shopN == 0 and L("CraftETA doesn't know the favor vendors yet. Open each of them once (%s): it then remembers what they sell and what it costs, for good.",
+      "CraftETA kender ikke favor-handlerne endnu. Åbn hver af dem én gang (%s): så husker den, hvad de sælger, og hvad det koster, for altid."):format(f == "h" and "Crossroads, The Barrens" or "Three Corners, Redridge Mountains")
+    or L("Nothing you can use. Switch off \"Only what I can use\" to see everything.", "Intet du kan bruge. Slå \"Kun det jeg kan bruge\" fra for at se alt."))
+  local cart = Cart()
+  for _, t in ipairs(wTiles) do t:Hide() end
+  for k = 1, math.min(#list - favorScroll, fit) do
+    local it, t = list[favorScroll + k], WTile(k)
+    local e, id = it.e, it.id
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", 16 + ((k - 1) % WCOLS) * (WT_W + 8), -68 - math.floor((k - 1) / WCOLS) * WT_H)
+    t.icon:SetTexture(e.i or 134400)
+    t.name:SetText(e.n)
+    t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4)
+    t.sub:SetText(e.v or "")
+    t.cost:SetText(e.c .. " favor")
+    local inCart = cart[id]
+    local short = e.c - have
+    t.state:SetText(inCart and ("|cffffd24a" .. L("%d in basket", "%d i kurven"):format(inCart) .. "|r")
+      or (short <= 0 and ("|cff73d973" .. L("you can buy it", "du kan købe den") .. "|r") or L("%d to go", "%d mangler"):format(short)))
+    t.mark:SetColorTexture(1, 0.82, 0.3, inCart and 1 or 0)
+    t.bg:SetColorTexture(inCart and 0.13 or 0.086, inCart and 0.12 or 0.094, inCart and 0.1 or 0.122, 1)
+    t:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetItemByID(id)
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddDoubleLine(L("Costs", "Koster"), e.c .. " Merchant's Favor", 0.85, 0.87, 0.9, 1, 0.82, 0.3)
+      if e.v then GameTooltip:AddDoubleLine(L("Sold by", "Sælges af"), e.v, 0.85, 0.87, 0.9, 1, 1, 1) end
+      GameTooltip:AddLine(L("Click: in the basket  ·  Right-click: out", "Klik: i kurven  ·  Højreklik: ud"), 0.55, 0.58, 0.64)
+      GameTooltip:Show()
+    end)
+    t:SetScript("OnClick", function(_, button)
+      if button == "RightButton" then
+        cart[id] = (cart[id] or 0) > 1 and cart[id] - 1 or nil
+      else
+        cart[id] = (cart[id] or 0) + 1
+      end
+      win:Refresh()
+    end)
+    t:Show()
+  end
+  wMore:SetText(#list > fit and L("%d-%d of %d  ·  scroll for more", "%d til %d af %d  ·  scroll for flere"):format(favorScroll + 1, math.min(#list, favorScroll + fit), #list) or "")
+
+  -- the basket
+  local n, need = 0, 0
+  for id, q in pairs(cart) do
+    local e = shopList[id]
+    if e then n = n + q; need = need + e.c * q end
+  end
+  local missing = math.max(0, need - have)
+  if n == 0 then
+    bTitle:SetText(L("Your basket is empty", "Din kurv er tom"))
+    bSub:SetText(L("Click the things you want: it adds up the favor and what getting it costs.", "Klik på det, du vil have: så lægger den favor sammen, og hvad det koster at skaffe."))
+  else
+    bTitle:SetText(L("%d in the basket  ·  %d favor", "%d i kurven  ·  %d favor"):format(n, need))
+    if missing > 0 then
+      local _, got, g = ns.FavorPlan(missing)
+      bSub:SetText(L("You need %d more  ·  the cheapest way: %s%s on the auction house", "Du mangler %d  ·  billigste vej: %s%s på AH"):format(
+        missing, got < missing and "~" or "", ns.Money(math.max(0, g))) .. (got < missing and L("  (not enough crates scanned)", "  (for få kasser scannet)") or ""))
+    else
+      bSub:SetText("|cff73d973" .. L("You have the favor for it all. Go buy it.", "Du har favor nok til det hele. Gå ud og køb det.") .. "|r")
+    end
+  end
+  bPlan:SetText(L("Plan it", "Planlæg det"))
+  bPlan:SetEnabled(n > 0 and missing > 0)
+  bPlan:SetScript("OnClick", function()
+    ns.db.favorGoal = need
+    win:Hide()
+    ns.ToggleHub("favor")
+    if ns.RefreshHub then ns.RefreshHub() end
+  end)
+  bPlan.tip = L("Makes the basket's favor your goal: the Favor page shows the crates and materials to buy.", "Gør kurvens favor til dit mål: Favor-siden viser kasser og mats, du skal købe.")
+  bClear:SetText(L("Empty", "Tøm"))
+  bClear:SetEnabled(n > 0)
+  bClear:SetScript("OnClick", function() wipe(cart); win:Refresh() end)
+end
+win:SetScript("OnShow", function(self) ns.PlaceSaved(self, "CraftETAFavorShop", "CENTER", UIParent, "CENTER", 0, 0); self:Refresh() end)
+function ns.ToggleFavorShop()
+  if win:IsShown() then win:Hide() else win:Show() end
+end
+-- new prices from a vendor, more favor: the window follows
+for _, e in ipairs({ "MERCHANT_SHOW", "CURRENCY_DISPLAY_UPDATE" }) do
+  ns.Register(e)
+  ns.On(e, function() C_Timer.After(0.6, function() if win:IsShown() then win:Refresh() end end) end)
+end
 
 ---------------------------------------------------------------------------
 -- Buying crates on the auction house: a crate you click in the plan, the cheapest first.
