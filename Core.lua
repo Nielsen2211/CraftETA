@@ -198,8 +198,9 @@ function ns.ItemID(name)
   if not name then return nil end
   local id = ns.db and ns.db.ids[name]
   if id then return id end
-  if GetItemInfoInstant then
-    local ok, found = pcall(GetItemInfoInstant, name)
+  local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  if instant then
+    local ok, found = pcall(instant, name)
     if ok and type(found) == "number" then
       ns.LearnItem(name, found)
       return found
@@ -209,10 +210,16 @@ function ns.ItemID(name)
 end
 
 -- an item's icon: from its ID, else from a recipe of that name in your recipe books, else the fallback
+-- Forever's client has these under C_Item (the old globals can be missing)
+local InfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 function ns.ItemIcon(name, fallback)
   local id = ns.ItemID(name)
-  if id and GetItemInfoInstant then
-    local ok, _, _, _, _, icon = pcall(GetItemInfoInstant, id)
+  if id and C_Item and C_Item.GetItemIconByID then
+    local ok, icon = pcall(C_Item.GetItemIconByID, id)
+    if ok and icon then return icon end
+  end
+  if id and InfoInstant then
+    local ok, _, _, _, _, icon = pcall(InfoInstant, id)
     if ok and icon then return icon end
   end
   if ns.db and ns.db.chars and name then
