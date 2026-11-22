@@ -464,17 +464,17 @@ barBg:SetPoint("TOPLEFT", topIcon, "BOTTOMLEFT", 0, -10); barBg:SetPoint("RIGHT"
 local bar = Fill(top, GOLD[1], GOLD[2], GOLD[3], 1, "ARTWORK", 2)
 bar:SetPoint("TOPLEFT", barBg); bar:SetPoint("BOTTOMLEFT", barBg); bar:SetWidth(1)
 
-local goalHead = ns.Font(top, true, 9, 0.36, 0.38, 0.42); goalHead:SetPoint("TOPRIGHT", -16, -14); goalHead:SetJustifyH("RIGHT")
+local goalHead = ns.Font(top, true, 9, 0.36, 0.38, 0.42); goalHead:SetPoint("TOPRIGHT", -48, -14); goalHead:SetJustifyH("RIGHT")
 local goalBox = ns.NumberBox(top, 70, 24, 15, function(n)
   ns.db.favorGoal = math.max(1, n)
   ns.RefreshHub()
 end)
-goalBox:SetPoint("TOPRIGHT", -16, -28)
+goalBox:SetPoint("TOPRIGHT", -48, -28)
 local goalUnit = ns.Font(top, false, 10, 0.6, 0.62, 0.67); goalUnit:SetPoint("RIGHT", goalBox, "LEFT", -6, 0)
 local presets = {}
 for i, v in ipairs({ 50, 100, 200, 500 }) do
   local b = ns.Button(top, tostring(v), 44, 18)
-  b:SetPoint("TOPRIGHT", -16 - (4 - i) * 48, -60)
+  b:SetPoint("TOPRIGHT", -48 - (4 - i) * 48, -60)
   b.label:SetFont(ns.F_BOLD, 10, "")
   b:SetScript("OnClick", function() ns.db.favorGoal = v; ns.RefreshHub() end)
   b.value = v

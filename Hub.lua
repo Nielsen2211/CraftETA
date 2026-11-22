@@ -757,6 +757,8 @@ ns.HubBuilders = {}    -- list pages from other files
 
 function ns.RefreshHub()
   if not H:IsShown() or not ns.db then return end
+  -- the close button stays on top of every page (Favor and Crafters have cards up there)
+  H.close:SetFrameLevel(H:GetFrameLevel() + 60)
   wipe(data)
   for _, b in ipairs(controls) do b:Hide() end
   search:Hide(); searchButton:Hide(); detail:Hide(); detailBg:Hide()
