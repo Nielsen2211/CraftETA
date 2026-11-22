@@ -605,7 +605,13 @@ function page:Refresh()
           if l == STEP_LINES and #lines > STEP_LINES then
             d = { icon = d.icon, text = d.text .. L("  ·  +%d more", "  ·  +%d mere"):format(#lines - STEP_LINES), value = d.value, tip = d.tip }
           end
-          r.icon:SetTexture(d.icon or 134400)
+          -- an atlas (the blue "?" of a repeatable quest) or a texture
+          local okA, set = false, nil
+          if d.atlas and r.icon.SetAtlas then okA, set = pcall(r.icon.SetAtlas, r.icon, d.atlas) end
+          if not (okA and set ~= false) then
+            r.icon:SetTexture(d.icon or 134400)
+            r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+          end
           r.text:SetText(d.text); r.value:SetText(d.value or "")
           if d.tip then Tip(r, d.tip) else r:SetScript("OnEnter", nil); r:SetScript("OnLeave", nil) end
           r:Show()
@@ -661,7 +667,7 @@ function page:Refresh()
 
     -- 4: hand in
     AddStep(L("Hand them in", "Aflever dem"), "|cffffd24a+" .. got .. " favor|r", {
-      { icon = "Interface\\Icons\\INV_Misc_Note_01", text = TURN_IN[f], value = back > 0 and ("|cff73d973+" .. ns.Money(back) .. L(" back", " tilbage") .. "|r") or "" },
+      { atlas = "QuestRepeatableTurnin", icon = "Interface\\GossipFrame\\DailyActiveQuestIcon", text = TURN_IN[f], value = back > 0 and ("|cff73d973+" .. ns.Money(back) .. L(" back", " tilbage") .. "|r") or "" },
     })
   end
   plan:SetHeight(-y + 46)
