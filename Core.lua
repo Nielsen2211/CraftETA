@@ -424,8 +424,9 @@ function ns.Plan(profID, skill, target)
   end
   for pass = 1, 2 do
     for _, name in ipairs(order) do
-      local short = (mats[name] or 0) - (made[name] or 0)
       local entry = recipes[name]
+      -- what you already have of it counts too (24 Bolt of Runecloth in your bags: no Runecloth to buy for them)
+      local short = (mats[name] or 0) - (made[name] or 0) - (entry and ns.Have(name) or 0)
       if short > 0 and entry then
         local runs = math.ceil(short / (entry[4] or 1))
         made[name] = (made[name] or 0) + runs * (entry[4] or 1)
