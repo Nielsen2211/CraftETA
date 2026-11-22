@@ -787,15 +787,16 @@ function ns.ShowTimeline(id, guide, skill, current, data)
     local ic = Icon(i)
     ic:SetScript("OnEnter", seg:GetScript("OnEnter"))
     ic.data, ic.index = data, i
-    row = (x1 - lastIconX < 21) and (1 - row) or 0
-    lastIconX = x1
+    -- one row of icons; a step too close to the last icon shown gets none (its segment still has the tooltip)
+    local fits = x1 - lastIconX >= 22
+    if fits then lastIconX = x1 end
     ic:ClearAllPoints()
-    ic:SetPoint("BOTTOMLEFT", tl, "TOPLEFT", x1, BAR_Y + 4 + row * 20)
+    ic:SetPoint("BOTTOMLEFT", tl, "TOPLEFT", x1, BAR_Y + 4)
     local entry = ns.GUIDES[id] and (ns.Chosen(id, i, s))[1]
     ic.tex:SetTexture(entry and ns.ItemIcon(entry[1], ns.ProfIcon(id)) or guide.icon or ns.ProfIcon(id))
     ic.tex:SetDesaturated(rank >= s[2])
     ic:SetAlpha(rank >= s[2] and 0.55 or 1)
-    ic:Show()
+    ic:SetShown(fits)
   end
   for i = #guide.steps + 1, #segs do segs[i]:Hide(); icons[i]:Hide() end
   -- where you learn the next ranks

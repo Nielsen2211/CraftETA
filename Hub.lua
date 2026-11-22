@@ -471,10 +471,13 @@ local ORDER = { 171, 164, 333, 202, 165, 197, 186, 182, 393, 185, 129, 356 }
 
 local function Guide(id) return ns.GUIDES[id] or ns.GATHER[id] end
 
+local RANK_NAME = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
 local function RankLine(guide, skill, f)
   for _, r in ipairs(guide.ranks) do
     if (skill.max or 0) <= r.at and skill.rank >= r.need - 25 then
-      return "|cffff9a59" .. T("learnAt", r.need, r.lvl, r[f]) .. "|r"
+      local name = RANK_NAME[r.at] or ""
+      local text = skill.rank >= r.need and T("learnNow", name, r.lvl, r[f]) or T("learnAt2", name, r.need, r.lvl, r[f])
+      return "|cffff9a59" .. text .. "|r"
     end
   end
 end
