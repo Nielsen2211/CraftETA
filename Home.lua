@@ -795,7 +795,9 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
   local near = skill and max < 300 and max - rank <= 10
   tlSkill:SetText(skill and ("%d / %d"):format(rank, max) or "")
   tlSkill:SetTextColor(near and 1 or 1, near and 0.42 or 0.82, near and 0.32 or 0.3)
-  local train, rankName, where = skill and ns.TrainNow(id, rank, max)
+  -- (not "skill and ns.TrainNow(...)": "and" keeps only the first of its three results)
+  local train, rankName, where
+  if skill then train, rankName, where = ns.TrainNow(id, rank, max) end
   if train then
     tlCount:SetText("|cffffd24a" .. T("trainBar", rankName, where) .. "|r")
   else
