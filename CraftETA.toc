@@ -13,11 +13,11 @@ Guides.lua
 Gather.lua
 Camp.lua
 Widgets.lua
+Places.lua
 Profession.lua
 Book.lua
 Panel.lua
 Vendors.lua
-Places.lua
 Shop.lua
 Hub.lua
 Extra.lua
