@@ -1,14 +1,17 @@
--- CraftETA: the main window. Recipes, Profit, Crafters, Characters and Gathering, in tabs.
+-- CraftETA: the main window. A menu on the left (Professions, Recipes, Profit, Crafters, Characters,
+-- Shopping list, Settings) and the page on the right.
 local _, ns = ...
 local T = ns.T
 local GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 
-local WIDTH, ROWS, ROW_H = 480, 15, 20
+local WIDTH, SIDE, ROWS, ROW_H = 620, 132, 15, 20
+local X = SIDE + 12           -- where the page starts
+local CW = WIDTH - X - 14     -- page width
 local H = ns.Window("CraftETAHub", WIDTH)
 ns.Hub = H
-H:SetHeight(110 + ROWS * ROW_H)
+H:SetHeight(104 + ROWS * ROW_H)
 
-local state = { tab = "recipes", filter = "all", profitMode = "craft", offset = 0 }
+local state = { tab = "guide", filter = "all", profitMode = "craft", offset = 0 }
 local data = {}
 ns.hubState = state
 
@@ -21,21 +24,62 @@ ns.ProfIcon = ProfIcon
 ---------------------------------------------------------------------------
 -- Tabs and the control row
 ---------------------------------------------------------------------------
-local TABS = { "recipes", "profit", "crafters", "chars", "gather" }
-local tabButtons = {}
-for i, key in ipairs(TABS) do
-  local b = ns.Button(H, "", 88, 22)
-  b:SetPoint("TOPLEFT", 14 + (i - 1) * 91, -36)
-  b:SetScript("OnClick", function()
-    state.tab, state.offset = key, 0
-    ns.RefreshHub()
-  end)
-  b.key = key
-  tabButtons[i] = b
+local MENU = {
+  { "guide", "Interface\\Icons\\INV_Misc_Book_11" },
+  { "recipes", "Interface\\Icons\\INV_Scroll_03" },
+  { "profit", "Interface\\Icons\\INV_Misc_Coin_02" },
+  { "crafters", "Interface\\Icons\\INV_Letter_15" },
+  { "chars", "Interface\\Icons\\INV_Misc_Head_Human_01" },
+  false,
+  { "list", "Interface\\Icons\\INV_Misc_Note_05", function() ns.ToggleList() end },
+  { "settings", "Interface\\Icons\\INV_Misc_Gear_01", function() ns.ToggleSettings() end },
+}
+local sideBg = H:CreateTexture(nil, "BORDER")
+sideBg:SetPoint("TOPLEFT", 6, -34)
+sideBg:SetPoint("BOTTOMLEFT", 6, 8)
+sideBg:SetWidth(SIDE - 6)
+sideBg:SetColorTexture(0, 0, 0, 0.22)
+local menuButtons = {}
+local my = -40
+for _, item in ipairs(MENU) do
+  if not item then
+    local line = H:CreateTexture(nil, "ARTWORK")
+    line:SetColorTexture(1, 1, 1, 0.07)
+    line:SetHeight(1)
+    line:SetPoint("TOPLEFT", 14, my - 4)
+    line:SetWidth(SIDE - 22)
+    my = my - 10
+  else
+    local key, icon, action = item[1], item[2], item[3]
+    local b = CreateFrame("Button", nil, H)
+    b:SetSize(SIDE - 10, 24)
+    b:SetPoint("TOPLEFT", 8, my)
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetSize(16, 16)
+    b.icon:SetPoint("LEFT", 8, 0)
+    b.icon:SetTexture(icon)
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b.text = ns.Font(b, true, 11)
+    b.text:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
+    b.sel = b:CreateTexture(nil, "BACKGROUND")
+    b.sel:SetAllPoints()
+    b.sel:SetColorTexture(1, 0.82, 0.3, 0.10)
+    b.bar = b:CreateTexture(nil, "ARTWORK")
+    b.bar:SetPoint("TOPLEFT"); b.bar:SetPoint("BOTTOMLEFT"); b.bar:SetWidth(2)
+    b.bar:SetColorTexture(1, 0.82, 0.3, 1)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.04)
+    b.key, b.action = key, action
+    b:SetScript("OnClick", function()
+      if action then action() return end
+      state.tab, state.offset = key, 0
+      ns.RefreshHub()
+    end)
+    menuButtons[#menuButtons + 1] = b
+    my = my - 26
+  end
 end
-local tabLine = H:CreateTexture(nil, "ARTWORK")
-tabLine:SetHeight(2)
-tabLine:SetColorTexture(1, 0.82, 0.3, 1)
 
 -- up to 5 small buttons under the tabs (professions, filters, modes)
 local controls = {}
@@ -49,8 +93,8 @@ local function Control(i)
 end
 
 local search = CreateFrame("EditBox", nil, H)
-search:SetSize(300, 20)
-search:SetPoint("TOPLEFT", 14, -64)
+search:SetSize(CW - 96, 20)
+search:SetPoint("TOPLEFT", X, -38)
 search:SetAutoFocus(false)
 search:SetFont(ns.F_SEMI, 11, "")
 search:SetTextInsets(6, 6, 0, 0)
@@ -78,8 +122,8 @@ end)
 -- the gathering tab's step text
 local detail = ns.Font(H, false, 11)
 ns.hubDetail = detail
-detail:SetPoint("TOPLEFT", 14, -94)
-detail:SetWidth(WIDTH - 28)
+detail:SetPoint("TOPLEFT", X, -68)
+detail:SetWidth(CW)
 detail:SetWordWrap(true)
 detail:SetSpacing(2)
 
@@ -89,7 +133,7 @@ detail:SetSpacing(2)
 local rows = {}
 for i = 1, ROWS do
   local r = ns.Row(H, ROW_H - 2)
-  r:SetWidth(WIDTH - 28)
+  r:SetWidth(CW)
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   r:SetScript("OnEnter", function(self)
     local d = self.data
@@ -111,7 +155,7 @@ for i = 1, ROWS do
 end
 ns.hubRows = rows
 local footer = ns.Font(H, false, 10, 0.55, 0.58, 0.64)
-footer:SetPoint("BOTTOMLEFT", 14, 14)
+footer:SetPoint("BOTTOMLEFT", X, 14)
 footer:SetPoint("RIGHT", H, "RIGHT", -14, 0)
 
 H:EnableMouseWheel(true)
@@ -121,15 +165,16 @@ H:SetScript("OnMouseWheel", function(_, delta)
   ns.DrawHub()
 end)
 
-local listTop = -94
+local TOP = -68
+local listTop = TOP
 function ns.DrawHub()
   for i = 1, ROWS do
     local r, d = rows[i], data[i + state.offset]
     local y = listTop - (i - 1) * ROW_H
     if d and y > -(H:GetHeight() - 34) then
       r:ClearAllPoints()
-      r:SetPoint("TOPLEFT", 14 + (d.indent or 0), y)
-      r:SetWidth(WIDTH - 28 - (d.indent or 0))
+      r:SetPoint("TOPLEFT", X + (d.indent or 0), y)
+      r:SetWidth(CW - (d.indent or 0))
       r.data = d
       r.icon:SetTexture(d.icon)
       r.icon:SetShown(d.icon ~= nil)
@@ -178,14 +223,14 @@ local function BuildRecipes()
     if i > 3 then break end
     local b = Control(i)
     b:SetText(ns.ProfName(id))
-    b:SetPoint("TOPLEFT", 14 + (i - 1) * 90, -64)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90, -38)
     b.label:SetTextColor(id == state.prof and 1 or 0.6, id == state.prof and 0.82 or 0.62, id == state.prof and 0.3 or 0.68)
     b:SetScript("OnClick", function() state.prof, state.offset = id, 0; ns.RefreshHub() end)
     b:Show()
     n = i
   end
   local f = Control(n + 1)
-  f:SetPoint("TOPLEFT", 14 + n * 90 + 10, -64)
+  f:SetPoint("TOPLEFT", X + n * 90 + 10, -38)
   f:SetText(T("f_" .. state.filter))
   f:SetScript("OnClick", function()
     state.filter = ({ all = "learned", learned = "missing", missing = "all" })[state.filter]
@@ -244,7 +289,7 @@ local function BuildProfit()
   local modes = { "craft", "farm" }
   for i, mode in ipairs(modes) do
     local b = Control(i)
-    b:SetPoint("TOPLEFT", 14 + (i - 1) * 90, -64)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90, -38)
     b:SetText(T("p_" .. mode))
     local on = state.profitMode == mode
     b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
@@ -386,29 +431,52 @@ local function BuildChars()
 end
 
 ---------------------------------------------------------------------------
--- Gathering
+-- Professions: your crafting and gathering professions, the step you are on and the route 1-300
 ---------------------------------------------------------------------------
-local GATHER_ORDER = { 186, 182, 393, 356 }
+local ORDER = { 171, 164, 333, 202, 165, 197, 186, 182, 393, 185, 129, 356 }
 
-local function BuildGather()
-  local skills = ns.Skills(true)
-  if not state.gather then
-    for _, id in ipairs(GATHER_ORDER) do
-      if skills[id] then state.gather = id; break end
+local function Guide(id) return ns.GUIDES[id] or ns.GATHER[id] end
+
+local function RankLine(guide, skill, f)
+  for _, r in ipairs(guide.ranks) do
+    if (skill.max or 0) <= r.at and skill.rank >= r.need - 25 then
+      return "|cffff9a59" .. T("learnAt", r.need, r.lvl, r[f]) .. "|r"
     end
-    state.gather = state.gather or 186
   end
-  for i, id in ipairs(GATHER_ORDER) do
+end
+
+local function CraftStepText(id, index, step)
+  local parts = {}
+  for _, e in ipairs((ns.Chosen(id, index, step))) do
+    parts[#parts + 1] = ("%s x%d"):format(e[1], e[2])
+  end
+  return table.concat(parts, step.any and " / " or ", ")
+end
+
+local function BuildGuide()
+  local skills = ns.Skills(true)
+  local mine = {}
+  for _, id in ipairs(ORDER) do
+    if skills[id] then mine[#mine + 1] = id end
+  end
+  if #mine == 0 then mine = { 186, 182, 393, 356 } end
+  local found = false
+  for _, id in ipairs(mine) do if id == state.guide then found = true end end
+  if not found then state.guide = mine[1] end
+  for i, id in ipairs(mine) do
+    if i > 5 then break end
     local b = Control(i)
-    b:SetPoint("TOPLEFT", 14 + (i - 1) * 90, -64)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90, -38)
     b:SetText(ns.ProfName(id))
-    local on = id == state.gather
+    local on = id == state.guide
     b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
-    b:SetScript("OnClick", function() state.gather, state.offset = id, 0; ns.RefreshHub() end)
+    b:SetScript("OnClick", function() state.guide, state.offset = id, 0; ns.RefreshHub() end)
     b:Show()
   end
-  local guide = ns.GATHER[state.gather]
-  local skill = skills[state.gather]
+  local id = state.guide
+  local guide = Guide(id)
+  local crafting = ns.GUIDES[id] ~= nil
+  local skill = skills[id]
   local rank = skill and skill.rank or 0
   local f = ns.Faction()
   local current
@@ -420,33 +488,55 @@ local function BuildGather()
     lines[#lines + 1] = "|cffff9a59" .. T("notKnown", guide.name) .. "|r"
   else
     lines[#lines + 1] = ("|cffffffff%s %d/%d|r"):format(guide.name, rank, skill.max or 300)
-    for _, r in ipairs(guide.ranks) do
-      if (skill.max or 0) <= r.at and rank >= r.need - 25 then
-        lines[#lines + 1] = "|cffff9a59" .. T("learnAt", r.need, r.lvl, r[f]) .. "|r"
-        break
-      end
-    end
+    local warn = RankLine(guide, skill, f)
+    if warn then lines[#lines + 1] = warn end
   end
-  local step = guide.steps[current or 1]
   if rank >= 300 then
     lines[#lines + 1] = "|cff59e566" .. T("done") .. "|r"
-  else
-    lines[#lines + 1] = ("|cffffd24a%d-%d:|r %s"):format(step[1], step[2], step.what)
-    lines[#lines + 1] = "|cff8c8f96" .. T("where") .. "|r " .. step[f]
+  elseif current then
+    local step = guide.steps[current]
+    if crafting then
+      lines[#lines + 1] = ("|cffffd24a%d-%d:|r %s"):format(step[1], step[2], CraftStepText(id, current, step))
+      if skill then
+        local target = ns.Target(id, rank, skill.max)
+        local crafts, mats = ns.Plan(id, rank, target)
+        local cost, unknown = ns.Cost(mats)
+        local eta = ns.Duration(ns.TimeFor(id, target - rank, crafts))
+        lines[#lines + 1] = "|cff8c8f96" .. T("toRank", target) .. ":|r " .. T("crafts", crafts)
+          .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.Money(cost)) or "") .. (eta and ("  ·  " .. T("eta", eta)) or "")
+      end
+      lines[#lines + 1] = "|cff8c8f96" .. T("openWindow") .. "|r"
+    else
+      lines[#lines + 1] = ("|cffffd24a%d-%d:|r %s"):format(step[1], step[2], step.what)
+      lines[#lines + 1] = "|cff8c8f96" .. T("where") .. "|r " .. step[f]
+    end
     if step.note then lines[#lines + 1] = "|cffbfb899" .. step.note .. "|r" end
   end
   detail:SetText(table.concat(lines, "\n"))
   detail:Show()
-  listTop = -94 - detail:GetStringHeight() - 10
+  listTop = TOP - detail:GetStringHeight() - 10
   for i, s in ipairs(guide.steps) do
     local now, past = i == current, rank >= s[2]
+    local text = crafting and CraftStepText(id, i, s) or s.what
     data[#data + 1] = {
-      icon = guide.icon, name = ("%d-%d  %s"):format(s[1], s[2], s.what),
+      icon = crafting and (ns.ItemIcon((ns.Chosen(id, i, s))[1][1])) or guide.icon or ProfIcon(id),
+      name = ("%d-%d  %s"):format(s[1], s[2], text),
       r = now and 1 or (past and 0.45 or 0.85), g = now and 0.82 or (past and 0.47 or 0.87), b = now and 0.3 or (past and 0.5 or 0.9),
       tip = function(tip)
         tip:SetText(("%d-%d"):format(s[1], s[2]), 1, 0.82, 0.3)
-        tip:AddLine(s.what, 1, 1, 1, true)
-        tip:AddLine(T("where") .. " " .. s[f], 0.85, 0.87, 0.9, true)
+        if crafting then
+          for _, e in ipairs(ns.Entries(s)) do
+            tip:AddLine(("%s x%d"):format(e[1], e[2]), 1, 1, 1)
+            local mats = e[3]
+            for m = 1, #mats, 2 do
+              tip:AddDoubleLine("   " .. mats[m], ("%d  |cff8c8f96(%s %d)|r"):format(mats[m + 1], T("have"), ns.Have(mats[m])), 0.85, 0.87, 0.9, 1, 1, 1)
+            end
+          end
+          if s.any then tip:AddLine(T("anyOne"), 0.6, 0.62, 0.68) end
+        else
+          tip:AddLine(s.what, 1, 1, 1, true)
+          tip:AddLine(T("where") .. " " .. s[f], 0.85, 0.87, 0.9, true)
+        end
         if s.note then tip:AddLine(s.note, 0.75, 0.72, 0.6, true) end
       end,
     }
@@ -460,20 +550,16 @@ function ns.RefreshHub()
   wipe(data)
   for _, b in ipairs(controls) do b:Hide() end
   search:Hide(); searchButton:Hide(); detail:Hide()
-  listTop = -94
+  listTop = TOP
   state.footer = nil
-  for i, b in ipairs(tabButtons) do
-    b:SetText(T("t_" .. b.key))
+  for _, b in ipairs(menuButtons) do
+    b.text:SetText(T("t_" .. b.key))
     local on = b.key == state.tab
-    b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
-    if on then
-      tabLine:ClearAllPoints()
-      tabLine:SetPoint("TOPLEFT", b, "BOTTOMLEFT", 0, 0)
-      tabLine:SetPoint("TOPRIGHT", b, "BOTTOMRIGHT", 0, 0)
-    end
+    b.sel:SetShown(on); b.bar:SetShown(on)
+    b.text:SetTextColor(on and 1 or 0.78, on and 0.82 or 0.8, on and 0.3 or 0.84)
   end
   ns.UpdateMe()
-  local build = ({ recipes = BuildRecipes, profit = BuildProfit, crafters = BuildCrafters, chars = BuildChars, gather = BuildGather })[state.tab]
+  local build = ({ guide = BuildGuide, recipes = BuildRecipes, profit = BuildProfit, crafters = BuildCrafters, chars = BuildChars })[state.tab]
   build()
   state.offset = math.min(state.offset, math.max(0, #data - ROWS))
   ns.DrawHub()
