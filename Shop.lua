@@ -17,11 +17,28 @@ ns.List = S
 -- The list
 ---------------------------------------------------------------------------
 -- plans: { prof, target } each; skip: items you get yourself
-local function Plans()
-  ns.db.plans = ns.db.plans or {}
-  ns.db.skip = ns.db.skip or {}
-  return ns.db.plans
+-- the list: each character its own, or one for all your characters (Settings)
+local function List()
+  if ns.db.shareList then
+    ns.db.plans, ns.db.skip, ns.db.extra = ns.db.plans or {}, ns.db.skip or {}, ns.db.extra or {}
+    return ns.db
+  end
+  local key = (ns.CharKey and ns.CharKey()) or "?"
+  ns.db.lists = ns.db.lists or {}
+  local l = ns.db.lists[key]
+  if not l then
+    l = { plans = {}, skip = {}, extra = {} }
+    -- the old shared list goes to the first character that opens it after the update
+    if not ns.db.listMoved and not ns.db.shareList then
+      ns.db.listMoved = true
+      l.plans, l.skip, l.extra = ns.db.plans or {}, ns.db.skip or {}, ns.db.extra or {}
+    end
+    ns.db.lists[key] = l
+  end
+  return l
 end
+ns.ShopList = List
+local function Plans() return List().plans end
 
 function ns.AddToList(mats, order, prof, target)
   local plans = Plans()
@@ -33,9 +50,9 @@ function ns.AddToList(mats, order, prof, target)
     end
     plans[#plans + 1] = { prof = prof, target = target }
   else
-    ns.db.extra = ns.db.extra or {}
+    local extra = List().extra
     for _, name in ipairs(order) do
-      ns.db.extra[name] = (ns.db.extra[name] or 0) + mats[name]
+      extra[name] = (extra[name] or 0) + mats[name]
     end
   end
   if not S:IsShown() then S:Show() end
@@ -66,13 +83,13 @@ function ns.ListItems()
       total[name] = (total[name] or 0) + mats[name]
     end
   end
-  for name, count in pairs(ns.db.extra or {}) do
+  for name, count in pairs(List().extra) do
     if not total[name] then order[#order + 1] = name end
     total[name] = (total[name] or 0) + count
   end
   local items = {}
   for _, name in ipairs(order) do
-    if not ns.db.skip[name] then
+    if not List().skip[name] then
       local have, mail = ns.Have(name), MailCount(name)
       local still = math.max(0, total[name] - have - mail)
       items[#items + 1] = { name = name, need = total[name], have = have, mail = mail, still = still }
@@ -82,9 +99,8 @@ function ns.ListItems()
 end
 
 function ns.ClearList()
-  wipe(Plans())
-  ns.db.extra = {}
-  wipe(ns.db.skip)
+  local l = List()
+  wipe(l.plans); wipe(l.extra); wipe(l.skip)
   ns.Refresh()
 end
 
@@ -118,7 +134,7 @@ for i = 1, ROWS do
   r:SetScript("OnClick", function(self, button)
     if button == "RightButton" then
       -- you get this one yourself: off the list
-      ns.db.skip[self.item] = true
+      List().skip[self.item] = true
       ns.Refresh()
     elseif self.itemID then
       ns.AHSearch(self.itemID, self.item)
