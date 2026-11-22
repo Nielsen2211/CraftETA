@@ -504,8 +504,8 @@ function ns.Cost(mats)
   for name, count in pairs(mats) do
     local missing = math.max(0, count - ns.Have(name))
     if missing > 0 then
-      local price = ns.MatPrice(name)
-      if price then total = total + price * missing else unknown = true end
+      local cost = ns.MatCost(name, missing)
+      if cost then total = total + cost else unknown = true end
     end
   end
   return total, unknown

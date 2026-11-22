@@ -346,6 +346,10 @@ end
 
 -- what buying `qty` costs: CraftETA's own scan when there is one, else aux's price
 local function Estimate(s, qty, name)
+  if name and ns.BuyCost then
+    local cost, how = ns.BuyCost(name, qty)
+    if cost and how ~= "unit" then return cost end
+  end
   if s and s.est and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
     return s.est * qty / s.qty
   end
@@ -580,7 +584,9 @@ function ns.RefreshList()
         local vc = ns.VendorCost(item.name)
         est = vc and math.ceil(vc * item.still) or nil
       elseif item.still > 0 then
-        if s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
+        est = ns.BuyCost(item.name, item.still)   -- the auctions themselves when the house showed them lately
+        if est then
+        elseif s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
           est = Estimate(s, math.min(item.still, s.qty))
         elseif AuxOrAtrPrice(item.name) then
           est = AuxOrAtrPrice(item.name) * item.still

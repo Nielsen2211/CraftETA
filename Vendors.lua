@@ -76,7 +76,7 @@ end
 function ns.MatPrice(name)
   local vendor = ns.VendorSells(name) and ns.VendorCost(name)
   if vendor and ns.AtVendor(name) then return vendor end
-  return ns.Price(name) or vendor or nil
+  return (ns.BuyUnit and ns.BuyUnit(name)) or ns.Price(name) or vendor or nil
 end
 
 -- the tooltip lines: where it is sold, and the vendor you last saw it at
