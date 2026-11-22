@@ -179,17 +179,26 @@ local rows = {}
 for i = 1, ROWS do
   local r = ns.Row(H, ROW_H - 2)
   r:SetWidth(CW)
+  -- each row is a small card; a section heading is text with a line under it
+  r.card = r:CreateTexture(nil, "BACKGROUND", nil, -1)
+  r.card:SetAllPoints()
+  r.card:SetColorTexture(0.086, 0.094, 0.122, 1)
+  r.line = r:CreateTexture(nil, "BORDER")
+  r.line:SetPoint("BOTTOMLEFT", 0, 2); r.line:SetPoint("BOTTOMRIGHT", 0, 2); r.line:SetHeight(1)
+  r.line:SetColorTexture(0.2, 0.21, 0.25, 1)
+  r.sub = ns.Font(r, false, 9, 0.5, 0.52, 0.57)
+  r.sub:SetWordWrap(false)
   r.bg = r:CreateTexture(nil, "BACKGROUND")
-  r.bg:SetPoint("TOPLEFT", -4, 1); r.bg:SetPoint("BOTTOMRIGHT", 4, -1)
+  r.bg:SetAllPoints()
   r.bar = r:CreateTexture(nil, "BORDER")
-  r.bar:SetPoint("TOPLEFT", -4, 1); r.bar:SetPoint("BOTTOMLEFT", -4, -1); r.bar:SetWidth(2)
+  r.bar:SetPoint("TOPLEFT"); r.bar:SetPoint("BOTTOMLEFT"); r.bar:SetWidth(2)
   r.bar:SetColorTexture(1, 0.82, 0.3, 1)
   r.check = r:CreateTexture(nil, "ARTWORK")
   r.check:SetSize(12, 12)
-  r.check:SetPoint("LEFT", 2, 0)
+  r.check:SetPoint("LEFT", 8, 0)
   r.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
   r.range = ns.Font(r, true, 10)
-  r.range:SetPoint("LEFT", 18, 0)
+  r.range:SetPoint("LEFT", 24, 0)
   r.range:SetWidth(54)
   r.range:SetJustifyH("LEFT")
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -218,26 +227,46 @@ footer:SetPoint("RIGHT", H, "RIGHT", -14, 0)
 
 H:EnableMouseWheel(true)
 H:SetScript("OnMouseWheel", function(_, delta)
-  local top = math.max(0, #data - ROWS)
+  local top = math.max(0, #data - 6)
   state.offset = math.max(0, math.min(top, state.offset - delta * 3))
   ns.DrawHub()
 end)
 
 local TOP = -58
 local listTop = TOP
+-- a row's name with a grey part at the end ("Name  |cff8c8f96details|r"): the details go on a second line
+local function Split(d)
+  local name = d.name or ""
+  if d.head or type(name) ~= "string" then return name, nil end
+  local a, b = name:match("^(.-)%s%s+|cff8c8f96(.-)|r%s*$")
+  if a and a ~= "" and b and b ~= "" then return a, b end
+  return name, nil
+end
+
 function ns.DrawHub()
+  local bottom = -(H:GetHeight() - 40)
+  local y, shown = listTop, 0
   for i = 1, ROWS do
     local r, d = rows[i], data[i + state.offset]
-    local y = listTop - (i - 1) * ROW_H
-    if d and y > -(H:GetHeight() - 46) then
+    local name, sub
+    if d then name, sub = Split(d) end
+    local h = d and (d.head and 30 or (sub and 34 or 26)) or 0
+    if d and y - h + 3 >= bottom then
+      local indent = d.indent or 0
+      if not d.head then indent = math.max(0, indent - 8) end
       r:ClearAllPoints()
-      r:SetPoint("TOPLEFT", X + (d.indent or 0), y)
-      r:SetWidth(CW - (d.indent or 0))
+      r:SetPoint("TOPLEFT", X + indent, y)
+      r:SetWidth(CW - indent)
+      r:SetHeight(h - 3)
       r.data = d
+      r.card:SetShown(not d.head)
+      r.line:SetShown(d.head and true or false)
+      local size = sub and 24 or 18
+      r.icon:SetSize(size, size)
       r.icon:SetTexture(d.icon)
-      r.icon:SetShown(d.icon ~= nil)
+      r.icon:SetShown(d.icon ~= nil and not d.head)
       r.icon:ClearAllPoints()
-      r.icon:SetPoint("LEFT", d.range and 76 or 0, 0)
+      r.icon:SetPoint("LEFT", d.range and 82 or 8, 0)
       r.icon:SetDesaturated(d.done and true or false)
       r.icon:SetAlpha(d.done and 0.6 or 1)
       r.range:SetText(d.range or "")
@@ -246,28 +275,41 @@ function ns.DrawHub()
       r.bar:SetShown(d.current and true or false)
       if d.current then
         r.bg:SetColorTexture(1, 0.82, 0.3, 0.09); r.bg:Show()
-      elseif d.zebra then
-        r.bg:SetColorTexture(1, 1, 1, 0.025); r.bg:Show()
       else
         r.bg:Hide()
       end
+      -- where the text starts: after the icon, or at the card's edge
+      r.name:ClearAllPoints(); r.sub:ClearAllPoints()
+      local anchorX = d.head and 2 or ((d.icon and (d.range and 82 or 8) + size + 8) or (d.range and 82 or 10))
       if d.head then
+        r.name:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 2, 7)
         r.name:SetFont(ns.F_BOLD, 10, "")
-        r.name:SetTextColor(0.55, 0.58, 0.64)
+        r.name:SetTextColor(0.62, 0.55, 0.36)
+      elseif sub then
+        r.name:SetPoint("TOPLEFT", r, "TOPLEFT", anchorX, -4)
+        r.sub:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", anchorX, 5)
+        r.sub:SetPoint("RIGHT", r.value, "LEFT", -8, 0)
+        r.name:SetFont(ns.F_SEMI, 11, "")
       else
+        r.name:SetPoint("LEFT", r, "LEFT", anchorX, 0)
         r.name:SetFont(ns.F_SEMI, 11, "")
       end
-      r.name:SetText(d.head and string.upper(d.name or "") or (d.name or ""))
+      r.name:SetPoint("RIGHT", r.value, "LEFT", -8, 0)
+      r.name:SetText(d.head and string.upper(name) or name)
       if not d.head then r.name:SetTextColor(d.r or 0.85, d.g or 0.87, d.b or 0.9) end
+      r.sub:SetText(sub or ""); r.sub:SetShown(sub ~= nil)
+      r.value:ClearAllPoints(); r.value:SetPoint("RIGHT", r, "RIGHT", d.head and -2 or -10, d.head and -2 or 0)
       r.value:SetText(d.value or "")
       r.value:SetTextColor(d.vr or 1, d.vg or 1, d.vb or 1)
       r:Show()
+      y = y - h
+      shown = shown + 1
     else
       r:Hide()
       r.data = nil
     end
   end
-  local more = #data - ROWS - state.offset
+  local more = #data - shown - state.offset
   local text = state.footer or ""
   if more > 0 then text = text .. (text ~= "" and "   " or "") .. T("more", more) end
   footer:SetText(text)
