@@ -363,8 +363,17 @@ local TURN_IN = { h = "Dokimi, Crossroads (The Barrens), west gate", a = "Marcy 
 -- What the favor vendors sell: read when you open one (any vendor whose prices are in Merchant's Favor),
 -- kept per faction: { [itemID] = { n = name, i = icon, c = favor, v = vendor, u = you can use it, t = seen } }
 ---------------------------------------------------------------------------
-local function IsFavor(name, link)
-  return (type(link) == "string" and link:find("currency:3402", 1, true)) or name == "Merchant's Favor"
+local FAVOR_NPCS = {
+  ["Apothecary Durelle"] = true, ["Nina Surefire"] = true, ["Gor'mak"] = true, ["Stondry Darkhammer"] = true,
+  ["Aza'bek"] = true, ["Kalsey Sanden"] = true, ["Beneris"] = true, ["Alynsia"] = true, ["Fizzlefuse"] = true,
+  ["Fritz Fizzle"] = true, ["Pawani"] = true, ["Daniel Stitchsong"] = true, ["Jim'bek"] = true,
+  ["Mivin Shadowweave"] = true, ["Okamache"] = true, ["Huey Sunnydale"] = true, ["Gishah"] = true, ["Tamelyn Aldridge"] = true,
+}
+-- a price in Merchant's Favor: its currency link or name, or any currency at one of the favor vendors
+local function IsFavor(name, link, npc)
+  if type(link) == "string" and link:find("currency:3402", 1, true) then return true end
+  if type(name) == "string" and name:find("Favor", 1, true) then return true end
+  return npc and FAVOR_NPCS[npc] and type(link) == "string" and link:find("currency:", 1, true) and true or false
 end
 local function ReadFavorShop()
   if not ns.db or not GetMerchantNumItems then return end
@@ -390,7 +399,7 @@ local function ReadFavorShop()
     count = okC and tonumber(Plain(count)) or 0
     for j = 1, count do
       local ok, _, value, clink, cname = pcall(GetMerchantItemCostItem, i, j)
-      if ok and IsFavor(Plain(cname), Plain(clink)) and id and name then
+      if ok and IsFavor(Plain(cname), Plain(clink), npc) and id and name then
         found[id] = { n = name, i = icon, c = tonumber(Plain(value)) or 0, v = npc, u = usable ~= false, t = time() }
       end
     end
