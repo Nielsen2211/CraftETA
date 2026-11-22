@@ -78,7 +78,7 @@ function ns.BuyUnit(name)
     local ok, price = pcall(atr.GetAuctionPriceByItemID, "CraftETA", id)
     if ok and type(price) == "number" and price > 0 then return price end
   end
-  return ns.Price(name)
+  return ns.Price(name) or (ns.CratePrice and ns.CratePrice(name))
 end
 
 -- what `count` cost on the auction house. Second value: "ladder" (from the auctions themselves),

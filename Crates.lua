@@ -231,13 +231,26 @@ ns.On("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function() pcall(OnCrateBrowse) end)
 ---------------------------------------------------------------------------
 -- The cheapest bundle for a crate, using what you have (stock is changed as the plan uses it)
 ---------------------------------------------------------------------------
-local function BestBundle(c, stock)
+-- what `n` more of a material cost when the plan has already bought `before`: the auctions themselves when the
+-- house showed them lately (the cheapest go first, so each crate pays a little more), else one price
+local function Spend(mat, before, n)
+  if n <= 0 then return 0 end
+  if ns.BuyCost then
+    local a = ns.BuyCost(mat, before + n)
+    local b = ns.BuyCost(mat, before)
+    if a and b then return a - b end
+  end
+  local unit = Price(mat)
+  return unit and unit * n or nil
+end
+
+local function BestBundle(c, stock, bought)
   local best
   for i = 4, #c do
     local mat, count = c[i][1], c[i][2]
     local have = math.min(count, stock[mat] or 0)
-    local unit = Price(mat)
-    local spend = unit and (count - have) * unit or (have >= count and 0 or nil)
+    local spend = Spend(mat, bought[mat] or 0, count - have)
+    local unit = spend and count > have and spend / (count - have) or Price(mat)
     if spend and (not best or spend < best.spend) then
       best = { mat = mat, count = count, have = have, buy = count - have, spend = spend, unit = unit }
     end
@@ -262,7 +275,7 @@ function ns.FavorPlan(goal)
   local sources = {}
   for _, b in ipairs(ns.BagCrates()) do
     if b.crate and not b.sealed and b.crate[3] and level >= LVL[b.crate[1]] and (b.quality or 1) <= 2 then
-      for _ = 1, b.count do sources[#sources + 1] = { crate = b.crate, from = "bag", cost = 0, name = b.name, back = Back(b.crate, b.quality) } end
+      for _ = 1, b.count do sources[#sources + 1] = { crate = b.crate, from = "bag", cost = 0, name = b.name, id = b.id, back = Back(b.crate, b.quality) } end
     end
   end
   local ah = ns.db.crateAH and ns.db.crateAH.list or {}
@@ -274,12 +287,12 @@ function ns.FavorPlan(goal)
       end
     end
   end
-  local steps, got, gold = {}, 0, 0
+  local steps, got, gold, bought = {}, 0, 0, {}
   while got < goal and #sources > 0 do
     -- the source with the lowest gold per favor right now (bundles get dearer as your stock runs out)
     local bestI, bestV, bestB
     for i, s in ipairs(sources) do
-      local b = BestBundle(s.crate, stock)
+      local b = BestBundle(s.crate, stock, bought)
       if b then
         local v = (s.cost + b.spend - s.back) / s.crate[3]
         if not bestV or v < bestV then bestI, bestV, bestB = i, v, b end
@@ -288,11 +301,22 @@ function ns.FavorPlan(goal)
     if not bestI then break end
     local s = table.remove(sources, bestI)
     stock[bestB.mat] = (stock[bestB.mat] or 0) - bestB.have
+    bought[bestB.mat] = (bought[bestB.mat] or 0) + bestB.buy
     got = got + s.crate[3]
     gold = gold + s.cost + bestB.spend - s.back
     steps[#steps + 1] = { crate = s.crate, from = s.from, cost = s.cost, bundle = bestB, id = s.id, name = s.name, back = s.back }
   end
   return steps, got, gold
+end
+
+-- a crate's price from the last crate scan (the cheapest of that name)
+function ns.CratePrice(name)
+  local ah = ns.db and ns.db.crateAH
+  local best
+  for _, a in ipairs(ah and ah.list or {}) do
+    if a.name == name and a.price and a.price > 0 and (not best or a.price < best) then best = a.price end
+  end
+  return best
 end
 
 -- your Merchant's Favor, when the game shows it as a currency
@@ -331,17 +355,26 @@ ns.HubBuilders.favor = function(data, state, Control)
     L("At the auction house: finds every Waylaid Crate for sale and its price.", "Ved auktionshuset: finder alle Waylaid Crates til salg og deres pris."))
   local have = ns.FavorNow() or 0
   local steps, got, gold = ns.FavorPlan(math.max(0, goal - have))
-  Btn(5, 324, 140, L("Mats to shopping list", "Mats på indkøbslisten"), function()
+  Btn(5, 324, 150, L("Plan to shopping list", "Planen på indkøbslisten"), function()
+    -- everything the plan needs: the crates it buys on the auction house and every bundle's materials.
+    -- Whole counts: the list itself takes off what you have (bags, bank, crates in your bags)
     local mats, order = {}, {}
-    for _, s in ipairs(steps) do
-      local b = s.bundle
-      if b.buy > 0 then
-        if not mats[b.mat] then order[#order + 1] = b.mat end
-        mats[b.mat] = (mats[b.mat] or 0) + b.buy
-      end
+    local function Add(name, n, id)
+      if n <= 0 then return end
+      if id and ns.LearnItem then ns.LearnItem(name, id) end
+      if not mats[name] then order[#order + 1] = name end
+      mats[name] = (mats[name] or 0) + n
     end
-    if #order > 0 then ns.AddToList(mats, order); ns.Print(L("Added the plan's materials to the shopping list.", "Planens materialer er lagt på indkøbslisten.")) end
-  end)
+    for _, st in ipairs(steps) do
+      if st.name then Add(st.name, 1, st.id) end
+      Add(st.bundle.mat, st.bundle.count)
+    end
+    if #order > 0 then
+      ns.AddToList(mats, order)
+      ns.Print(L("The plan is on the shopping list: %d crates and their materials.", "Planen er på indkøbslisten: %d kasser og deres materialer."):format(#steps))
+    end
+  end, L("The crates to buy and the materials for them, the cheapest way to your goal.",
+    "Kasserne du skal købe og materialerne til dem, den billigste vej til dit mål."))
 
   local f = ns.Faction()
   Head(data, L("Plan: %d + %d of %d favor  ·  %s", "Plan: %d + %d af %d favor  ·  %s"):format(have, got, goal, ns.Money(gold)))
@@ -387,7 +420,7 @@ ns.HubBuilders.favor = function(data, state, Control)
   Head(data, L("Every crate, cheapest favor first (bundle only)", "Alle kasser, billigste favor først (kun bundtet)"))
   local stock, rows = StockNow(), {}
   for _, c in ipairs(ns.CRATES) do
-    local b = BestBundle(c, stock)
+    local b = BestBundle(c, stock, {})
     rows[#rows + 1] = { c = c, b = b, per = (b and c[3]) and b.spend / c[3] or math.huge }
   end
   table.sort(rows, function(x, y) return x.per < y.per end)
