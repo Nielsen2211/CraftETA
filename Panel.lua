@@ -385,9 +385,9 @@ function ns.PlacePanel()
       side = (screenR - right < w + 260 and left > w) and "left" or "right"
     end
     if side == "left" then
-      P:SetPoint("TOPRIGHT", frame, "TOPLEFT", -4, 0)
+      P:SetPoint("TOPRIGHT", frame, "TOPLEFT", -14, 0)
     else
-      P:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+      P:SetPoint("TOPLEFT", frame, "TOPRIGHT", 22, 0)
     end
   else
     P.docked = false
