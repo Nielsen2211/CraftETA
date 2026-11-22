@@ -138,6 +138,17 @@ SlashCmdList.CRAFTETA = function(msg)
   elseif msg == "reset" then
     ns.db.point_CraftETAPanel, ns.db.point_CraftETAList = nil, nil
     ns.PlacePanel(); ns.PlaceList()
+  elseif msg == "debug" then
+    -- why the Craft button is (not) working
+    local st = ns.panelState or {}
+    local r = st.recipe and ns.Recipe(st.recipe)
+    ns.Print(("CraftETA debug: window=%s recipe=%s found=%s learned=%s id=%s left=%s canMake=%s job=%s why=%s"):format(
+      tostring(ns.ProfessionFrame() ~= nil), tostring(st.recipe), tostring(r ~= nil), tostring(r and r.learned),
+      tostring(r and r.id), tostring(st.left), tostring(st.canMake),
+      st.job and (st.job.name .. " x" .. st.job.count) or "none", tostring(st.why)))
+    if r and r.matList then
+      for _, m in ipairs(r.matList) do ns.Print(("  item %d: need %d, in bags %d"):format(m[1], m[2], ns.BagCount(m[1]))) end
+    end
   elseif msg == "da" or msg == "en" then ns.db.lang = msg; ns.Refresh(); if ns.RefreshHub then ns.RefreshHub() end
   else ns.Print(T("help")) end
 end
