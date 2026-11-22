@@ -282,7 +282,7 @@ function ns.FavorPlan(goal)
   for _, a in ipairs(ah) do
     local c = a.key and byKey[a.key]
     if c and c[3] and level >= LVL[c[1]] and (a.quality or 1) <= 2 then
-      for _ = 1, math.min(a.qty or 1, 20) do
+      for _ = 1, math.min(a.qty or 0, 20) do
         sources[#sources + 1] = { crate = c, from = "ah", cost = a.price or 0, name = a.name, id = a.id, back = Back(c, a.quality) }
       end
     end
@@ -307,6 +307,24 @@ function ns.FavorPlan(goal)
     steps[#steps + 1] = { crate = s.crate, from = s.from, cost = s.cost, bundle = bestB, id = s.id, name = s.name, back = s.back }
   end
   return steps, got, gold
+end
+
+-- what the favor plan needs on the shopping list: { [name] = count }, ordered names, and which are crates.
+-- Whole counts: the list takes off what you have (crates in your bags included)
+function ns.FavorNeeds(goal)
+  local steps = ns.FavorPlan(math.max(0, goal - (ns.FavorNow() or 0)))
+  local mats, order, crates = {}, {}, {}
+  local function Add(name, n, id)
+    if not name or n <= 0 then return end
+    if id and ns.LearnItem and not (ns.db.ids and ns.db.ids[name]) then ns.LearnItem(name, id) end
+    if not mats[name] then order[#order + 1] = name end
+    mats[name] = (mats[name] or 0) + n
+  end
+  for _, st in ipairs(steps) do
+    if st.name then Add(st.name, 1, st.id); crates[st.name] = true end
+    Add(st.bundle.mat, st.bundle.count)
+  end
+  return mats, order, crates
 end
 
 -- a crate's price from the last crate scan (the cheapest of that name)
@@ -356,25 +374,12 @@ ns.HubBuilders.favor = function(data, state, Control)
   local have = ns.FavorNow() or 0
   local steps, got, gold = ns.FavorPlan(math.max(0, goal - have))
   Btn(5, 324, 150, L("Plan to shopping list", "Planen på indkøbslisten"), function()
-    -- everything the plan needs: the crates it buys on the auction house and every bundle's materials.
-    -- Whole counts: the list itself takes off what you have (bags, bank, crates in your bags)
-    local mats, order = {}, {}
-    local function Add(name, n, id)
-      if n <= 0 then return end
-      if id and ns.LearnItem then ns.LearnItem(name, id) end
-      if not mats[name] then order[#order + 1] = name end
-      mats[name] = (mats[name] or 0) + n
-    end
-    for _, st in ipairs(steps) do
-      if st.name then Add(st.name, 1, st.id) end
-      Add(st.bundle.mat, st.bundle.count)
-    end
-    if #order > 0 then
-      ns.AddToList(mats, order)
-      ns.Print(L("The plan is on the shopping list: %d crates and their materials.", "Planen er på indkøbslisten: %d kasser og deres materialer."):format(#steps))
-    end
-  end, L("The crates to buy and the materials for them, the cheapest way to your goal.",
-    "Kasserne du skal købe og materialerne til dem, den billigste vej til dit mål."))
+    -- a plan on the list, like a profession's: it works itself out again as you buy, fill and hand in
+    if ns.SetFavorPlan then ns.SetFavorPlan(goal) end
+    ns.Print(L("Favor plan on the shopping list: %d favor. The crates are bought with the buy button at the auction house.",
+      "Favor-planen er på indkøbslisten: %d favor. Kasserne købes med køb-knappen ved auktionshuset."):format(goal))
+  end, L("The crates to buy and the materials for them, the cheapest way to your goal. Stays up to date as you buy and hand in.",
+    "Kasserne du skal købe og materialerne til dem, den billigste vej til dit mål. Holder sig opdateret, mens du køber og afleverer."))
 
   local f = ns.Faction()
   Head(data, L("Plan: %d + %d of %d favor  ·  %s", "Plan: %d + %d af %d favor  ·  %s"):format(have, got, goal, ns.Money(gold)))

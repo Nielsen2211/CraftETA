@@ -87,21 +87,40 @@ function ns.ListItems()
     if not total[name] then order[#order + 1] = name end
     total[name] = (total[name] or 0) + count
   end
+  -- the favor plan (Crates.lua): crates on the auction house and their materials
+  local crates = {}
+  if List().favor and ns.FavorNeeds then
+    local ok, mats, names, isCrate = pcall(ns.FavorNeeds, List().favor)
+    if ok then
+      crates = isCrate
+      for _, name in ipairs(names) do
+        if not total[name] then order[#order + 1] = name end
+        total[name] = (total[name] or 0) + mats[name]
+      end
+    end
+  end
   local items = {}
   for _, name in ipairs(order) do
     if not List().skip[name] then
       local have, mail = ns.Have(name), MailCount(name)
       local still = math.max(0, total[name] - have - mail)
       items[#items + 1] = { name = name, need = total[name], have = have, mail = mail, still = still,
-        vendor = ns.AtVendor and ns.AtVendor(name) or false }
+        vendor = ns.AtVendor and ns.AtVendor(name) or false, crate = crates[name] or nil }
     end
   end
   return items
 end
 
+-- the favor plan on the list: reach `goal` Merchant's Favor (nil: off the list)
+function ns.SetFavorPlan(goal)
+  List().favor = goal
+  if not S:IsShown() then S.byAH = AH and AH.open or false; S:Show() end
+  ns.Refresh()
+end
+
 function ns.ClearList()
   local l = List()
-  wipe(l.plans); wipe(l.extra); wipe(l.skip)
+  wipe(l.plans); wipe(l.extra); wipe(l.skip); l.favor = nil
   ns.Refresh()
 end
 
@@ -182,6 +201,7 @@ S.buyButton, S.skipButton = buyButton, skipButton
 -- The auction house
 ---------------------------------------------------------------------------
 local AH = { open = false, queue = {}, skip = {} }
+local buying   -- what the buy guide is buying: { name, id, qty, quote } (a crate: crate, key, auctionID)
 ns.AH = AH
 
 local function Throttled(fn)
@@ -241,12 +261,14 @@ local function ScanNext()
   local id = ns.ItemID(item.name)
   if id then
     Throttled(function()
+      if not scanning then return end
       scanning.wantID = id
       C_AuctionHouse.SendSearchQuery(C_AuctionHouse.MakeItemKey(id), {}, true)
     end)
   else
     -- the item's ID isn't known yet: find it by name first
     Throttled(function()
+      if not scanning then return end
       scanning.wantName = item.name
       C_AuctionHouse.SendBrowseQuery({ searchString = item.name, sorts = {}, filters = {}, itemClassFilters = {} })
     end)
@@ -257,7 +279,7 @@ function ns.ScanPrices()
   if not AH.open then return end
   local items = {}
   for _, item in ipairs(ns.ListItems()) do
-    if item.still > 0 and not item.vendor then items[#items + 1] = item end
+    if item.still > 0 and not item.vendor and not item.crate then items[#items + 1] = item end
   end
   if #items == 0 then return end
   scanning = { items = items, index = 0 }
@@ -298,7 +320,27 @@ local function OnCommodity(itemID)
   ScanNext()
 end
 
+-- the cheapest crate auction you can buy out (not your own)
+local function OnCrateResults(itemKey)
+  if not (buying and buying.crate and itemKey and itemKey.itemID == buying.id) or buying.auctionID then return end
+  local n = C_AuctionHouse.GetNumItemSearchResults(itemKey) or 0
+  local best
+  for i = 1, n do
+    local r = C_AuctionHouse.GetItemSearchResultInfo(itemKey, i)
+    local price = r and ns.Plain(r.buyoutAmount)
+    if price and price > 0 and not ns.Plain(r.containsOwnerItem) and (not best or price < best.price) then
+      best = { id = r.auctionID, price = price }
+    end
+  end
+  if not best then return end
+  local est = ns.CratePrice and ns.CratePrice(buying.name)
+  buying.auctionID, buying.total, buying.quote = best.id, best.price, true
+  buying.over = est and est > 0 and (best.price - est) / est * 100 or 0
+  ns.Refresh()
+end
+
 local function OnItemResults(itemKey)
+  pcall(OnCrateResults, itemKey)
   if not scanning or not itemKey or scanning.wantID ~= itemKey.itemID then return end
   scanning.wantID = nil
   ns.db.scanned[scanning.current.name] = { t = time(), commodity = false }
@@ -360,12 +402,14 @@ local function Estimate(s, qty, name)
 end
 
 -- buying: the item the guide is on
-local buying   -- { name, id, qty, quote }
+-- (buying: declared with the auction house state above)
 local function Current(items)
   for _, item in ipairs(items) do
     local s = ns.db.scanned[item.name]
     local id = ns.ItemID(item.name)
-    if item.still > 0 and not item.vendor and not AH.skip[item.name] and id then
+    if item.still > 0 and item.crate and not AH.skip[item.name] and id then
+      return item, nil
+    elseif item.still > 0 and not item.vendor and not AH.skip[item.name] and id then
       local fresh = s and s.t and time() - s.t < 900
       if fresh and s.commodity and (s.avail or 0) > 0 then
         return item, s
@@ -378,6 +422,19 @@ local function Current(items)
 end
 
 buyButton:SetScript("OnClick", function()
+  if buying and buying.crate then
+    -- a crate (sold one by one): first click finds the cheapest, the next one buys it
+    if buying.quote and buying.auctionID then
+      buying.confirming, buying.quote = true, false
+      local ok = pcall(C_AuctionHouse.PlaceBid, buying.auctionID, buying.total)
+      if not ok then buying = nil end
+      C_Timer.After(8, function()
+        if buying and buying.confirming and buying.crate then buying = nil; ns.Refresh() end
+      end)
+      ns.Refresh()
+    end
+    return
+  end
   if buying and buying.quote then
     -- a price above the estimate: this click says yes
     C_AuctionHouse.ConfirmCommoditiesPurchase(buying.id, buying.qty)
@@ -390,6 +447,23 @@ buyButton:SetScript("OnClick", function()
   if not item then return end
   local id = ns.ItemID(item.name)
   if not id then return end
+  if item.crate then
+    local key = C_AuctionHouse.MakeItemKey(id)
+    buying = { name = item.name, id = id, qty = 1, crate = true, key = key }
+    Throttled(function()
+      local sort = Enum and Enum.AuctionHouseSortOrder and { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } } or {}
+      C_AuctionHouse.SendSearchQuery(key, sort, true)
+    end)
+    C_Timer.After(6, function()
+      if buying and buying.crate and not buying.auctionID then
+        buying = nil; AH.skip[item.name] = true
+        ns.Print(T("notListed") .. ": " .. item.name)
+        ns.Refresh()
+      end
+    end)
+    ns.Refresh()
+    return
+  end
   local qty = math.min(item.still, (s and s.avail) or item.still)
   buying = { name = item.name, id = id, qty = qty }
   -- asks for today's price; the answer is COMMODITY_PRICE_UPDATED
@@ -437,6 +511,20 @@ local function OnBought()
   ns.Refresh()
 end
 
+local function OnCrateBought()
+  if not (buying and buying.crate and buying.confirming) then return end
+  local b = buying
+  buying = nil
+  ns.db.pending = ns.db.pending or {}
+  ns.db.pending[b.name] = (ns.db.pending[b.name] or 0) + 1
+  local session = ns.db.bought
+  session.count = (session.count or 0) + 1
+  session.cost = (session.cost or 0) + (b.total or 0)
+  session.est = (session.est or 0) + ((ns.CratePrice and ns.CratePrice(b.name)) or b.total or 0)
+  ns.Print(T("boughtMsg", 1, b.name, ns.Money(b.total)))
+  ns.Refresh()
+end
+
 local function OnFailed()
   if not buying then return end
   buying = nil
@@ -474,6 +562,10 @@ for event, fn in pairs({
   COMMODITY_PRICE_UNAVAILABLE = OnFailed,
   COMMODITY_PURCHASE_SUCCEEDED = OnBought,
   COMMODITY_PURCHASE_FAILED = OnFailed,
+  AUCTION_HOUSE_PURCHASE_COMPLETED = OnCrateBought,
+  AUCTION_HOUSE_SHOW_ERROR = function()
+    if buying and buying.crate then buying = nil; ns.Refresh() end
+  end,
 }) do
   ns.Register(event)
   ns.On(event, fn)
