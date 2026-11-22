@@ -414,16 +414,38 @@ end
 
 P:SetScript("OnShow", function() ns.PlacePanel(); ns.RefreshPanel() end)
 
--- opens and closes with the profession window
-ns.Register("TRADE_SKILL_SHOW")
-ns.On("TRADE_SKILL_SHOW", function()
+-- opens and closes with the profession window: on the game's event and when the window itself shows
+-- (Forever can show the window before or after the event), placed again once it has its size
+local function OpenWithWindow()
   if not ns.db or not ns.db.panel then return end
   C_Timer.After(0.05, function()
+    if not ns.ProfessionFrame() then return end
     P.byWindow = true
     P:Show()
     ns.PlacePanel()
     ns.Refresh()
   end)
+  C_Timer.After(0.4, function() if P:IsShown() then ns.PlacePanel(); ns.Refresh() end end)
+end
+ns.Register("TRADE_SKILL_SHOW")
+ns.On("TRADE_SKILL_SHOW", OpenWithWindow)
+local hooked = {}
+local function HookWindows()
+  for _, name in ipairs({ "ProfessionsFrame", "TradeSkillFrame" }) do
+    local f = _G[name]
+    if f and not hooked[name] then
+      hooked[name] = true
+      f:HookScript("OnShow", OpenWithWindow)
+      f:HookScript("OnHide", function()
+        if P.byWindow then P.byWindow = false; P:Hide() end
+      end)
+    end
+  end
+end
+HookWindows()
+ns.Register("ADDON_LOADED")
+ns.On("ADDON_LOADED", function(name)
+  if name == "Blizzard_Professions" or name == "Blizzard_TradeSkillUI" then HookWindows() end
 end)
 ns.Register("TRADE_SKILL_CLOSE")
 ns.On("TRADE_SKILL_CLOSE", function()
