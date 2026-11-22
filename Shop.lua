@@ -92,7 +92,8 @@ function ns.ListItems()
     if not List().skip[name] then
       local have, mail = ns.Have(name), MailCount(name)
       local still = math.max(0, total[name] - have - mail)
-      items[#items + 1] = { name = name, need = total[name], have = have, mail = mail, still = still }
+      items[#items + 1] = { name = name, need = total[name], have = have, mail = mail, still = still,
+        vendor = ns.AtVendor and ns.AtVendor(name) or false }
     end
   end
   return items
@@ -143,6 +144,11 @@ for i = 1, ROWS do
   r:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if self.itemID then GameTooltip:SetItemByID(self.itemID) else GameTooltip:SetText(self.item or "") end
+    if self.vendor and ns.VendorWhere then
+      GameTooltip:AddLine(" ")
+      GameTooltip:AddLine(T("vendHead"), 1, 0.82, 0.3)
+      for _, l in ipairs(ns.VendorWhere(self.item)) do GameTooltip:AddLine(l, 0.85, 0.86, 0.9, true) end
+    end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine((ns.AHName() ~= "CraftETA" and (T("searchAux", ns.AHName()) .. "  ·  ") or "") .. "Right-click: remove", 0.62, 0.6, 0.56)
     GameTooltip:Show()
@@ -247,7 +253,7 @@ function ns.ScanPrices()
   if not AH.open then return end
   local items = {}
   for _, item in ipairs(ns.ListItems()) do
-    if item.still > 0 then items[#items + 1] = item end
+    if item.still > 0 and not item.vendor then items[#items + 1] = item end
   end
   if #items == 0 then return end
   scanning = { items = items, index = 0 }
@@ -351,7 +357,7 @@ local function Current(items)
   for _, item in ipairs(items) do
     local s = ns.db.scanned[item.name]
     local id = ns.ItemID(item.name)
-    if item.still > 0 and not AH.skip[item.name] and id then
+    if item.still > 0 and not item.vendor and not AH.skip[item.name] and id then
       local fresh = s and s.t and time() - s.t < 900
       if fresh and s.commodity and (s.avail or 0) > 0 then
         return item, s
@@ -522,7 +528,7 @@ atrButton:SetScript("OnClick", function()
   if not api or not api.CreateShoppingList then return end
   local terms = {}
   for _, item in ipairs(ns.ListItems()) do
-    if item.still > 0 then
+    if item.still > 0 and not item.vendor then
       local ok, text = pcall(api.ConvertToSearchString, ADDON, { searchString = item.name, isExact = true, quantity = item.still })
       terms[#terms + 1] = ok and text or ('"' .. item.name .. '"')
     end
@@ -550,12 +556,15 @@ function ns.RefreshList()
       local r = rows[shown]
       r.item, r.itemID = item.name, ns.ItemID(item.name)
       r.icon:SetTexture(ns.ItemIcon(item.name))
-      r.name:SetText(item.name)
+      r.name:SetText(item.vendor and (item.name .. "  |cff8c8f96" .. T("vendTag") .. "|r") or item.name)
+      r.vendor = item.vendor
       r.still:SetText(item.still > 0 and ("|cffffffff" .. item.still .. "|r") or "|cff4dcc66✓|r")
       r.mail:SetText(item.mail > 0 and item.mail or "")
       local s = ns.db.scanned[item.name]
       local est
-      if item.still > 0 then
+      if item.still > 0 and item.vendor then
+        est = ns.VendorCost(item.name) and math.ceil(ns.VendorCost(item.name) * item.still) or nil
+      elseif item.still > 0 then
         if s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
           est = Estimate(s, math.min(item.still, s.qty))
         elseif AuxOrAtrPrice(item.name) then
@@ -566,6 +575,8 @@ function ns.RefreshList()
       end
       if item.still == 0 then
         r.value:SetText("")
+      elseif item.vendor then
+        r.value:SetText(est and ns.Money(est) or ("|cffaaaaaa" .. T("vendor") .. "|r"))
       elseif s and s.none and not AuxOrAtrPrice(item.name) then
         r.value:SetText("|cffe8574a" .. T("notListed") .. "|r")
       elseif s and s.commodity == false then
