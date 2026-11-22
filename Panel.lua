@@ -72,8 +72,9 @@ local note = ns.Font(P, false, 10, 0.75, 0.72, 0.6)
 note:SetWordWrap(true)
 note:SetWidth(WIDTH - 28)
 
-local craft1 = ns.Button(P, T("craft1"), 78, 22)
-local craftAll = ns.Button(P, T("craftAll"), 78, 22)
+-- one Craft button that follows the guide: what the step still needs, and first any material for it
+-- that you can make yourself (a grinding stone, a bolt) but don't have enough of
+local craftBtn = ns.Button(P, T("craft"), 162, 22)
 local addList = ns.Button(P, T("addList"), 104, 22)
 local status = ns.Font(P, false, 10, 0.65, 0.67, 0.72)
 status:SetWordWrap(true)
@@ -104,11 +105,9 @@ skipNext:SetScript("OnClick", function() Skip(1) end)
 ns.SkipStep = Skip
 
 
-craft1:SetScript("OnClick", function()
-  if state.recipe then ns.Craft(state.recipe, 1) end
-end)
-craftAll:SetScript("OnClick", function()
-  if state.recipe then ns.Craft(state.recipe, math.max(1, math.min(state.canMake or 0, state.left or 0))) end
+craftBtn:SetScript("OnClick", function()
+  local job = state.job
+  if job then ns.Craft(job.name, job.count) end
 end)
 addList.tip = "Click: to next rank\nShift-click: this step\nRight-click: to 300"
 addList:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -182,7 +181,7 @@ function ns.RefreshPanel()
   if not guide then
     profIcon:Hide()
     profText:SetText(T("noProf"))
-    for _, w in ipairs({ bar, etaRank, etaAll, warn, stepHead, recipeName, recipeCount, note, craft1, craftAll, addList, status, nextLine, source }) do w:Hide() end
+    for _, w in ipairs({ bar, etaRank, etaAll, warn, stepHead, recipeName, recipeCount, note, craftBtn, addList, status, nextLine, source }) do w:Hide() end
     recipeIcon:Hide()
     P:SetHeight(80)
     return
@@ -237,7 +236,7 @@ function ns.RefreshPanel()
     if view > index and guide.steps[view] then index = view else ns.db.view[profID] = nil end
   end
   if not index then
-    for _, w in ipairs({ stepHead, recipeName, recipeCount, note, craft1, craftAll, addList, status, nextLine, skipBack, skipNext }) do w:Hide() end
+    for _, w in ipairs({ stepHead, recipeName, recipeCount, note, craftBtn, addList, status, nextLine, skipBack, skipNext }) do w:Hide() end
     recipeIcon:Hide()
     source:Hide()
     P:SetHeight(-y + 32)
@@ -305,10 +304,9 @@ function ns.RefreshPanel()
 
   -- crafting
   y = y - 8
-  craft1:ClearAllPoints(); craft1:SetPoint("TOPLEFT", 14, y)
-  craftAll:ClearAllPoints(); craftAll:SetPoint("LEFT", craft1, "RIGHT", 6, 0)
-  addList:ClearAllPoints(); addList:SetPoint("LEFT", craftAll, "RIGHT", 6, 0)
-  craft1:Show(); craftAll:Show(); addList:Show()
+  craftBtn:ClearAllPoints(); craftBtn:SetPoint("TOPLEFT", 14, y)
+  addList:ClearAllPoints(); addList:SetPoint("LEFT", craftBtn, "RIGHT", 6, 0)
+  craftBtn:Show(); addList:Show()
   local recipe = ns.Recipe(entry[1])
   state.canMake = ns.CanMake(entry[1])
   local text
@@ -317,11 +315,34 @@ function ns.RefreshPanel()
   elseif not recipe or not recipe.learned then
     text = T("needRecipe")
   end
-  if text or state.canMake < 1 then
-    craft1:Disable(); craftAll:Disable()
+  -- what the button makes: the step's craft, or first a material for it you can make yourself
+  state.job = nil
+  if not text and left > 0 then
+    if state.canMake >= left then
+      state.job = { name = entry[1], count = left }
+    else
+      local per = ns.MatsPerCraft(entry)
+      for i = 1, #per, 2 do
+        local mat, need = per[i], per[i + 1] * left
+        local short = need - ns.Have(mat)
+        local sub = short > 0 and ns.Recipe(mat)
+        if sub and sub.learned and ns.CanMake(mat) > 0 then
+          state.job = { name = mat, count = math.min(short, ns.CanMake(mat)), sub = true }
+          break
+        end
+      end
+      if not state.job and state.canMake > 0 then state.job = { name = entry[1], count = state.canMake } end
+    end
+  end
+  local job = state.job
+  if job then
+    craftBtn:Enable()
+    craftBtn:SetText(job.sub and T("craftSub", job.count) or T("craftN", job.count))
+    craftBtn.tip = job.sub and T("craftFirst", job.count, job.name) or T("craftTip", job.count, job.name)
   else
-    craft1:Enable(); craftAll:Enable()
-    craftAll:SetText(T("craftAll") .. " (" .. math.min(state.canMake, left) .. ")")
+    craftBtn:Disable()
+    craftBtn:SetText(T("craft"))
+    craftBtn.tip = nil
   end
   y = y - 28
   if text then
