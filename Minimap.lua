@@ -2,7 +2,7 @@
 -- Click: the main window. Right-click: the shopping list. Shift-click: settings. Drag: move it.
 local _, ns = ...
 local T = ns.T
-local ICON = "Interface\\Icons\\Trade_BlackSmithing"
+local ICON = "Interface\\AddOns\\CraftETA\\Textures\\Logo"
 
 local button
 
@@ -53,7 +53,7 @@ local function Create()
   bg:SetSize(20, 20); bg:SetPoint("TOPLEFT", 7, -5)
   local icon = b:CreateTexture(nil, "ARTWORK")
   icon:SetTexture(ICON)
-  icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+  icon:SetTexCoord(0, 1, 0, 1)
   icon:SetSize(17, 17); icon:SetPoint("TOPLEFT", 7, -6)
   local border = b:CreateTexture(nil, "OVERLAY")
   border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
