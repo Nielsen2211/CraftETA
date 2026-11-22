@@ -234,6 +234,15 @@ for _, event in ipairs({ "CHAT_MSG_CHANNEL", "CHAT_MSG_SAY", "CHAT_MSG_YELL" }) 
   ns.On(event, function(text, sender) pcall(OnChat, text, sender) end)
 end
 
+function ns.Adverts()
+  local out, now = {}, time()
+  if ns.db and ns.db.chatAds == false then return out end
+  for _, a in ipairs(ads) do
+    if now - a.t <= AD_KEEP then out[#out + 1] = a end
+  end
+  return out
+end
+
 local function AdMatches(text, found)
   local words = {}
   for w in string.gmatch(string.lower(text), "%S+") do words[#words + 1] = w end
@@ -311,14 +320,59 @@ ns.On("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
       local line = string.sub(("A\t%s\t%s\t%s"):format(list[i].recipe, list[i].char, list[i].prof), 1, 250)
       pcall(C_ChatInfo.SendAddonMessage, PREFIX, line, "WHISPER", sender)
     end
+  elseif kind == "P" and short ~= me then
+    if a == "?" then
+      if ns.db.guildShare and channel == "GUILD" then ns.SendProfile(sender) end
+    else
+      ns.guildPeers = ns.guildPeers or {}
+      local p = ns.guildPeers[sender] or { recipes = {} }
+      p.name, p.short, p.profs = sender, short, {}
+      for name, skill in string.gmatch(a or "", "([^:,]+):(%d+)") do p.profs[name] = tonumber(skill) end
+      p.class, p.level, p.seen = b ~= "" and b or p.class, tonumber(c) or p.level, time()
+      ns.guildPeers[sender] = p
+      if ns.RefreshHub then ns.RefreshHub() end
+    end
   elseif kind == "A" and a and b and results.query then
     for _, r in ipairs(results) do
       if r.recipe == a and r.char == b then return end
     end
     results[#results + 1] = { recipe = a, char = b, prof = c, sender = sender }
+    ns.guildPeers = ns.guildPeers or {}
+    local p = ns.guildPeers[sender] or { name = sender, short = short, profs = {}, recipes = {} }
+    p.recipes[a] = c or true
+    ns.guildPeers[sender] = p
     if ns.RefreshHub then ns.RefreshHub() end
   end
 end)
+
+-- your professions to the guild, so guild members with CraftETA see you on their Crafters page
+local lastProfile = 0
+function ns.SendProfile(target)
+  if not (ns.db and ns.db.guildShare and IsInGuild and IsInGuild() and C_ChatInfo) then return end
+  if not target and GetTime() - lastProfile < 60 then return end
+  local c = ns.Me()
+  if not c then return end
+  local parts = {}
+  for id, s in pairs(c.profs or {}) do parts[#parts + 1] = ProfName(id) .. ":" .. (s.rank or 0) end
+  if #parts == 0 then return end
+  table.sort(parts)
+  local line = ("P\t%s\t%s\t%s"):format(table.concat(parts, ","), c.class or "", c.level or 0)
+  if target then
+    pcall(C_ChatInfo.SendAddonMessage, PREFIX, line, "WHISPER", target)
+  else
+    lastProfile = GetTime()
+    pcall(C_ChatInfo.SendAddonMessage, PREFIX, line, "GUILD")
+  end
+end
+ns.On("PLAYER_LOGIN", function()
+  C_Timer.After(12, function()
+    ns.SendProfile()
+    if ns.db and ns.db.guildAsk and IsInGuild and IsInGuild() and C_ChatInfo then
+      pcall(C_ChatInfo.SendAddonMessage, PREFIX, "P\t?", "GUILD")
+    end
+  end)
+end)
+ns.On("SKILL_LINES_CHANGED", function() if C_Timer then C_Timer.After(5, function() ns.SendProfile() end) end end)
 
 function ns.Whisper(target)
   if not target then return end

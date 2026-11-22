@@ -36,7 +36,7 @@ local function Page()
   return p
 end
 
-local function ClassIcon(tex, class)
+function ns.ClassIcon(tex, class)
   local coords = class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
   if coords then
     tex:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
@@ -500,7 +500,7 @@ function alts:Refresh()
       c.key, c.isMe = key, key == myKey
       c:ClearAllPoints()
       c:SetPoint("TOPLEFT", ((i - 1) % 2) * (AW + 12), -44 - math.floor((i - 1) / 2) * (AH + 10))
-      ClassIcon(c.class, ch.class)
+      ns.ClassIcon(c.class, ch.class)
       local color = ch.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[ch.class]
       c.name:SetText(ch.name or key)
       c.name:SetTextColor(color and color.r or 1, color and color.g or 1, color and color.b or 1)
