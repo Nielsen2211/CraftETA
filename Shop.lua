@@ -119,8 +119,8 @@ for i = 1, ROWS do
       -- you get this one yourself: off the list
       ns.db.skip[self.item] = true
       ns.Refresh()
-    elseif self.itemID and ns.AuxSearch then
-      ns.AuxSearch(self.itemID)
+    elseif self.itemID then
+      ns.AHSearch(self.itemID, self.item)
     end
   end)
   r:SetScript("OnEnter", function(self)
@@ -288,7 +288,19 @@ local function AuxPrice(name)
   if ok and type(price) == "number" and price > 0 then return price end
   return nil
 end
-ns.AuxPrice = AuxPrice
+-- aux first, then Auctionator's last scan
+local function AuxOrAtrPrice(name)
+  local price = AuxPrice(name)
+  if price then return price end
+  local atr = _G.Auctionator and Auctionator.API and Auctionator.API.v1
+  local id = ns.ItemID(name)
+  if atr and atr.GetAuctionPriceByItemID and id then
+    local ok, p = pcall(atr.GetAuctionPriceByItemID, ADDON, id)
+    if ok and type(p) == "number" and p > 0 then return p end
+  end
+  return nil
+end
+ns.AuxPrice = AuxOrAtrPrice
 
 -- a stackable item the auction house sells by the unit (or not known yet)
 local function Commodity(id)
@@ -302,7 +314,7 @@ local function Estimate(s, qty, name)
   if s and s.est and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
     return s.est * qty / s.qty
   end
-  local unit = name and AuxPrice(name)
+  local unit = name and AuxOrAtrPrice(name)
   if unit then return unit * qty end
   if s and s.est and s.qty and s.qty > 0 then return s.est * qty / s.qty end
   return nil
@@ -318,7 +330,7 @@ local function Current(items)
       local fresh = s and s.t and time() - s.t < 900
       if fresh and s.commodity and (s.avail or 0) > 0 then
         return item, s
-      elseif not fresh and AuxPrice(item.name) and Commodity(id) then
+      elseif not fresh and AuxOrAtrPrice(item.name) and Commodity(id) then
         return item, nil
       end
     end
@@ -456,6 +468,16 @@ end
 ---------------------------------------------------------------------------
 -- aux and Auctionator
 ---------------------------------------------------------------------------
+-- searches for an item at the auction house: in aux when its window is open, else with Auctionator
+function ns.AHSearch(itemID, name)
+  if _G.aux_frame and _G.aux_frame:IsShown() then return ns.AuxSearch(itemID) end
+  local atr = _G.Auctionator and Auctionator.API and Auctionator.API.v1
+  name = name or (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID))
+  if atr and atr.MultiSearchExact and name then
+    pcall(atr.MultiSearchExact, ADDON, { name })
+  end
+end
+
 -- searches for an item on aux's Search tab, while aux's window is open
 function ns.AuxSearch(itemID)
   local api = _G.AuxForeverAPI
@@ -511,15 +533,15 @@ function ns.RefreshList()
       if item.still > 0 then
         if s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
           est = Estimate(s, math.min(item.still, s.qty))
-        elseif AuxPrice(item.name) then
-          est = AuxPrice(item.name) * item.still
+        elseif AuxOrAtrPrice(item.name) then
+          est = AuxOrAtrPrice(item.name) * item.still
         elseif ns.Price(item.name) then
           est = ns.Price(item.name) * item.still
         end
       end
       if item.still == 0 then
         r.value:SetText("")
-      elseif s and s.none and not AuxPrice(item.name) then
+      elseif s and s.none and not AuxOrAtrPrice(item.name) then
         r.value:SetText("|cffe8574a" .. T("notListed") .. "|r")
       elseif s and s.commodity == false then
         r.value:SetText("|cffaaaaaa" .. T("vendor") .. "?|r")

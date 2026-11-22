@@ -56,7 +56,7 @@ logoText:SetPoint("TOPLEFT", logo, "TOPRIGHT", 9, 1)
 logoText:SetText("|cffffffffCraft|r|cffffd24aETA|r")
 local logoSub = ns.Font(side, false, 10, 0.55, 0.58, 0.64)
 logoSub:SetPoint("TOPLEFT", logoText, "BOTTOMLEFT", 0, -2)
-logoSub:SetText("by Nielsen2211")
+logoSub:SetText("by Xtreamcoder")
 
 local menuButtons = {}
 local my = -62
