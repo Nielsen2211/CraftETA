@@ -400,6 +400,12 @@ for event, fn in pairs({
     ns.db.bought = {}
     if ns.db.ah and #ns.ListItems() > 0 then
       C_Timer.After(0.2, function() S.byAH = true; S:Show(); ns.PlaceList() end)
+      -- a quick look at today's prices of what is on the list (aux's price stands in meanwhile)
+      if ns.db.autoScan then
+        C_Timer.After(1.5, function()
+          if AH.open and not scanning then ns.ScanPrices() end
+        end)
+      end
     end
   end,
   AUCTION_HOUSE_CLOSED = function()

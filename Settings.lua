@@ -50,6 +50,7 @@ function W.Build()
   add(T("panelOpt"), db.panel, function() db.panel = not db.panel end)
   add(T("nextOpt"), db.showNext, function() db.showNext = not db.showNext end)
   add(T("ahOpt"), db.ah, function() db.ah = not db.ah end)
+  add(T("autoScanOpt"), db.autoScan, function() db.autoScan = not db.autoScan end)
   add(T("autoOpt"), db.autoBuy, function() db.autoBuy = not db.autoBuy end)
   -- the price guard: click to go 10, 20, 30, 50 %
   add(T("guardOpt") .. "  |cffffd24a" .. db.guard .. "%|r", true, function()
