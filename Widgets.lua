@@ -216,3 +216,36 @@ function ns.Bar(parent, width)
   end
   return bar
 end
+
+-- a box you type a number in: Enter (or clicking away) sets it, Escape puts the old one back
+-- onSet(n) gets the number; box:SetNumberValue(n) shows one without calling onSet
+function ns.NumberBox(parent, width, height, size, onSet)
+  local box = CreateFrame("EditBox", nil, parent)
+  box:SetSize(width, height)
+  box:SetAutoFocus(false)
+  box:SetNumeric(true)
+  box:SetMaxLetters(6)
+  box:SetFont(ns.F_BOLD, size or 12, "")
+  box:SetTextColor(1, 0.82, 0.29)
+  box:SetJustifyH("CENTER")
+  box:SetTextInsets(4, 4, 0, 0)
+  local bg = box:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(0.08, 0.09, 0.11, 0.95)
+  local line = box:CreateTexture(nil, "BORDER")
+  line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT"); line:SetHeight(1)
+  line:SetColorTexture(0.45, 0.4, 0.25, 0.9)
+  local function Apply(self)
+    local n = tonumber(self:GetText())
+    if n and n ~= self.value then onSet(n) else self:SetText(self.value or "") end
+  end
+  box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEscapePressed", function(self) self:SetText(self.value or ""); self:ClearFocus() end)
+  box:SetScript("OnEditFocusLost", Apply)
+  box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+  function box:SetNumberValue(n)
+    self.value = n
+    if not self:HasFocus() then self:SetText(n or "") end
+  end
+  return box
+end

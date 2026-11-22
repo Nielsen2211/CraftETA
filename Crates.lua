@@ -360,6 +360,21 @@ end
 local function Head(data, text, click) data[#data + 1] = { head = true, name = text, click = click } end
 local TURN_IN = { h = "Dokimi, Crossroads (The Barrens), west gate", a = "Marcy Baker, Three Corners (Redridge Mountains)" }
 
+local favorLabel = ns.Font(ns.Hub, true, 11, 0.85, 0.87, 0.9)
+local favorUnit = ns.Font(ns.Hub, false, 11, 0.6, 0.62, 0.67)
+local favorBox = ns.NumberBox(ns.Hub, 60, 20, 12, function(n)
+  ns.db.favorGoal = math.max(1, n)
+  ns.RefreshHub()
+end)
+local function HideFavorGoal() favorLabel:Hide(); favorBox:Hide(); favorUnit:Hide() end
+HideFavorGoal()
+-- every page draw hides it first; the Favor page shows it again
+local drawHub = ns.RefreshHub
+ns.RefreshHub = function(...)
+  HideFavorGoal()
+  return drawHub(...)
+end
+
 ns.HubBuilders.favor = function(data, state, Control)
   ns.db.favorGoal = ns.db.favorGoal or 200
   local X = ns.HUB_X
@@ -371,9 +386,13 @@ ns.HubBuilders.favor = function(data, state, Control)
     b:SetScript("OnClick", fn); b:Show()
   end
   local goal = ns.db.favorGoal
-  Btn(1, 0, 30, "-", function() ns.db.favorGoal = math.max(5, goal - (IsShiftKeyDown() and 10 or 50)); ns.RefreshHub() end, L("Shift: 10", "Shift: 10"))
-  Btn(2, 34, 110, L("Goal: %d favor", "Mål: %d favor"):format(goal), function() end)
-  Btn(3, 148, 30, "+", function() ns.db.favorGoal = goal + (IsShiftKeyDown() and 10 or 50); ns.RefreshHub() end, L("Shift: 10", "Shift: 10"))
+  -- the goal: type it (Enter sets it)
+  favorLabel:ClearAllPoints(); favorLabel:SetPoint("TOPLEFT", ns.Hub, "TOPLEFT", X, -26)
+  favorLabel:SetText(L("Goal:", "Mål:")); favorLabel:Show()
+  favorBox:ClearAllPoints(); favorBox:SetPoint("LEFT", favorLabel, "RIGHT", 6, 0)
+  favorBox:SetNumberValue(goal); favorBox:Show()
+  favorUnit:ClearAllPoints(); favorUnit:SetPoint("LEFT", favorBox, "RIGHT", 6, 0)
+  favorUnit:SetText("favor"); favorUnit:Show()
   -- scanning only makes sense at the auction house: away from it the button is gone
   local atAH = ns.AH and ns.AH.open
   if atAH then

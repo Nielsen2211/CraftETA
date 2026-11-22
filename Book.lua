@@ -16,22 +16,52 @@ local function Realm()
   return realm
 end
 
+-- the character's own ID (Player-6948-0035A77F -> 6948-0035A77F): the same on every login, unique on the account
+local function Guid()
+  local ok, guid = pcall(UnitGUID, "player")
+  guid = ok and Plain(guid)
+  if type(guid) ~= "string" or guid == "" then return nil end
+  return (guid:gsub("^Player%-", ""))
+end
+
+-- name-ID: on Forever addons get no realm name and every character can share one name, so the ID tells
+-- them apart (name-realm only when the game gives no ID)
 function ns.CharKey()
   local name = Plain(UnitName("player"))
   if type(name) ~= "string" then return nil end
+  local guid = Guid()
+  if guid then return name .. "-" .. guid end
   local realm = Realm()
   return realm ~= "" and (name .. "-" .. realm) or name
+end
+
+-- before 1.7.6 every character was saved under its bare name, so characters with the same name shared one
+-- entry: the first one of them to log in (same class) takes it over, the others start their own
+local function Migrate(key)
+  local name = Plain(UnitName("player"))
+  if type(name) ~= "string" or key == name then return end
+  local old = ns.db.chars[name]
+  local _, class = UnitClass("player")
+  if old and not old.guid and (not old.class or old.class == Plain(class)) then
+    ns.db.chars[key], ns.db.chars[name] = old, nil
+    if ns.db.lists and ns.db.lists[name] and not ns.db.lists[key] then
+      ns.db.lists[key], ns.db.lists[name] = ns.db.lists[name], nil
+    end
+    ns.indexDirty = true
+  end
 end
 
 function ns.Me()
   local key = ns.CharKey()
   if not key or not ns.db then return nil end
   local c = ns.db.chars[key]
+  if not c then Migrate(key); c = ns.db.chars[key] end
   if not c then
     c = { profs = {}, book = {} }
     ns.db.chars[key] = c
   end
   c.profs, c.book = c.profs or {}, c.book or {}
+  c.guid = c.guid or Guid()
   return c, key
 end
 

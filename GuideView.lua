@@ -96,11 +96,17 @@ local costGoal = ns.Font(subs[2], false, 10, 0.85, 0.87, 0.9); costGoal:SetPoint
 costGoal:SetPoint("RIGHT", subs[2], "RIGHT", -10, 0); costGoal:SetWordWrap(false)
 -- your goal: a number you set, and presets with what each costs
 local goalSub = subs[3]
-local goalNum = ns.Font(goalSub, true, 17, 1, 0.82, 0.29); goalNum:SetPoint("TOPLEFT", 12, -24)
-local goalMinus = ns.Button(goalSub, "-", 20, 18); goalMinus:SetPoint("LEFT", goalNum, "RIGHT", 8, 0)
-local goalPlus = ns.Button(goalSub, "+", 20, 18); goalPlus:SetPoint("LEFT", goalMinus, "RIGHT", 4, 0)
-for _, b in ipairs({ goalMinus, goalPlus }) do b.label:SetTextColor(0.85, 0.87, 0.9); b.tip = L("Shift: 1 at a time", "Shift: 1 ad gangen") end
-local goalInfo = ns.Font(goalSub, false, 9, 0.5, 0.52, 0.57); goalInfo:SetPoint("LEFT", goalPlus, "RIGHT", 8, 0)
+-- type the skill you want to reach (Enter sets it)
+local goalNum
+goalNum = ns.NumberBox(goalSub, 52, 24, 16, function(n) if goalNum.onSet then goalNum.onSet(n) end end)
+goalNum:SetPoint("TOPLEFT", 10, -20)
+goalNum:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(L("Type your goal, then Enter", "Skriv dit mål og tryk Enter"))
+  GameTooltip:Show()
+end)
+goalNum:SetScript("OnLeave", function() GameTooltip:Hide() end)
+local goalInfo = ns.Font(goalSub, false, 9, 0.5, 0.52, 0.57); goalInfo:SetPoint("LEFT", goalNum, "RIGHT", 8, 0)
 goalInfo:SetPoint("RIGHT", goalSub, "RIGHT", -8, 0); goalInfo:SetWordWrap(false); goalInfo:SetJustifyH("RIGHT")
 local presets = {}
 local PW = math.floor((SUB_W - 24 - 9) / 4)
@@ -250,10 +256,8 @@ function ns.ShowGuideView(id, guide, skill, current, y)
 
   -- your goal
   subs[3].head:SetText(L("YOUR GOAL", "DIT MÅL"))
-  goalNum:SetText(goal)
-  local function Step(d) local s = IsShiftKeyDown() and 1 or 5; SetGoal(id, math.max(rank + 1, math.min(300, goal + d * s))) end
-  goalMinus:SetScript("OnClick", function() Step(-1) end)
-  goalPlus:SetScript("OnClick", function() Step(1) end)
+  goalNum:SetNumberValue(goal)
+  goalNum.onSet = function(n) SetGoal(id, math.max(rank + 1, math.min(300, n))) end
   goalInfo:SetText(goal >= 300 and "" or (crafting and L("route stops here", "ruten stopper her") or ""))
   local vals = { math.max(rank + 1, math.min(300, max)), 150, 225, 300 }
   local labels = { L("Cap", "Loft"), "150", "225", "300" }
