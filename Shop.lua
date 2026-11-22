@@ -568,7 +568,7 @@ function ns.RefreshList()
       r.icon:SetTexture(ns.ItemIcon(item.name))
       r.name:SetText(item.vendor and (item.name .. "  |cff8c8f96" .. T("vendTag") .. "|r") or item.name)
       r.vendor = item.vendor
-      r.still:SetText(item.still > 0 and ("|cffffffff" .. item.still .. "|r") or "|cff4dcc66✓|r")
+      r.still:SetText(item.still > 0 and ("|cffffffff" .. item.still .. "|r") or "|TInterface\\RaidFrame\\ReadyCheck-Ready:12|t")   -- the game's own check mark (the font has no ✓)
       r.mail:SetText("")
       local s = ns.db.scanned[item.name]
       local est
