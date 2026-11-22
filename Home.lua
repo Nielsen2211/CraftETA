@@ -793,13 +793,37 @@ local function Seg(i)
   s.fill:SetPoint("TOPLEFT"); s.fill:SetPoint("BOTTOMLEFT")
   s.fill:SetColorTexture(0.3, 0.72, 0.4, 1)
   s:EnableMouse(true)
+  s.hl = s:CreateTexture(nil, "HIGHLIGHT"); s.hl:SetPoint("TOPLEFT", 0, 3); s.hl:SetPoint("BOTTOMRIGHT", 0, -3)
+  s.hl:SetColorTexture(1, 1, 1, 0.3)
   s:SetScript("OnEnter", function(self)
     local d = self.data and self.data[self.index]
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
     if d and d.tip then
-      GameTooltip:SetOwner(self, "ANCHOR_TOP")
       d.tip(GameTooltip)
-      GameTooltip:Show()
+    elseif self.step then
+      -- the step itself: what to make, its materials, and where you are
+      local st, id, rank = self.step, self.prof, self.rank or 0
+      local done, here = rank >= st[2], rank >= st[1] and rank < st[2]
+      GameTooltip:SetText(("%d - %d"):format(st[1], st[2]), here and 1 or 0.85, here and 0.82 or 0.87, here and 0.3 or 0.9)
+      if ns.GUIDES[id] then
+        local entry = (ns.Chosen(id, self.index, st))[1]
+        GameTooltip:AddLine(L("Craft %d %s", "Lav %d %s"):format(entry[2], entry[1]), 1, 1, 1)
+        local mats = entry[3]
+        for m = 1, #mats, 2 do
+          local have = ns.Have(mats[m])
+          GameTooltip:AddDoubleLine(mats[m + 1] .. " x " .. mats[m], have > 0 and (L("have ", "har ") .. have) or "",
+            0.6, 0.62, 0.67, 0.45, 0.85, 0.5)
+        end
+      else
+        GameTooltip:AddLine(st.what or "", 1, 1, 1, true)
+        local f = ns.Faction()
+        if st[f] then GameTooltip:AddLine(st[f], 0.6, 0.62, 0.67, true) end
+      end
+      if st.note then GameTooltip:AddLine(st.note, 0.78, 0.72, 0.58, true) end
+      if done then GameTooltip:AddLine(L("Done", "Klaret"), 0.35, 0.9, 0.4)
+      elseif here then GameTooltip:AddLine(L("You are here", "Du er her"), 1, 0.82, 0.3) end
     end
+    GameTooltip:Show()
   end)
   s:SetScript("OnLeave", function() GameTooltip:Hide() end)
   segs[i] = s
@@ -906,6 +930,7 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
     seg:SetPoint("TOPLEFT", tl, "TOPLEFT", x1, BAR_Y)
     seg:SetWidth(math.max(2, x2 - x1 - 1))
     seg.data, seg.index = data, i
+    seg.step, seg.prof, seg.rank = s, id, rank
     if rank >= s[2] then
       seg.base:SetColorTexture(0.3, 0.72, 0.4, 1); seg.fill:Hide()
     elseif i == current then
@@ -920,6 +945,7 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
     local ic = Icon(i)
     ic:SetScript("OnEnter", seg:GetScript("OnEnter"))
     ic.data, ic.index = data, i
+    ic.step, ic.prof, ic.rank = s, id, rank
     -- one row of icons; a step too close to the last icon shown gets none (its segment still has the tooltip)
     local fits = x1 - lastIconX >= 22
     if fits then lastIconX = x1 end
