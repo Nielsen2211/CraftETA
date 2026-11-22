@@ -168,7 +168,7 @@ function ns.BagCrates()
       local name = link and string.match(link, "%[(.-)%]")
       if name and (string.find(name, "Waylaid", 1, true) or string.find(name, "Crate", 1, true)) then
         local text = name .. "\n" .. TooltipText("GetBagItem", bag, slot)
-        out[#out + 1] = { crate = ns.CrateFromText(text), name = name, id = Plain(info.itemID), quality = tonumber(Plain(info.quality)) or 1,
+        out[#out + 1] = { crate = ns.CrateFromText(text), name = name, id = Plain(info.itemID), quality = tonumber(Plain(info.quality)) or 1, bag = bag, slot = slot,
           count = tonumber(Plain(info.stackCount)) or 1, sealed = string.find(name, "Sealed", 1, true) ~= nil }
       end
     end
@@ -360,6 +360,54 @@ end
 local TURN_IN = { h = "Dokimi, Crossroads (The Barrens), west gate", a = "Marcy Baker, Three Corners (Redridge Mountains)" }
 
 ---------------------------------------------------------------------------
+-- What the favor vendors sell: read when you open one (any vendor whose prices are in Merchant's Favor),
+-- kept per faction: { [itemID] = { n = name, i = icon, c = favor, v = vendor, u = you can use it, t = seen } }
+---------------------------------------------------------------------------
+local function IsFavor(name, link)
+  return (type(link) == "string" and link:find("currency:3402", 1, true)) or name == "Merchant's Favor"
+end
+local function ReadFavorShop()
+  if not ns.db or not GetMerchantNumItems then return end
+  local okN, n = pcall(GetMerchantNumItems)
+  n = okN and tonumber(Plain(n)) or 0
+  local npc = Plain(UnitName("npc"))
+  local f = ns.Faction()
+  local found = {}
+  for i = 1, n do
+    local okL, link = pcall(GetMerchantItemLink, i)
+    link = okL and Plain(link)
+    local id = type(link) == "string" and tonumber(link:match("item:(%d+)"))
+    local name, icon, usable
+    if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+      local ok, info = pcall(C_MerchantFrame.GetItemInfo, i)
+      if ok and type(info) == "table" then name, icon, usable = Plain(info.name), Plain(info.texture), Plain(info.isUsable) end
+    end
+    if not name then
+      local ok, nm, tex, _, _, _, _, us = pcall(GetMerchantItemInfo, i)
+      if ok then name, icon, usable = Plain(nm), Plain(tex), Plain(us) end
+    end
+    local okC, count = pcall(GetMerchantItemCostInfo, i)
+    count = okC and tonumber(Plain(count)) or 0
+    for j = 1, count do
+      local ok, _, value, clink, cname = pcall(GetMerchantItemCostItem, i, j)
+      if ok and IsFavor(Plain(cname), Plain(clink)) and id and name then
+        found[id] = { n = name, i = icon, c = tonumber(Plain(value)) or 0, v = npc, u = usable ~= false, t = time() }
+      end
+    end
+  end
+  if next(found) then
+    ns.db.favorShop = ns.db.favorShop or {}
+    ns.db.favorShop[f] = ns.db.favorShop[f] or {}
+    for id, e in pairs(found) do ns.db.favorShop[f][id] = e end
+    if ns.RefreshHub then ns.RefreshHub() end
+  end
+end
+for _, e in ipairs({ "MERCHANT_SHOW", "MERCHANT_UPDATE" }) do
+  ns.Register(e)
+  ns.On(e, function() C_Timer.After(0.4, function() pcall(ReadFavorShop) end) end)
+end
+
+---------------------------------------------------------------------------
 -- The Favor page: your favor and goal on top, the plan as numbered steps (buy crates, buy materials,
 -- fill, hand in), and the crates that give favor cheapest at the bottom
 ---------------------------------------------------------------------------
@@ -371,6 +419,7 @@ page:Hide()
 ns.HubCustom.favor = page
 
 local GOLD = { 1, 0.82, 0.29 }
+local favorScroll = 0   -- the first item shown on the "Buy for favor" tab
 local function Fill(parent, r, g, b, a, layer, sub)
   local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub or 1)
   t:SetColorTexture(r, g, b, a or 1)
@@ -446,7 +495,68 @@ local scanBtn = ns.Button(plan, "", 150, 26)
 scanBtn:SetPoint("RIGHT", listBtn, "LEFT", -8, 0)
 scanBtn.label:SetTextColor(0.85, 0.87, 0.9)
 scanBtn:SetScript("OnClick", function() ns.ScanCrates() end)
-local scanAge = ns.Font(plan, false, 9, 0.45, 0.47, 0.52); scanAge:SetPoint("BOTTOMLEFT", 16, 20)
+local scanAge = ns.Font(plan, false, 9, 0.45, 0.47, 0.52); scanAge:SetPoint("BOTTOMLEFT", 16, 44)
+
+-- fill a crate: a click uses the next crate in your bags that you have the materials for (the game seals it).
+-- Using an item needs a secure button, and its target can't change in combat
+local fillBtn = CreateFrame("Button", "CraftETAFillCrate", plan, "SecureActionButtonTemplate")
+fillBtn:SetSize(220, 26); fillBtn:SetPoint("BOTTOMLEFT", 16, 12)
+fillBtn:RegisterForClicks("AnyUp", "AnyDown")
+fillBtn:SetAttribute("type", "item")
+fillBtn.bg = fillBtn:CreateTexture(nil, "BACKGROUND"); fillBtn.bg:SetAllPoints()
+fillBtn.label = ns.Font(fillBtn, true, 11, 0.1, 0.08, 0.03); fillBtn.label:SetPoint("CENTER"); fillBtn.label:SetShadowOffset(0, 0)
+local fillHl = fillBtn:CreateTexture(nil, "HIGHLIGHT"); fillHl:SetAllPoints(); fillHl:SetColorTexture(1, 1, 1, 0.12)
+local function FillLook(on)
+  fillBtn.bg:SetColorTexture(on and 0.35 or 0.2, on and 0.78 or 0.19, on and 0.42 or 0.15, 1)
+  fillBtn.label:SetTextColor(on and 0.04 or 0.45, on and 0.1 or 0.45, on and 0.05 or 0.47)
+end
+FillLook(false)
+fillBtn:HookScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(L("Fill a crate", "Fyld en kasse"), 1, 0.82, 0.3)
+  if self.crate then
+    GameTooltip:AddLine(L("Click: uses %s. With the materials in your bags the game seals it.", "Klik: bruger %s. Med materialerne i tasken forsegler spillet den."):format(self.crate), 0.85, 0.87, 0.9, true)
+  else
+    GameTooltip:AddLine(L("No crate in your bags that you have the materials for.", "Ingen kasse i tasken, som du har materialerne til."), 0.85, 0.87, 0.9, true)
+  end
+  GameTooltip:Show()
+end)
+fillBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
+-- the crates you can fill now: { name, bag, slot }
+local function Fillable()
+  local out = {}
+  local level = UnitLevel("player") or 1
+  for _, b in ipairs(ns.BagCrates()) do
+    local c = b.crate
+    if c and not b.sealed and b.bag and level >= (LVL[c[1]] or 1) then
+      for k = 4, #c do
+        if Have(c[k][1]) >= c[k][2] then out[#out + 1] = { name = b.name, bag = b.bag, slot = b.slot }; break end
+      end
+    end
+  end
+  return out
+end
+function page:UpdateFill()
+  if InCombatLockdown and InCombatLockdown() then return end
+  local list = Fillable()
+  local first = list[1]
+  if first then
+    fillBtn:SetAttribute("item", first.bag .. " " .. first.slot)
+    fillBtn.crate = first.name
+    fillBtn.label:SetText(L("Fill crate (%d ready)", "Fyld kasse (%d klar)"):format(#list))
+    FillLook(true)
+  else
+    fillBtn:SetAttribute("item", nil)
+    fillBtn.crate = nil
+    fillBtn.label:SetText(L("No crate to fill", "Ingen kasse at fylde"))
+    FillLook(false)
+  end
+end
+ns.Register("BAG_UPDATE_DELAYED")
+ns.On("BAG_UPDATE_DELAYED", function() if page:IsVisible() then page:Refresh() end end)
+ns.Register("PLAYER_REGEN_ENABLED")
+ns.On("PLAYER_REGEN_ENABLED", function() if page:IsVisible() then page:UpdateFill() end end)
 
 -- a numbered step: a badge, its title, and up to 3 lines under it
 local STEP_LINES = 3
@@ -478,7 +588,42 @@ end
 -- the cheapest crates
 local cheap = Card(page)
 cheap:SetPoint("TOPLEFT", plan, "BOTTOMLEFT", 0, -8); cheap:SetPoint("BOTTOMRIGHT")
-local cheapHead = ns.Font(cheap, true, 9, 0.36, 0.38, 0.42); cheapHead:SetPoint("TOPLEFT", 16, -12)
+local cheapHead = ns.Font(cheap, true, 9, 0.36, 0.38, 0.42); cheapHead:SetPoint("TOPLEFT", 16, -12); cheapHead:Hide()
+-- two tabs: the cheapest crates, and what the favor vendors sell
+local tabs = {}
+for i, key in ipairs({ "crates", "shop" }) do
+  local b = ns.Button(cheap, "", 150, 20)
+  b:SetPoint("TOPLEFT", 12 + (i - 1) * 156, -8)
+  b.key = key
+  b:SetScript("OnClick", function() ns.db.favorTab = key; favorScroll = 0; page:Refresh() end)
+  tabs[i] = b
+end
+-- the basket: what you want from the favor vendors, and what reaching it costs
+local cartBar = CreateFrame("Frame", nil, cheap)
+cartBar:SetPoint("BOTTOMLEFT", 12, 8); cartBar:SetPoint("BOTTOMRIGHT", -12, 8); cartBar:SetHeight(30)
+local cartBg = cartBar:CreateTexture(nil, "BACKGROUND"); cartBg:SetAllPoints(); cartBg:SetColorTexture(1, 0.82, 0.3, 0.08)
+local cartIcon = cartBar:CreateTexture(nil, "ARTWORK"); cartIcon:SetSize(18, 18); cartIcon:SetPoint("LEFT", 8, 0)
+cartIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10_Blue"); cartIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+local cartText = ns.Font(cartBar, true, 10, 0.9, 0.91, 0.94); cartText:SetPoint("LEFT", cartIcon, "RIGHT", 8, 0)
+local cartGoal = ns.Primary(ns.Button(cartBar, "", 110, 22), 11); cartGoal:SetPoint("RIGHT", -4, 0)
+local cartClear = ns.Button(cartBar, "", 56, 22); cartClear:SetPoint("RIGHT", cartGoal, "LEFT", -6, 0)
+cartClear.label:SetTextColor(0.85, 0.87, 0.9)
+cartText:SetPoint("RIGHT", cartClear, "LEFT", -8, 0); cartText:SetWordWrap(false)
+local function Cart()
+  local f = ns.Faction()
+  ns.db.favorCart = ns.db.favorCart or {}
+  ns.db.favorCart[f] = ns.db.favorCart[f] or {}
+  return ns.db.favorCart[f]
+end
+
+local usableSwitch = ns.Switch(cheap, function() ns.db.favorAll = not ns.db.favorAll; favorScroll = 0; page:Refresh() end)
+usableSwitch:SetPoint("TOPRIGHT", -16, -10)
+local usableLabel = ns.Font(cheap, false, 9, 0.6, 0.62, 0.67); usableLabel:SetPoint("RIGHT", usableSwitch, "LEFT", -6, 0)
+cheap:EnableMouseWheel(true)
+cheap:SetScript("OnMouseWheel", function(_, delta)
+  favorScroll = math.max(0, (favorScroll or 0) - delta * 2)
+  page:Refresh()
+end)
 local cheapNote = ns.Font(cheap, false, 9, 0.45, 0.47, 0.52); cheapNote:SetPoint("TOPRIGHT", -16, -12); cheapNote:SetJustifyH("RIGHT")
 local COLS, CHEAP_H = 2, 34
 local CHEAP_W = math.floor((CW - 32 - 8) / COLS)
@@ -670,11 +815,114 @@ function page:Refresh()
       { atlas = "QuestRepeatableTurnin", icon = "Interface\\GossipFrame\\DailyActiveQuestIcon", text = TURN_IN[f], value = back > 0 and ("|cff73d973+" .. ns.Money(back) .. L(" back", " tilbage") .. "|r") or "" },
     })
   end
-  plan:SetHeight(-y + 46)
+  plan:SetHeight(-y + 76)
+  page:UpdateFill()
+
+  -- the bottom card: the cheapest crates, or what you can buy for favor
+  local tab = ns.db.favorTab or "crates"
+  local shopList = ns.db.favorShop and ns.db.favorShop[f] or {}
+  local shopN = 0
+  for _ in pairs(shopList) do shopN = shopN + 1 end
+  tabs[1]:SetText(L("Cheapest crates", "Billigste kasser"))
+  tabs[2]:SetText(L("Buy for favor", "Køb for favor") .. (shopN > 0 and (" (" .. shopN .. ")") or ""))
+  for _, b in ipairs(tabs) do
+    local on = b.key == tab
+    b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
+  end
+  for _, t in ipairs(tiles) do t:Hide() end
+  cheapNote:Hide()
+  usableSwitch:SetShown(tab == "shop"); usableLabel:SetShown(tab == "shop")
+  cartBar:SetShown(tab == "shop")
+  local room = math.floor(((cheap:GetHeight() or 200) - 34 - (tab == "shop" and 40 or 0)) / CHEAP_H)
+  local fit = math.max(0, room) * COLS
+  local function Place(t, k)
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", 16 + ((k - 1) % COLS) * (CHEAP_W + 8), -34 - math.floor((k - 1) / COLS) * CHEAP_H)
+  end
+
+  if tab == "shop" then
+    usableSwitch:SetOn(not ns.db.favorAll)
+    usableLabel:SetText(L("Only what I can use", "Kun det jeg kan bruge"))
+    local list = {}
+    for id, e in pairs(shopList) do
+      if ns.db.favorAll or e.u then list[#list + 1] = { id = id, e = e } end
+    end
+    table.sort(list, function(a, b) if a.e.c ~= b.e.c then return a.e.c < b.e.c end return a.e.n < b.e.n end)
+    local first = math.min(favorScroll or 0, math.max(0, #list - fit))
+    first = first - first % COLS
+    favorScroll = first
+    if #list == 0 then
+      planEmpty:Hide()
+      cheapNote:ClearAllPoints(); cheapNote:SetPoint("TOPLEFT", 16, -40); cheapNote:SetPoint("RIGHT", cheap, "RIGHT", -16, 0)
+      cheapNote:SetJustifyH("LEFT"); cheapNote:SetWordWrap(true)
+      cheapNote:SetText(shopN == 0 and L("Open the favor vendors once (%s): CraftETA then remembers what they sell and what it costs.",
+          "Åbn favor-handlerne én gang (%s): så husker CraftETA, hvad de sælger, og hvad det koster."):format(f == "h" and "Crossroads" or "Three Corners")
+        or L("Nothing you can use. Switch off \"Only what I can use\" to see everything.", "Intet du kan bruge. Slå \"Kun det jeg kan bruge\" fra for at se alt."))
+      cheapNote:Show()
+    end
+    for k = 1, math.min(#list - first, fit) do
+      local it, t = list[first + k], Tile(k)
+      local e = it.e
+      Place(t, k)
+      t.icon:SetTexture(e.i or 134400)
+      t.name:SetText(e.n)
+      t.sub:SetText(e.v or "")
+      t.per:SetText(e.c .. " favor")
+      local short = e.c - (have or 0)
+      local inCart = Cart()[it.id]
+      t.fav:SetText(inCart and ("|cffffd24a" .. L("%d in basket", "%d i kurven"):format(inCart) .. "|r")
+        or (short <= 0 and ("|cff73d973" .. L("you can buy it", "du kan købe den") .. "|r") or L("%d to go", "%d mangler"):format(short)))
+      t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4)
+      local id, cost = it.id, e.c
+      Tip(t, function(tip)
+        tip:SetItemByID(id)
+        tip:AddLine(" ")
+        tip:AddDoubleLine(L("Costs", "Koster"), cost .. " Merchant's Favor", 0.85, 0.87, 0.9, 1, 0.82, 0.3)
+        if e.v then tip:AddDoubleLine(L("Sold by", "Sælges af"), e.v, 0.85, 0.87, 0.9, 1, 1, 1) end
+        tip:AddLine(L("Click: in the basket  ·  Right-click: out", "Klik: i kurven  ·  Højreklik: ud"), 0.55, 0.58, 0.64)
+      end)
+      t:SetScript("OnMouseUp", function(_, button)
+        local c = Cart()
+        if button == "RightButton" then
+          c[id] = (c[id] or 0) > 1 and c[id] - 1 or nil
+        else
+          c[id] = (c[id] or 0) + 1
+        end
+        page:Refresh()
+      end)
+      t:Show()
+    end
+    -- the basket: favor it needs, and what the cheapest way there costs
+    local n, need = 0, 0
+    for id, q in pairs(Cart()) do
+      local e = shopList[id]
+      if e then n = n + q; need = need + e.c * q end
+    end
+    local missing = math.max(0, need - (have or 0))
+    local costText = ""
+    if missing > 0 then
+      local _, got, g = ns.FavorPlan(missing)
+      costText = "  ·  " .. (got < missing and "~" or "") .. ns.Money(math.max(0, g)) .. L(" on the AH", " på AH")
+    end
+    cartText:SetText(n == 0 and L("Click things to put them in the basket", "Klik på ting for at lægge dem i kurven")
+      or (L("Basket: %d  ·  %d favor", "Kurv: %d  ·  %d favor"):format(n, need)
+        .. (missing > 0 and ("  ·  " .. L("%d to go", "%d mangler"):format(missing)) or ("  ·  |cff73d973" .. L("you have it", "du har det") .. "|r")) .. costText))
+    cartGoal:SetText(L("Plan it", "Planlæg det"))
+    cartGoal:SetEnabled(n > 0 and missing > 0)
+    cartGoal:SetScript("OnClick", function() ns.db.favorGoal = need; favorScroll = 0; ns.RefreshHub() end)
+    cartGoal.tip = L("Makes the basket's favor your goal: the plan above shows the cheapest way there.", "Gør kurvens favor til dit mål: planen ovenfor viser den billigste vej.")
+    cartClear:SetText(L("Empty", "Tøm"))
+    cartClear:SetShown(n > 0)
+    cartClear:SetScript("OnClick", function() wipe(Cart()); page:Refresh() end)
+    if #list > fit then
+      cheapNote:ClearAllPoints(); cheapNote:SetPoint("TOPRIGHT", usableLabel, "TOPLEFT", -14, 0); cheapNote:SetJustifyH("RIGHT")
+      cheapNote:SetText(L("%d-%d of %d  ·  scroll", "%d til %d af %d  ·  scroll"):format(first + 1, math.min(#list, first + fit), #list))
+      cheapNote:Show()
+    end
+    return
+  end
 
   -- the cheapest crates per favor
-  cheapHead:SetText(L("CHEAPEST FAVOR PER CRATE", "BILLIGSTE FAVOR PR. KASSE"))
-  cheapNote:SetText(L("the bundle only, with what you have", "kun bundtet, med det du har"))
   local stock, rows = StockNow(), {}
   local level = UnitLevel("player") or 1
   for _, c in ipairs(ns.CRATES) do
@@ -684,13 +932,11 @@ function page:Refresh()
     end
   end
   table.sort(rows, function(a, b) return a.per < b.per end)
-  for _, t in ipairs(tiles) do t:Hide() end
-  local room = math.floor(((cheap:GetHeight() or 200) - 34) / CHEAP_H)
-  local fit = math.max(0, room) * COLS
   for i = 1, math.min(#rows, fit) do
     local r, t = rows[i], Tile(i)
-    t:ClearAllPoints()
-    t:SetPoint("TOPLEFT", 16 + ((i - 1) % COLS) * (CHEAP_W + 8), -30 - math.floor((i - 1) / COLS) * CHEAP_H)
+    Place(t, i)
+    t:SetScript("OnMouseUp", nil)
+    t.name:SetTextColor(0.9, 0.91, 0.94)
     t.icon:SetTexture(IconOf(r.b.mat))
     t.name:SetText(CrateName(r.c))
     t.sub:SetText(r.b.count .. " " .. r.b.mat)
