@@ -127,7 +127,7 @@ for i = 1, ROWS do
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if self.itemID then GameTooltip:SetItemByID(self.itemID) else GameTooltip:SetText(self.item or "") end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(T("searchAux") .. "  ·  Right-click: remove", 0.62, 0.6, 0.56)
+    GameTooltip:AddLine((ns.AHName() ~= "CraftETA" and (T("searchAux", ns.AHName()) .. "  ·  ") or "") .. "Right-click: remove", 0.62, 0.6, 0.56)
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -237,7 +237,7 @@ function ns.ScanPrices()
   ScanNext()
 end
 scanButton:SetScript("OnClick", function() ns.ScanPrices() end)
-scanButton.tip = "Optional with aux: aux's Full scan already gives the estimate. A scan here reads the exact price for the amount you need."
+scanButton.tip = "Reads today's exact price for the amount you need. With aux or Auctionator their last scan already gives the estimate."
 
 local function OnBrowse()
   if not scanning or not scanning.wantName then return end
@@ -565,7 +565,7 @@ function ns.RefreshList()
   local atAH = AH.open and ns.db.ah
   scanButton:SetShown(atAH)
   buyButton:SetShown(atAH); skipButton:SetShown(atAH); guide:SetShown(atAH)
-  atrButton:SetShown(atAH and _G.Auctionator ~= nil)
+  atrButton:SetShown(atAH and ns.HasAuctionator())
   clearButton:ClearAllPoints()
   if atAH then
     scanButton:ClearAllPoints(); scanButton:SetPoint("TOPLEFT", 14, y)

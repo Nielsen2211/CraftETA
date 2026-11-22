@@ -349,7 +349,7 @@ local function BuildProfit()
         click = function(which) if which == "RightButton" then ns.TrackItem(m[1]) end end,
       }
     end
-    state.footer = #list > 0 and T("farmFoot") or T("noPrices")
+    state.footer = #list > 0 and T("farmFoot") or T("noPrices", ns.AHName())
     return
   end
   local seen, list = {}, {}
@@ -390,7 +390,7 @@ local function BuildProfit()
       end,
     }
   end
-  state.footer = #list > 0 and T("profitFoot") or T("noProfit")
+  state.footer = #list > 0 and T("profitFoot", ns.AHName()) or T("noProfit")
 end
 
 ---------------------------------------------------------------------------

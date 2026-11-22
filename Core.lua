@@ -24,7 +24,7 @@ local LOC = {
     buy = "Buy %d %s", confirm = "Confirm %s (%s)", next2 = "Next", allBought = "Everything is bought. Get it from your mailbox.",
     notListed = "None for sale", notCommodity = "Buy by hand (not a stackable item)", priceUp = "+%d%% over the estimate",
     boughtMsg = "Bought %d %s for %s.", failed = "The purchase failed; try again.", scanHint = "Maybe fewer are listed: Scan prices shows how many.", auctionator = "To Auctionator",
-    auctionatorDone = "Shopping list \"CraftETA\" made in Auctionator.", searchAux = "Click: search (aux or Auctionator)",
+    auctionatorDone = "Shopping list \"CraftETA\" made in Auctionator.", searchAux = "Click: search in %s",
     settings = "Settings", panelOpt = "Panel next to the profession window", ahOpt = "Buy guide at the auction house",
     autoOpt = "Buy right away when the price is close to the estimate", autoScanOpt = "Check today's prices when the auction house opens", guardOpt = "Ask first above the estimate by", nextOpt = "Show the next step", minimapOpt = "Minimap button",
     mmLeft = "Click: CraftETA", mmRight = "Right-click: shopping list", mmShift = "Shift-click: settings", mmDrag = "Drag: move the button",
@@ -35,9 +35,9 @@ local LOC = {
     noBook = "Open your profession windows once so CraftETA can read your recipes.", notLearned = "Not learned yet",
     ttMade = "Made by", ttCost = "Craft cost", ttUsed = "Used in", ttRecipes = "%s: %d recipes", recipeCount = "%d recipes",
     p_craft = "Craft", p_farm = "Farm", youGather = "You can gather it (%s)", needProf = "Needs %s", fromMobs = "Drops from humanoids",
-    farmFoot = "Auction house price for one, highest first", noPrices = "No prices yet: scan with aux or Auctionator.",
+    farmFoot = "Auction house price for one, highest first", noPrices = "No prices yet: scan the auction house with %s.",
     sellsFor = "Sells for (%d)", ahCut = "Auction house cut (5%)", matsCost = "Materials", profit = "Profit",
-    profitFoot = "Recipes your characters know, best first. Prices from aux.", noProfit = "No prices yet, or no recipes read: open your profession windows and scan the auction house.",
+    profitFoot = "Recipes your characters know, best first. Prices from %s.", noProfit = "No prices yet, or no recipes read: open your profession windows and scan the auction house.",
     search = "Search", searchHint = "Recipe name, e.g. Mithril", yours = "yours", clickWhisper = "Click: whisper",
     craftersFoot = "Your characters answer right away, guild members with CraftETA in a moment.", asking = "Asking your guild...",
     noneFound = "Nobody found.", guildAnswers = "Guild answers keep coming in for a few seconds.",
@@ -45,7 +45,7 @@ local LOC = {
     notKnown = "You don't have %s.", learnAt = "Learn the next rank at %d (level %d): %s", where = "Where:",
     tooltipOpt = "CraftETA lines in item tooltips", guildShareOpt = "Answer when guild members search for crafters",
     guildAskOpt = "Ask my guild when I search for crafters", hub = "CraftETA",
-    wholeRoute = "1-300", allProfs = "All professions", myProfs = "My professions", learnNow = "Learn %s now (level %d): %s", learnAt2 = "Learn %s at %d (level %d): %s", stepSkip = "Skip this step", stepBack = "Back to the step your skill is on", skippedAhead = "skipped ahead", steps = "%d steps", yourCap = "%d = your cap", t_home = "Home", t_alts = "Alts", t_specs = "Specializations", t_gold = "Gold", t_codex = "Codex", t_camping = "Camping", t_cooldowns = "Cooldowns",
+    wholeRoute = "1-300", ahAddon = "Auction house addon: %s", noAhAddon = "none found (CraftETA scans itself)", allProfs = "All professions", myProfs = "My professions", learnNow = "Learn %s now (level %d): %s", learnAt2 = "Learn %s at %d (level %d): %s", stepSkip = "Skip this step", stepBack = "Back to the step your skill is on", skippedAhead = "skipped ahead", steps = "%d steps", yourCap = "%d = your cap", t_home = "Home", t_alts = "Alts", t_specs = "Specializations", t_gold = "Gold", t_codex = "Codex", t_camping = "Camping", t_cooldowns = "Cooldowns",
     c_recipes = "Recipes", c_materials = "Materials", lvlClass = "Level %d %s", tracker = "Item tracker",
     cdReady = "%s is ready on %s.", trackOff = "%s is off", trackHint = "turn it on to see it on your minimap.", turnOn = "Turn on",
     trackerHint = "Mouse wheel: change the goal. Right-click: stop tracking.", trackerEmpty = "Right-click a material in Codex or Gold to track it.",
@@ -78,7 +78,7 @@ local LOC = {
     buy = "Køb %d %s", confirm = "Bekræft %s (%s)", next2 = "Næste", allBought = "Alt er købt. Hent det i postkassen.",
     notListed = "Ingen til salg", notCommodity = "Køb selv (ikke en samlet vare)", priceUp = "+%d%% over overslaget",
     boughtMsg = "Købte %d %s for %s.", failed = "Købet fejlede, prøv igen.", scanHint = "Måske er der færre til salg: Scan priser viser hvor mange.", auctionator = "Til Auctionator",
-    auctionatorDone = "Indkøbslisten \"CraftETA\" er lavet i Auctionator.", searchAux = "Klik: søg (aux eller Auctionator)",
+    auctionatorDone = "Indkøbslisten \"CraftETA\" er lavet i Auctionator.", searchAux = "Klik: søg i %s",
     settings = "Indstillinger", panelOpt = "Panel ved siden af fagvinduet", ahOpt = "Købsguide i auktionshuset",
     autoOpt = "Køb med det samme, når prisen er tæt på overslaget", autoScanOpt = "Tjek dagens priser, når auktionshuset åbner", guardOpt = "Spørg først over overslaget med", nextOpt = "Vis næste trin", minimapOpt = "Knap ved minimappet",
     mmLeft = "Klik: CraftETA", mmRight = "Højreklik: indkøbsliste", mmShift = "Shift-klik: indstillinger", mmDrag = "Træk: flyt knappen",
@@ -89,9 +89,9 @@ local LOC = {
     noBook = "Åbn dine fagvinduer én gang, så CraftETA kan læse dine opskrifter.", notLearned = "Ikke lært endnu",
     ttMade = "Laves af", ttCost = "Craft-pris", ttUsed = "Bruges i", ttRecipes = "%s: %d opskrifter", recipeCount = "%d opskrifter",
     p_craft = "Craft", p_farm = "Farm", youGather = "Du kan samle det (%s)", needProf = "Kræver %s", fromMobs = "Dropper fra humanoider",
-    farmFoot = "Auktionspris for én, højeste først", noPrices = "Ingen priser endnu: scan med aux eller Auctionator.",
+    farmFoot = "Auktionspris for én, højeste først", noPrices = "Ingen priser endnu: scan auktionshuset med %s.",
     sellsFor = "Sælges for (%d)", ahCut = "Auktionshusets andel (5%)", matsCost = "Materialer", profit = "Profit",
-    profitFoot = "Opskrifter dine karakterer kan, bedste først. Priser fra aux.", noProfit = "Ingen priser endnu, eller ingen opskrifter læst: åbn dine fagvinduer og scan auktionshuset.",
+    profitFoot = "Opskrifter dine karakterer kan, bedste først. Priser fra %s.", noProfit = "Ingen priser endnu, eller ingen opskrifter læst: åbn dine fagvinduer og scan auktionshuset.",
     search = "Søg", searchHint = "Opskrift, fx Mithril", yours = "din", clickWhisper = "Klik: whisper",
     craftersFoot = "Dine karakterer svarer med det samme, guild-medlemmer med CraftETA om lidt.", asking = "Spørger din guild...",
     noneFound = "Ingen fundet.", guildAnswers = "Svar fra guilden kommer de næste par sekunder.",
@@ -99,7 +99,7 @@ local LOC = {
     notKnown = "Du har ikke %s.", learnAt = "Lær næste rank ved %d (level %d): %s", where = "Hvor:",
     tooltipOpt = "CraftETA-linjer i item-tooltips", guildShareOpt = "Svar når guild-medlemmer søger craftere",
     guildAskOpt = "Spørg min guild når jeg søger craftere", hub = "CraftETA",
-    wholeRoute = "1-300", allProfs = "Alle fag", myProfs = "Mine fag", learnNow = "Lær %s nu (level %d): %s", learnAt2 = "Lær %s ved %d (level %d): %s", stepSkip = "Spring dette trin over", stepBack = "Tilbage til trinnet din skill er på", skippedAhead = "sprunget frem", steps = "%d trin", yourCap = "%d = dit loft", t_home = "Hjem", t_alts = "Alts", t_specs = "Specialiseringer", t_gold = "Guld", t_codex = "Codex", t_camping = "Camping", t_cooldowns = "Cooldowns",
+    wholeRoute = "1-300", ahAddon = "Auktionshus-addon: %s", noAhAddon = "ingen fundet (CraftETA scanner selv)", allProfs = "Alle fag", myProfs = "Mine fag", learnNow = "Lær %s nu (level %d): %s", learnAt2 = "Lær %s ved %d (level %d): %s", stepSkip = "Spring dette trin over", stepBack = "Tilbage til trinnet din skill er på", skippedAhead = "sprunget frem", steps = "%d trin", yourCap = "%d = dit loft", t_home = "Hjem", t_alts = "Alts", t_specs = "Specialiseringer", t_gold = "Guld", t_codex = "Codex", t_camping = "Camping", t_cooldowns = "Cooldowns",
     c_recipes = "Opskrifter", c_materials = "Materialer", lvlClass = "Level %d %s", tracker = "Item tracker",
     cdReady = "%s er klar på %s.", trackOff = "%s er slået fra", trackHint = "slå det til for at se det på dit minimap.", turnOn = "Slå til",
     trackerHint = "Musehjul: skift målet. Højreklik: stop med at følge.", trackerEmpty = "Højreklik et materiale i Codex eller Guld for at følge det.",
@@ -233,6 +233,25 @@ end
 ---------------------------------------------------------------------------
 -- Prices: aux first, then Auctionator, then the last auction house scan of CraftETA
 ---------------------------------------------------------------------------
+-- which auction house addon you have: "aux", "Auctionator", both ("aux + Auctionator") or nil
+local function Loaded(name)
+  local f = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+  if not f then return false end
+  local ok, loaded = pcall(f, name)
+  return ok and loaded and true or false
+end
+function ns.HasAux() return _G.AuxForeverAPI ~= nil or Loaded("auxForever") or Loaded("aux-addon") end
+function ns.HasAuctionator() return (_G.Auctionator and Auctionator.API and Auctionator.API.v1) ~= nil or Loaded("Auctionator") end
+function ns.AHAddon()
+  local aux, atr = ns.HasAux(), ns.HasAuctionator()
+  if aux and atr then return "aux + Auctionator" end
+  return (aux and "aux") or (atr and "Auctionator") or nil
+end
+-- the addon prices and searches go to: aux when you have it, else Auctionator
+function ns.AHName()
+  return ns.HasAux() and "aux" or (ns.HasAuctionator() and "Auctionator") or "CraftETA"
+end
+
 -- a price by item ID: aux first, then Auctionator, then CraftETA's own scan (by name)
 function ns.PriceID(id, name)
   if id then

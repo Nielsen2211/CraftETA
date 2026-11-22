@@ -4,6 +4,7 @@ local T = ns.T
 
 local W = ns.Window("CraftETASettings", 330)
 local rowPool, heads = {}, {}
+local info
 
 local function Head(i)
   local h = heads[i]
@@ -65,6 +66,11 @@ function W.Build()
     for i, v in ipairs(steps) do if v == db.guard then nextValue = steps[i % #steps + 1] end end
     db.guard = nextValue
   end)
+  -- which auction house addon CraftETA found and uses
+  info = info or ns.Font(W, false, 10, 0.6, 0.62, 0.68)
+  info:ClearAllPoints(); info:SetPoint("TOPLEFT", 14, y - 4)
+  info:SetText(T("ahAddon", ns.AHAddon() or T("noAhAddon")))
+  y = y - 20
   y = y - 6
   section(T("lang"))
   add("English", db.lang == "en", function() db.lang = "en" end)
