@@ -538,8 +538,9 @@ end
 local events = CreateFrame("Frame")
 ns.events = events
 events:SetScript("OnEvent", function(_, event, ...)
-  if event == "ADDON_LOADED" then
-    if ... ~= ADDON then return end
+  -- (only our own ADDON_LOADED sets up the saved data; the others still reach the listeners,
+  -- which wait for Blizzard_Professions)
+  if event == "ADDON_LOADED" and ... == ADDON then
     CraftETADB = CraftETADB or {}
     ns.db = CraftETADB
     for key, value in pairs(DEFAULTS) do
@@ -548,6 +549,8 @@ events:SetScript("OnEvent", function(_, event, ...)
       end
     end
     ns.db.scanned = ns.db.scanned or {}
+    -- 1.3: the panel opens with the profession window again (turned on once for everyone)
+    if not ns.db.panelOn13 then ns.db.panelOn13 = true; ns.db.panel = true end
   end
   for _, fn in ipairs(ns.listeners[event] or {}) do
     local ok, err = pcall(fn, ...)
