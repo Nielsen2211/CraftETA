@@ -239,7 +239,7 @@ function ns.RefreshPanel()
   if not index then
     for _, w in ipairs({ stepHead, recipeName, recipeCount, note, craft1, craftAll, addList, status, nextLine, skipBack, skipNext }) do w:Hide() end
     recipeIcon:Hide()
-    source:ClearAllPoints(); source:SetPoint("TOPLEFT", 14, y - 6); source:SetText(T("source", ns.SOURCE)); source:Show()
+    source:Hide()
     P:SetHeight(-y + 32)
     return
   end
@@ -343,8 +343,7 @@ function ns.RefreshPanel()
   else
     nextLine:Hide()
   end
-  source:ClearAllPoints(); source:SetPoint("TOPLEFT", 14, y - 4); source:SetText(T("source", ns.SOURCE)); source:Show()
-  y = y - 16
+  source:Hide()
   P:SetHeight(-y + 22)
 end
 
@@ -354,7 +353,21 @@ function ns.PlacePanel()
   if frame and ns.db.panel then
     P.docked = true
     P:ClearAllPoints()
-    P:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+    -- right of the profession window, unless that covers the bars and trackers along the right edge
+    -- of the screen (about 260 px kept free): then on its left. The setting can fix the side.
+    local side = ns.db.panelSide or "auto"
+    if side == "auto" then
+      local screenR = UIParent:GetRight() or 0
+      local scale = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+      local right, left = (frame:GetRight() or 0) * scale, (frame:GetLeft() or 0) * scale
+      local w = P:GetWidth() + 8
+      side = (screenR - right < w + 260 and left > w) and "left" or "right"
+    end
+    if side == "left" then
+      P:SetPoint("TOPRIGHT", frame, "TOPLEFT", -4, 0)
+    else
+      P:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+    end
   else
     P.docked = false
     ns.PlaceSaved(P, "CraftETAPanel", "CENTER", UIParent, "CENTER", 300, 0)
