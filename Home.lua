@@ -5,6 +5,8 @@ local T = ns.T
 
 local H, X, CW = ns.Hub, ns.HUB_X, ns.HUB_CW
 
+local function L(en, da) return (ns.db and ns.db.lang == "da") and da or en end
+
 local function Card(parent)
   local f = CreateFrame("Frame", nil, parent)
   local bg = f:CreateTexture(nil, "BACKGROUND")
@@ -167,204 +169,260 @@ end
 ---------------------------------------------------------------------------
 local home = Page()
 ns.HubCustom.home = home
-local MODEL_W = 228
-local RX = MODEL_W + 16
-local RW = CW - RX
+local GOLD = { 1, 0.82, 0.29 }
 
-local modelCard = Card(home)
-modelCard:SetPoint("TOPLEFT")
-modelCard:SetPoint("BOTTOMLEFT")
-modelCard:SetWidth(MODEL_W)
-local model = CreateFrame("PlayerModel", nil, modelCard)
-model:SetPoint("TOPLEFT", 4, -4)
-model:SetPoint("BOTTOMRIGHT", -4, 22)
-model:EnableMouse(true)
-model.facing = 0
-model:SetScript("OnMouseDown", function(self) self.dragX = GetCursorPosition() end)
-model:SetScript("OnMouseUp", function(self) self.dragX = nil end)
--- zoomed out so the whole character fits; the mouse wheel zooms in and out
-model.zoom = 1.45
-model:EnableMouseWheel(true)
-model:SetScript("OnMouseWheel", function(self, delta)
-  self.zoom = math.max(0.9, math.min(2.2, self.zoom - delta * 0.1))
-  self:SetCamDistanceScale(self.zoom)
-end)
-model:SetScript("OnUpdate", function(self)
-  if self.dragX then
-    local x = GetCursorPosition()
-    self.facing = self.facing + (x - self.dragX) / 90
-    self.dragX = x
-    self:SetFacing(self.facing)
+local function Edge(f, r, g, b, a)
+  for _, p in ipairs({ { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
+    local t = f:CreateTexture(nil, "BORDER")
+    t:SetPoint(p[1]); t:SetPoint(p[2])
+    if p[3] then t:SetHeight(1) else t:SetWidth(1) end
+    t:SetColorTexture(r, g, b, a or 1)
+  end
+end
+local function Tip(frame, fn)
+  frame:EnableMouse(true)
+  frame:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); fn(GameTooltip, self); GameTooltip:Show() end)
+  frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+---------------------------------------------------------------------------
+-- Hero: who you are, your experience and your gold
+---------------------------------------------------------------------------
+local hero = Card(home)
+hero:SetPoint("TOPLEFT"); hero:SetPoint("RIGHT"); hero:SetHeight(92)
+Edge(hero, 0.47, 0.38, 0.16)
+local glow = hero:CreateTexture(nil, "BACKGROUND", nil, 2)
+glow:SetPoint("TOPLEFT", 1, -1); glow:SetPoint("BOTTOMLEFT", 1, 1); glow:SetWidth(260)
+glow:SetColorTexture(1, 1, 1, 1)
+if glow.SetGradient and CreateColor then
+  pcall(glow.SetGradient, glow, "HORIZONTAL", CreateColor(1, 0.82, 0.3, 0.1), CreateColor(1, 0.82, 0.3, 0))
+else
+  glow:SetColorTexture(1, 0.82, 0.3, 0.04)
+end
+local classIcon = hero:CreateTexture(nil, "ARTWORK")
+classIcon:SetSize(56, 56); classIcon:SetPoint("TOPLEFT", 16, -14)
+local nameText = ns.Font(hero, true, 22, 0.9, 0.91, 0.94)
+nameText:SetPoint("TOPLEFT", classIcon, "TOPRIGHT", 14, -2)
+local subText = ns.Font(hero, false, 11, 0.7, 0.72, 0.76)
+subText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -4)
+local goldLabel = Label(hero, ""); goldLabel:SetPoint("TOPRIGHT", -16, -16); goldLabel:SetJustifyH("RIGHT")
+local goldText = ns.Font(hero, true, 20, 1, 1, 1); goldText:SetPoint("TOPRIGHT", goldLabel, "BOTTOMRIGHT", 0, -4); goldText:SetJustifyH("RIGHT")
+local accountText = ns.Font(hero, false, 10, 0.5, 0.52, 0.57); accountText:SetPoint("TOPRIGHT", goldText, "BOTTOMRIGHT", 0, -3); accountText:SetJustifyH("RIGHT")
+-- experience along the bottom of the card
+local xpBar = CreateFrame("Frame", nil, hero)
+xpBar:SetPoint("BOTTOMLEFT", 16, 12); xpBar:SetPoint("BOTTOMRIGHT", -16, 12); xpBar:SetHeight(5)
+local xpBg = xpBar:CreateTexture(nil, "BACKGROUND"); xpBg:SetAllPoints(); xpBg:SetColorTexture(1, 1, 1, 0.08)
+local xpRest = xpBar:CreateTexture(nil, "BORDER"); xpRest:SetPoint("TOPLEFT"); xpRest:SetPoint("BOTTOMLEFT"); xpRest:SetColorTexture(0.3, 0.55, 1, 0.55)
+local xpFill = xpBar:CreateTexture(nil, "ARTWORK"); xpFill:SetPoint("TOPLEFT"); xpFill:SetPoint("BOTTOMLEFT"); xpFill:SetColorTexture(1, 0.82, 0.3, 1)
+local xpValue = ns.Font(hero, false, 9, 0.6, 0.62, 0.67); xpValue:SetPoint("BOTTOMLEFT", xpBar, "TOPLEFT", 0, 4)
+Tip(xpBar, function(tip)
+  local me = ns.Me()
+  tip:SetText(T("experience"), 1, 0.82, 0.3)
+  if me and (me.xpMax or 0) > 0 then
+    tip:AddDoubleLine(L("Now", "Nu"), (me.xp or 0) .. " / " .. me.xpMax, 0.85, 0.87, 0.9, 1, 1, 1)
+    tip:AddDoubleLine(T("rested"), me.rested or 0, 0.85, 0.87, 0.9, 0.44, 0.61, 1)
   end
 end)
-local dragHint = ns.Font(modelCard, false, 9, 0.42, 0.44, 0.48)
-dragHint:SetPoint("BOTTOM", 0, 8)
 
-local nameText = ns.Font(home, true, 22, 0.9, 0.91, 0.94)
-nameText:SetPoint("TOPLEFT", RX, -4)
-local subText = ns.Font(home, false, 11, 0.7, 0.72, 0.76)
-subText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -4)
-
-local xpLabel = Label(home, "")
-xpLabel:SetPoint("TOPLEFT", RX, -58)
-local xpValue = ns.Font(home, false, 10, 0.75, 0.77, 0.8)
-xpValue:SetPoint("TOPRIGHT", 0, -57)
-xpValue:SetJustifyH("RIGHT")
-local xpBar = CreateFrame("Frame", nil, home)
-xpBar:SetSize(RW, 8)
-xpBar:SetPoint("TOPLEFT", RX, -72)
-local xpBg = xpBar:CreateTexture(nil, "BACKGROUND")
-xpBg:SetAllPoints()
-xpBg:SetColorTexture(1, 1, 1, 0.08)
-local xpRest = xpBar:CreateTexture(nil, "BORDER")
-xpRest:SetPoint("TOPLEFT"); xpRest:SetPoint("BOTTOMLEFT")
-xpRest:SetColorTexture(0.3, 0.55, 1, 0.55)
-local xpFill = xpBar:CreateTexture(nil, "ARTWORK")
-xpFill:SetPoint("TOPLEFT"); xpFill:SetPoint("BOTTOMLEFT")
-xpFill:SetColorTexture(1, 0.82, 0.3, 1)
-
--- four facts
-local facts = {}
-local FACT_ICONS = { "Interface\\Icons\\INV_Misc_Coin_01", "Interface\\Icons\\INV_Chest_Chain_05",
-  "Interface\\Icons\\INV_Misc_Bag_08", "Interface\\Icons\\INV_Misc_PocketWatch_01" }
-local FW = math.floor((RW - 10) / 2)
+---------------------------------------------------------------------------
+-- Four tiles: durability, bags, time played, favor
+---------------------------------------------------------------------------
+local TILE_ICONS = { "Interface\\Icons\\INV_Chest_Chain_05", "Interface\\Icons\\INV_Misc_Bag_08",
+  "Interface\\Icons\\INV_Misc_PocketWatch_01", "Interface\\Icons\\INV_Crate_01" }
+local TW = math.floor((CW - 3 * 8) / 4)
+local tiles = {}
 for i = 1, 4 do
   local c = Card(home)
-  c:SetSize(FW, 50)
-  c:SetPoint("TOPLEFT", RX + ((i - 1) % 2) * (FW + 10), -92 - math.floor((i - 1) / 2) * 58)
-  c.icon = c:CreateTexture(nil, "ARTWORK")
-  c.icon:SetSize(30, 30)
-  c.icon:SetPoint("LEFT", 10, 0)
-  c.icon:SetTexture(FACT_ICONS[i])
-  c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  c.label = Label(c, "")
-  c.label:SetPoint("TOPLEFT", c.icon, "TOPRIGHT", 10, -2)
-  c.value = ns.Font(c, true, 14, 0.9, 0.91, 0.94)
-  c.value:SetPoint("BOTTOMLEFT", c.icon, "BOTTOMRIGHT", 10, 0)
-  facts[i] = c
+  c:SetSize(TW, 54)
+  c:SetPoint("TOPLEFT", (i - 1) * (TW + 8), -100)
+  c.accent = c:CreateTexture(nil, "BORDER"); c.accent:SetPoint("TOPLEFT"); c.accent:SetPoint("BOTTOMLEFT"); c.accent:SetWidth(2)
+  c.icon = c:CreateTexture(nil, "ARTWORK"); c.icon:SetSize(30, 30); c.icon:SetPoint("LEFT", 12, 0)
+  c.icon:SetTexture(TILE_ICONS[i]); c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  c.label = Label(c, ""); c.label:SetPoint("TOPLEFT", c.icon, "TOPRIGHT", 10, -2)
+  c.value = ns.Font(c, true, 14, 0.9, 0.91, 0.94); c.value:SetPoint("BOTTOMLEFT", c.icon, "BOTTOMRIGHT", 10, 0)
+  tiles[i] = c
 end
+tiles[4]:EnableMouse(true)
+tiles[4]:SetScript("OnMouseUp", function() ns.ToggleHub("favor") end)
 
--- professions
+---------------------------------------------------------------------------
+-- Professions (left) and next steps (right)
+---------------------------------------------------------------------------
+local COLW = math.floor((CW - 8) / 2)
 local profCard = Card(home)
-profCard:SetPoint("TOPLEFT", RX, -212)
-profCard:SetWidth(RW)
-local profLabel = Label(profCard, "")
-profLabel:SetPoint("TOPLEFT", 12, -10)
+profCard:SetPoint("TOPLEFT", 0, -162); profCard:SetPoint("BOTTOMLEFT"); profCard:SetWidth(COLW)
+local profLabel = Label(profCard, ""); profLabel:SetPoint("TOPLEFT", 14, -12)
+local PROF_H = 46
+local BAR_W = COLW - 28 - 34
+
+-- a profession: icon, name, rank, and its route as a bar of steps you can hover
 local profRows = {}
-local PW = math.floor((RW - 40) / 2)
-for i = 1, 8 do
-  local r = ProfRow(profCard, PW)
-  r:SetPoint("TOPLEFT", 12 + ((i - 1) % 2) * (PW + 16), -28 - math.floor((i - 1) / 2) * PROF_ROW_H)
+local function ProfCard(i)
+  if profRows[i] then return profRows[i] end
+  local r = CreateFrame("Button", nil, profCard)
+  r:SetSize(COLW - 28, PROF_H - 6)
+  r:SetPoint("TOPLEFT", 14, -32 - (i - 1) * PROF_H)
+  r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(28, 28); r.icon:SetPoint("TOPLEFT", 0, -2)
+  r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  r.value = ns.Font(r, true, 11, 1, 1, 1); r.value:SetPoint("TOPRIGHT", 0, -2); r.value:SetJustifyH("RIGHT")
+  r.name = ns.Font(r, true, 11, 0.9, 0.91, 0.94); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, -1)
+  r.rank = ns.Font(r, false, 9, 0.5, 0.52, 0.57); r.rank:SetPoint("LEFT", r.name, "RIGHT", 6, 0)
+  r.bar = CreateFrame("Frame", nil, r); r.bar:SetSize(BAR_W, 6)
+  r.bar:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, 2)
+  r.bg = r.bar:CreateTexture(nil, "BACKGROUND"); r.bg:SetAllPoints(); r.bg:SetColorTexture(1, 1, 1, 0.07)
+  r.cap = r.bar:CreateTexture(nil, "BORDER"); r.cap:SetPoint("TOPLEFT"); r.cap:SetPoint("BOTTOMLEFT"); r.cap:SetColorTexture(1, 1, 1, 0.07)
+  r.fill = r.bar:CreateTexture(nil, "ARTWORK"); r.fill:SetPoint("TOPLEFT"); r.fill:SetPoint("BOTTOMLEFT")
+  r.segs = {}
+  local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetPoint("TOPLEFT", -6, 2); hl:SetPoint("BOTTOMRIGHT", 6, -2); hl:SetColorTexture(1, 1, 1, 0.03)
+  r:SetScript("OnClick", function(self) if self.prof then ns.hubState.guide = self.prof; ns.ToggleHub("guide") end end)
   profRows[i] = r
+  return r
 end
 
--- next steps
+-- the steps of a route as hover areas over the bar (with a thin gap between them)
+local function Segments(r, id, rank, max)
+  local guide = ns.GUIDES[id] or ns.GATHER[id]
+  for _, sg in ipairs(r.segs) do sg:Hide() end
+  if not guide or not guide.steps then return end
+  local f = ns.Faction()
+  for k, step in ipairs(guide.steps) do
+    local sg = r.segs[k]
+    if not sg then
+      sg = CreateFrame("Frame", nil, r.bar)
+      sg.gap = sg:CreateTexture(nil, "OVERLAY"); sg.gap:SetPoint("TOPRIGHT"); sg.gap:SetPoint("BOTTOMRIGHT"); sg.gap:SetWidth(1)
+      sg.gap:SetColorTexture(0.05, 0.055, 0.07, 1)
+      sg.hl = sg:CreateTexture(nil, "HIGHLIGHT"); sg.hl:SetAllPoints(); sg.hl:SetColorTexture(1, 1, 1, 0.35)
+      r.segs[k] = sg
+    end
+    local x1, x2 = BAR_W * math.max(0, step[1]) / 300, BAR_W * math.min(300, step[2]) / 300
+    sg:ClearAllPoints()
+    sg:SetPoint("TOPLEFT", r.bar, "TOPLEFT", x1, 4); sg:SetSize(math.max(2, x2 - x1), 14)
+    sg:SetPoint("TOPLEFT", r.bar, "TOPLEFT", x1, 4)
+    sg.gap:ClearAllPoints(); sg.gap:SetPoint("TOPRIGHT", 0, -4); sg.gap:SetPoint("BOTTOMRIGHT", 0, 4)
+    Tip(sg, function(tip)
+      local done, now = rank >= step[2], rank >= step[1] and rank < step[2]
+      tip:SetText(("%d - %d"):format(step[1], step[2]), now and 1 or 0.85, now and 0.82 or 0.87, now and 0.3 or 0.9)
+      if ns.GUIDES[id] then
+        local entry = (ns.Chosen(id, k, step))[1]
+        tip:AddLine(L("Craft %d %s", "Lav %d %s"):format(entry[2], entry[1]), 1, 1, 1)
+        local mats = entry[3]
+        for m = 1, #mats, 2 do tip:AddLine(mats[m + 1] .. " x " .. mats[m], 0.6, 0.62, 0.67) end
+      else
+        tip:AddLine(step.what or "", 1, 1, 1, true)
+        if step[f] then tip:AddLine(step[f], 0.6, 0.62, 0.67, true) end
+      end
+      if step.note then tip:AddLine(step.note, 0.78, 0.72, 0.58, true) end
+      tip:AddLine(done and L("Done", "Klaret") or (now and L("You are here", "Du er her") or ""), done and 0.35 or 1, done and 0.9 or 0.82, done and 0.4 or 0.3)
+    end)
+    sg:Show()
+  end
+end
+
 local stepCard = Card(home)
-stepCard:SetPoint("BOTTOMLEFT", RX, 0)
-stepCard:SetPoint("BOTTOMRIGHT", 0, 0)
-local stepLabel = Label(stepCard, "")
-stepLabel:SetPoint("TOPLEFT", 12, -10)
+stepCard:SetPoint("TOPRIGHT", 0, -162); stepCard:SetPoint("BOTTOMRIGHT"); stepCard:SetWidth(COLW)
+local stepLabel = Label(stepCard, ""); stepLabel:SetPoint("TOPLEFT", 14, -12)
 local pageText = ns.Font(stepCard, true, 10, 0.75, 0.77, 0.8)
-pageText:SetPoint("TOPRIGHT", -32, -9)
+pageText:SetPoint("TOPRIGHT", -32, -11)
 local prevPage = ns.IconButton(stepCard, "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up", 16)
 prevPage.icon:SetTexCoord(0, 1, 0, 1)
 prevPage:SetPoint("RIGHT", pageText, "LEFT", -4, 0)
 local nextPage = ns.IconButton(stepCard, "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", 16)
 nextPage.icon:SetTexCoord(0, 1, 0, 1)
 nextPage:SetPoint("LEFT", pageText, "RIGHT", 4, 0)
-local stepPage, STEPS_PER = 1, 4
-local MAX_STEPS = 7
+local stepPage, STEPS_PER = 1, 6
+local STEP_H = 50
 prevPage:SetScript("OnClick", function() stepPage = stepPage - 1; home:Refresh() end)
 nextPage:SetScript("OnClick", function() stepPage = stepPage + 1; home:Refresh() end)
 local stepRows = {}
-for i = 1, MAX_STEPS do
+for i = 1, 9 do
   local r = CreateFrame("Button", nil, stepCard)
-  r:SetSize(RW - 24, 34)
-  r:SetPoint("TOPLEFT", 12, -30 - (i - 1) * 36)
-  r.icon = r:CreateTexture(nil, "ARTWORK")
-  r.icon:SetSize(26, 26)
-  r.icon:SetPoint("LEFT")
+  r:SetSize(COLW - 28, STEP_H - 6)
+  r:SetPoint("TOPLEFT", 14, -32 - (i - 1) * STEP_H)
+  local bg = r:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(1, 1, 1, 0.025)
+  r.accent = r:CreateTexture(nil, "BORDER"); r.accent:SetPoint("TOPLEFT"); r.accent:SetPoint("BOTTOMLEFT"); r.accent:SetWidth(2)
+  r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(28, 28); r.icon:SetPoint("LEFT", 10, 0)
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  r.title = ns.Font(r, true, 12, 0.9, 0.91, 0.94)
-  r.title:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, 1)
-  r.title:SetPoint("RIGHT", r, "RIGHT")
-  r.title:SetWordWrap(false)
-  r.sub = ns.Font(r, false, 10, 0.5, 0.52, 0.57)
-  r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, 0)
-  r.sub:SetPoint("RIGHT", r, "RIGHT")
-  r.sub:SetWordWrap(false)
-  local hl = r:CreateTexture(nil, "HIGHLIGHT")
-  hl:SetAllPoints()
-  hl:SetColorTexture(1, 1, 1, 0.03)
+  r.title = ns.Font(r, true, 11, 0.9, 0.91, 0.94)
+  r.title:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, 0); r.title:SetPoint("RIGHT", r, "RIGHT", -8, 0); r.title:SetWordWrap(false)
+  r.sub = ns.Font(r, false, 9, 0.5, 0.52, 0.57)
+  r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, 0); r.sub:SetPoint("RIGHT", r, "RIGHT", -8, 0); r.sub:SetWordWrap(false)
+  local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.04)
   r:SetScript("OnClick", function(self)
     if self.prof then ns.hubState.guide = self.prof; ns.ToggleHub("guide") end
   end)
   stepRows[i] = r
 end
-stepCard:SetHeight(42 + STEPS_PER * 36)
 
 function home:Refresh()
   ns.Facts()
   local me = ns.Me()
-  model:SetUnit("player")
-  model:SetPortraitZoom(0)
-  model:SetCamDistanceScale(model.zoom)
-  model:SetFacing(model.facing)
-  dragHint:SetText(T("dragRotate"))
   local color = me.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[me.class]
+  ns.ClassIcon(classIcon, me.class)
   nameText:SetText(me.name or "")
   nameText:SetTextColor(color and color.r or 1, color and color.g or 1, color and color.b or 1)
   subText:SetText(T("levelLine", me.level or 0, me.race or "", UnitClass("player") or "") .. (me.zone and ("  |cff8c8f96·  " .. me.zone .. "|r") or ""))
+  -- gold: yours, and the whole account's
+  local account, n = 0, 0
+  for _, c in pairs(ns.db.chars) do account = account + (c.money or 0); n = n + 1 end
+  goldLabel:SetText(string.upper(T("gold")))
+  goldText:SetText(ns.Money(GetMoney()))
+  accountText:SetText(n > 1 and L("Account: %s", "Konto: %s"):format(ns.Money(account)) or "")
   -- experience
   local xp, max, rested = me.xp or 0, me.xpMax or 0, me.rested or 0
-  xpLabel:SetText(string.upper(T("experience")))
+  local w = xpBar:GetWidth() or (CW - 32)
   if max > 0 and (me.level or 0) < (GetMaxPlayerLevel and GetMaxPlayerLevel() or 60) then
-    xpFill:SetWidth(math.max(1, RW * xp / max))
-    xpRest:SetWidth(math.max(1, RW * math.min(1, (xp + rested) / max)))
-    xpValue:SetText(("%d%%   %s / %s   |cff6f9cff%s %d%%|r"):format(xp / max * 100, BreakUpLargeNumbers and BreakUpLargeNumbers(xp) or xp,
-      BreakUpLargeNumbers and BreakUpLargeNumbers(max) or max, T("rested"), math.floor(rested / max * 100)))
+    xpFill:SetWidth(math.max(1, w * xp / max))
+    xpRest:SetWidth(math.max(1, w * math.min(1, (xp + rested) / max)))
+    xpValue:SetText(("%s  %d%%   |cff6f9cff%s %d%%|r"):format(string.upper(T("experience")), xp / max * 100, T("rested"), math.floor(rested / max * 100)))
   else
-    xpFill:SetWidth(RW); xpRest:SetWidth(RW)
-    xpValue:SetText(T("maxLevel"))
+    xpFill:SetWidth(w); xpRest:SetWidth(w)
+    xpValue:SetText(string.upper(T("experience")) .. "  ·  " .. T("maxLevel"))
   end
-  -- facts
+  -- tiles
   local free, total = ns.BagSpace()
   local played = ns.Played(me)
+  local dura = ns.Durability()
+  local favor = ns.FavorNow and ns.FavorNow()
   local values = {
-    { T("gold"), ns.Money(GetMoney()) },
-    { T("durability"), ("%d%%"):format(ns.Durability() * 100) },
-    { T("bagSpace"), T("bagsFree", free, total) },
-    { T("timePlayed"), played and ns.PlayedText(played) or "..." },
+    { T("durability"), ("%d%%"):format(dura * 100), dura < 0.3 and { 1, 0.4, 0.35 } or (dura < 0.6 and GOLD or { 0.35, 0.9, 0.4 }) },
+    { T("bagSpace"), T("bagsFree", free, total), free <= 4 and { 1, 0.4, 0.35 } or (free <= 10 and GOLD or { 0.35, 0.9, 0.4 }) },
+    { T("timePlayed"), played and ns.PlayedText(played) or "...", { 0.45, 0.75, 1 } },
+    { "Merchant's Favor", favor and tostring(favor) or "-", GOLD },
   }
-  for i, c in ipairs(facts) do
+  for i, c in ipairs(tiles) do
     c.label:SetText(string.upper(values[i][1]))
     c.value:SetText(values[i][2])
+    local a = values[i][3]
+    c.accent:SetColorTexture(a[1], a[2], a[3], 1)
   end
   -- professions
   profLabel:SetText(string.upper(T("t_guide")))
   local list = SortedProfs(ns.Skills(true))
-  for i, r in ipairs(profRows) do
-    local p = list[i]
-    if p then
-      r.icon:SetTexture(ns.ProfIcon(p.id))
-      r.name:SetText(ns.ProfName(p.id))
-      r.value:SetText(("%d/%d"):format(p.rank, p.max or 300))
-      r.bar:SetRank(p.rank, p.max)
-      r:Show()
-    else
-      r:Hide()
-    end
+  local room = math.max(1, math.floor(((profCard:GetHeight() or 390) - 36) / PROF_H))
+  for i, r in ipairs(profRows) do r:Hide() end
+  for i = 1, math.min(#list, room) do
+    local p, r = list[i], ProfCard(i)
+    local maxR = p.max or 300
+    local done = p.rank >= 300
+    r.prof = p.id
+    r.icon:SetTexture(ns.ProfIcon(p.id))
+    r.name:SetText(ns.ProfName(p.id))
+    local rankName = ({ [75] = "Apprentice", [150] = "Journeyman", [225] = "Expert", [300] = "Artisan" })[maxR] or ""
+    r.rank:SetText(rankName)
+    r.value:SetText(("%d |cff8c8f96/ %d|r"):format(p.rank, maxR))
+    r.cap:SetWidth(math.max(1, BAR_W * math.min(1, maxR / 300)))
+    r.fill:SetWidth(math.max(1, BAR_W * math.min(1, p.rank / 300)))
+    r.fill:SetColorTexture(done and 0.35 or 1, done and 0.9 or 0.82, done and 0.4 or 0.3, 1)
+    Segments(r, p.id, p.rank, maxR)
+    r:Show()
   end
   if #list == 0 then
-    profRows[1]:Show(); profRows[1].icon:SetTexture(134400); profRows[1].name:SetText(T("noProfs")); profRows[1].value:SetText(""); profRows[1].bar:SetRank(0, 0)
+    local r = ProfCard(1)
+    r.icon:SetTexture(134400); r.name:SetText(T("noProfs")); r.rank:SetText(""); r.value:SetText("")
+    r.fill:SetWidth(1); r.cap:SetWidth(1); Segments(r, 0, 0, 0); r:Show()
   end
-  local profH = 34 + math.ceil(math.max(1, #list) / 2) * PROF_ROW_H
-  profCard:SetHeight(profH)
-  -- next steps fill the rest of the column
-  local room = (home:GetHeight() or 562) - 212 - profH - 10
-  STEPS_PER = math.max(2, math.min(#stepRows, math.floor((room - 42) / 36)))
-  stepCard:SetHeight(42 + STEPS_PER * 36)
   -- next steps
+  STEPS_PER = math.max(2, math.min(#stepRows, math.floor(((stepCard:GetHeight() or 390) - 36) / STEP_H)))
   stepLabel:SetText(string.upper(T("nextSteps")))
   local steps = ns.NextSteps()
   local pages = math.max(1, math.ceil(#steps / STEPS_PER))
@@ -377,7 +435,8 @@ function home:Refresh()
     if s then
       r.icon:SetTexture(s.icon)
       r.title:SetText(s.title)
-      r.title:SetTextColor(s.r or 1, s.g or 1, s.b or 1)
+      r.title:SetTextColor(0.9, 0.91, 0.94)
+      r.accent:SetColorTexture(s.r or 1, s.g or 1, s.b or 1, 1)
       r.sub:SetText(s.sub or "")
       r.prof = s.prof
       r:Show()
@@ -386,8 +445,9 @@ function home:Refresh()
     end
   end
   if #steps == 0 then
-    stepRows[1]:Show(); stepRows[1].icon:SetTexture("Interface\\Icons\\Achievement_Quests_Completed_08")
-    stepRows[1].title:SetText(T("allGood")); stepRows[1].title:SetTextColor(0.35, 0.9, 0.4); stepRows[1].sub:SetText("")
+    local r = stepRows[1]
+    r:Show(); r.icon:SetTexture("Interface\\Icons\\Achievement_Quests_Completed_08")
+    r.title:SetText(T("allGood")); r.title:SetTextColor(0.35, 0.9, 0.4); r.sub:SetText(""); r.accent:SetColorTexture(0.35, 0.9, 0.4, 1)
   end
 end
 function ns.RefreshHome()
