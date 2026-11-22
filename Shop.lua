@@ -127,6 +127,26 @@ end
 ---------------------------------------------------------------------------
 -- The window
 ---------------------------------------------------------------------------
+-- one list for every character, or each their own: a switch in the list's top bar (the same as in Settings,
+-- and it stays until you switch it off)
+local shareLabel = ns.Font(S, false, 10, 0.6, 0.62, 0.67)
+local shareSwitch = ns.Switch(S, function()
+  ns.db.shareList = not ns.db.shareList
+  ns.Refresh()
+  if ns.RefreshSettings then ns.RefreshSettings() end
+end)
+shareSwitch:SetPoint("TOPRIGHT", -42, -13)
+shareLabel:SetPoint("RIGHT", shareSwitch, "LEFT", -6, 0)
+shareSwitch:HookScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+  GameTooltip:SetText(T("shareListOpt"), 1, 0.82, 0.3)
+  GameTooltip:AddLine((ns.db and ns.db.lang == "da")
+    and "Til: alle dine karakterer bruger samme liste. Fra: hver karakter har sin egen."
+    or "On: all your characters use the same list. Off: each character has its own.", 0.85, 0.87, 0.9, true)
+  GameTooltip:Show()
+end)
+shareSwitch:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
 local head = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
 head:SetPoint("TOPLEFT", 14, -36)
 local headStill = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
@@ -654,6 +674,10 @@ end)
 ---------------------------------------------------------------------------
 function ns.RefreshList()
   if not S:IsShown() or not ns.db then return end
+  local da = ns.db.lang == "da"
+  shareSwitch:SetOn(ns.db.shareList)
+  shareLabel:SetText(ns.db.shareList and (da and "Alle karakterer" or "All characters")
+    or (da and "Kun " or "Only ") .. (ns.Plain(UnitName("player")) or ""))
   head:SetText(string.upper(T("item")))
   headStill:SetText(string.upper(T("still")))
   headMail:SetText("")

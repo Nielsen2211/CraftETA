@@ -270,3 +270,23 @@ function ns.NumberBox(parent, width, height, size, onSet)
   end
   return box
 end
+
+-- an on/off switch: a track with a knob that slides to the right when on (gold) and left when off (grey)
+function ns.Switch(parent, onClick)
+  local b = CreateFrame("Button", nil, parent)
+  b:SetSize(30, 16)
+  b.track = b:CreateTexture(nil, "ARTWORK"); b.track:SetAllPoints()
+  b.edge = b:CreateTexture(nil, "BORDER"); b.edge:SetPoint("TOPLEFT", -1, 1); b.edge:SetPoint("BOTTOMRIGHT", 1, -1)
+  b.knob = b:CreateTexture(nil, "OVERLAY"); b.knob:SetSize(12, 12)
+  function b:SetOn(on)
+    self.on = on and true or false
+    self.track:SetColorTexture(on and 1 or 0.17, on and 0.82 or 0.18, on and 0.3 or 0.22, 1)
+    self.edge:SetColorTexture(on and 0.6 or 0.3, on and 0.48 or 0.31, on and 0.16 or 0.36, 1)
+    self.knob:SetColorTexture(on and 0.1 or 0.62, on and 0.08 or 0.64, on and 0.03 or 0.68, 1)
+    self.knob:ClearAllPoints()
+    self.knob:SetPoint(on and "RIGHT" or "LEFT", on and -2 or 2, 0)
+  end
+  b:SetScript("OnClick", function(self) if onClick then onClick(self) end end)
+  b:SetOn(false)
+  return b
+end

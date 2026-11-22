@@ -33,12 +33,16 @@ local function Toggle(i)
   if r then return r end
   r = CreateFrame("Button", nil, W)
   r:SetHeight(22)
-  local box = r:CreateTexture(nil, "ARTWORK"); box:SetSize(14, 14); box:SetPoint("LEFT", 0, 0)
-  local fill = r:CreateTexture(nil, "OVERLAY"); fill:SetSize(8, 8); fill:SetPoint("CENTER", box, "CENTER"); fill:SetColorTexture(1, 0.82, 0.3)
-  local tx = ns.Font(r, false, 11); tx:SetPoint("LEFT", box, "RIGHT", 8, 0); tx:SetPoint("RIGHT", r, "RIGHT", 0, 0)
+  local function Click(self) self.set(); W.Build(); ns.Refresh(); if ns.RefreshHub then ns.RefreshHub() end end
+  -- on/off: a switch on the right. A setting you click through (side, price guard): its value on the right.
+  -- A choice (language): a dot
+  local sw = ns.Switch(r, function() Click(r) end); sw:SetPoint("RIGHT", 0, 0)
+  local val = ns.Font(r, true, 10, 1, 0.82, 0.3); val:SetPoint("RIGHT", 0, 0); val:SetJustifyH("RIGHT")
+  local dot = r:CreateTexture(nil, "ARTWORK"); dot:SetSize(8, 8); dot:SetPoint("RIGHT", -11, 0)
+  local tx = ns.Font(r, false, 11); tx:SetPoint("LEFT", 0, 0); tx:SetPoint("RIGHT", r, "RIGHT", -44, 0)
   local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.04)
-  r.box, r.fill, r.tx = box, fill, tx
-  r:SetScript("OnClick", function(self) self.set(); W.Build(); ns.Refresh(); if ns.RefreshHub then ns.RefreshHub() end end)
+  r.sw, r.val, r.dot, r.tx = sw, val, dot, tx
+  r:SetScript("OnClick", Click)
   rowPool[i] = r
   return r
 end
@@ -51,13 +55,17 @@ function W.Build()
     local hd = Head(h); hd:ClearAllPoints(); hd:SetPoint("TOPLEFT", 14, y); hd:SetText(string.upper(text)); hd:Show()
     y = y - 18
   end
-  local function add(text, on, set)
+  -- kind: nil (on/off), "cycle" (value: what it is set to), "choice" (one of a few)
+  local function add(text, on, set, kind, value)
     n = n + 1
     local r = Toggle(n)
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", 14, y); r:SetPoint("RIGHT", W, "RIGHT", -14, 0)
     r.set = set
-    r.fill:SetShown(on)
-    r.box:SetColorTexture(on and 0.3 or 0.16, on and 0.25 or 0.17, on and 0.12 or 0.21)
+    r.sw:SetShown(kind == nil); r.sw:SetOn(on)
+    r.val:SetShown(kind == "cycle"); r.val:SetText(value or "")
+    r.dot:SetShown(kind == "choice")
+    r.dot:SetColorTexture(on and 1 or 0.25, on and 0.82 or 0.26, on and 0.3 or 0.3, 1)
+    r.tx:SetPoint("RIGHT", r, "RIGHT", kind == "cycle" and -(r.val:GetStringWidth() + 12) or -44, 0)
     r.tx:SetText(text)
     -- a long text wraps onto two lines: the row grows with it instead of squeezing the lines together
     local rh = math.max(22, math.ceil(r.tx:GetStringHeight()) + 8)
@@ -69,10 +77,10 @@ function W.Build()
   section(T("settings"))
   add(T("panelOpt"), db.panel, function() db.panel = not db.panel end)
   add(T("nextOpt"), db.showNext, function() db.showNext = not db.showNext end)
-  add(T("sideOpt", T("side_" .. (db.panelSide or "auto"))), true, function()
+  add((T("sideOpt", ""):gsub("[:%s]+$", "")), true, function()
     db.panelSide = ({ auto = "left", left = "right", right = "auto" })[db.panelSide or "auto"]
     ns.PlacePanel()
-  end)
+  end, "cycle", T("side_" .. (db.panelSide or "auto")))
   add(T("minimapOpt"), db.minimap, function() db.minimap = not db.minimap; ns.UpdateMinimapButton() end)
   add(T("tooltipOpt"), db.tooltip, function() db.tooltip = not db.tooltip end)
   add(T("cdAlertOpt"), db.cdAlert, function() db.cdAlert = not db.cdAlert end)
@@ -88,12 +96,12 @@ function W.Build()
   add(T("autoScanOpt"), db.autoScan, function() db.autoScan = not db.autoScan end)
   add(T("autoOpt"), db.autoBuy, function() db.autoBuy = not db.autoBuy end)
   -- the price guard: click to go 10, 20, 30, 50 %
-  add(T("guardOpt") .. "  |cffffd24a" .. db.guard .. "%|r", true, function()
+  add(T("guardOpt"), true, function()
     local steps = { 10, 20, 30, 50 }
     local nextValue = steps[1]
     for i, v in ipairs(steps) do if v == db.guard then nextValue = steps[i % #steps + 1] end end
     db.guard = nextValue
-  end)
+  end, "cycle", db.guard .. "%")
   -- which auction house addon CraftETA found and uses
   info = info or ns.Font(W, false, 10, 0.6, 0.62, 0.68)
   info:ClearAllPoints(); info:SetPoint("TOPLEFT", 14, y - 4)
@@ -101,12 +109,13 @@ function W.Build()
   y = y - 20
   y = y - 6
   section(T("lang"))
-  add("English", db.lang == "en", function() db.lang = "en" end)
-  add("Dansk", db.lang == "da", function() db.lang = "da" end)
+  add("English", db.lang == "en", function() db.lang = "en" end, "choice")
+  add("Dansk", db.lang == "da", function() db.lang = "da" end, "choice")
   for i = n + 1, #rowPool do rowPool[i]:Hide() end
   for i = h + 1, #heads do heads[i]:Hide() end
   W:SetHeight(-y + 24)
 end
+function ns.RefreshSettings() if W:IsShown() then W.Build() end end
 W:SetScript("OnShow", function()
   W:ClearAllPoints()
   local hub = _G.CraftETAHub
