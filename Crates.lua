@@ -69,6 +69,10 @@ ns.CRATES = {
   { "Artisan", "Parts", nil, { "Thorium Widget", 5 }, { "Truesilver Transformer", 5 }, { "Thorium Tube", 2 } },
 }
 local function CrateName(c) return c[1] .. " " .. c[2] end
+-- the silver a crate gives back with its favor, by its colour (1 white, 2 green); blue and Elite crates are
+-- not known yet, so the plan leaves them out
+local BACK = { Apprentice = { 250, 500 }, Journeyman = { 500, 1000 }, Expert = { 750, 1500 } }
+local function Back(c, quality) return (BACK[c[1]] and BACK[c[1]][quality or 1]) or 0 end
 
 -- an item ID for a material: the built-in one when the game agrees on its name, else the name lookup
 local checked = {}
@@ -145,7 +149,7 @@ function ns.BagCrates()
       local name = link and string.match(link, "%[(.-)%]")
       if name and (string.find(name, "Waylaid", 1, true) or string.find(name, "Crate", 1, true)) then
         local text = name .. "\n" .. TooltipText("GetBagItem", bag, slot)
-        out[#out + 1] = { crate = ns.CrateFromText(text), name = name, id = Plain(info.itemID),
+        out[#out + 1] = { crate = ns.CrateFromText(text), name = name, id = Plain(info.itemID), quality = tonumber(Plain(info.quality)) or 1,
           count = tonumber(Plain(info.stackCount)) or 1, sealed = string.find(name, "Sealed", 1, true) ~= nil }
       end
     end
@@ -177,7 +181,7 @@ local function OnCrateBrowse()
     if name and not ahScan.found[key.itemID] and (string.find(name, "Waylaid", 1, true) or string.find(name, "Crate", 1, true))
         and not string.find(name, "Sealed", 1, true) then
       local text = name .. "\n" .. TooltipText("GetItemByID", key.itemID)
-      ahScan.found[key.itemID] = { id = key.itemID, name = name, price = Plain(result.minPrice) or 0,
+      ahScan.found[key.itemID] = { id = key.itemID, name = name, price = Plain(result.minPrice) or 0, quality = tonumber(Plain(info.quality)) or 1,
         qty = Plain(result.totalQuantity) or 1, crate = nil, text = text }
     end
   end
@@ -193,7 +197,7 @@ local function OnCrateBrowse()
   local list = {}
   for _, f in pairs(ahScan.found) do
     local c = ns.CrateFromText(f.text)
-    list[#list + 1] = { id = f.id, name = f.name, price = f.price, qty = f.qty, key = c and CrateName(c) or nil }
+    list[#list + 1] = { id = f.id, name = f.name, price = f.price, qty = f.qty, quality = f.quality, key = c and CrateName(c) or nil }
   end
   ns.db.crateAH = { t = time(), list = list }
   ns.Print(L("Found %d kinds of crates on the auction house.", "Fandt %d slags kasser på auktionshuset."):format(#list))
@@ -238,16 +242,16 @@ function ns.FavorPlan(goal)
   for _, c in ipairs(ns.CRATES) do byKey[CrateName(c)] = c end
   local sources = {}
   for _, b in ipairs(ns.BagCrates()) do
-    if b.crate and not b.sealed and b.crate[3] and level >= LVL[b.crate[1]] then
-      for _ = 1, b.count do sources[#sources + 1] = { crate = b.crate, from = "bag", cost = 0, name = b.name } end
+    if b.crate and not b.sealed and b.crate[3] and level >= LVL[b.crate[1]] and (b.quality or 1) <= 2 then
+      for _ = 1, b.count do sources[#sources + 1] = { crate = b.crate, from = "bag", cost = 0, name = b.name, back = Back(b.crate, b.quality) } end
     end
   end
   local ah = ns.db.crateAH and ns.db.crateAH.list or {}
   for _, a in ipairs(ah) do
     local c = a.key and byKey[a.key]
-    if c and c[3] and level >= LVL[c[1]] then
+    if c and c[3] and level >= LVL[c[1]] and (a.quality or 1) <= 2 then
       for _ = 1, math.min(a.qty or 1, 20) do
-        sources[#sources + 1] = { crate = c, from = "ah", cost = a.price or 0, name = a.name, id = a.id }
+        sources[#sources + 1] = { crate = c, from = "ah", cost = a.price or 0, name = a.name, id = a.id, back = Back(c, a.quality) }
       end
     end
   end
@@ -258,7 +262,7 @@ function ns.FavorPlan(goal)
     for i, s in ipairs(sources) do
       local b = BestBundle(s.crate, stock)
       if b then
-        local v = (s.cost + b.spend) / s.crate[3]
+        local v = (s.cost + b.spend - s.back) / s.crate[3]
         if not bestV or v < bestV then bestI, bestV, bestB = i, v, b end
       end
     end
@@ -266,8 +270,8 @@ function ns.FavorPlan(goal)
     local s = table.remove(sources, bestI)
     stock[bestB.mat] = (stock[bestB.mat] or 0) - bestB.have
     got = got + s.crate[3]
-    gold = gold + s.cost + bestB.spend
-    steps[#steps + 1] = { crate = s.crate, from = s.from, cost = s.cost, bundle = bestB, id = s.id, name = s.name }
+    gold = gold + s.cost + bestB.spend - s.back
+    steps[#steps + 1] = { crate = s.crate, from = s.from, cost = s.cost, bundle = bestB, id = s.id, name = s.name, back = s.back }
   end
   return steps, got, gold
 end
@@ -331,7 +335,7 @@ ns.HubBuilders.favor = function(data, state, Control)
     local fill = b.count .. " " .. b.mat .. (b.have > 0 and L(" (have %d)", " (har %d)"):format(b.have) or "")
     data[#data + 1] = {
       indent = 8, icon = ns.ItemIcon(b.mat), name = CrateName(s.crate) .. "  |cff8c8f96" .. where .. "  ·  " .. fill .. "|r",
-      value = "+" .. s.crate[3] .. "  " .. ns.Money(s.cost + b.spend), vr = 1, vg = 0.82, vb = 0.3,
+      value = "+" .. s.crate[3] .. "  " .. ns.Money(math.max(0, s.cost + b.spend - s.back)), vr = 1, vg = 0.82, vb = 0.3,
       click = function()
         if s.id and ns.AHSearch then ns.AHSearch(s.id, s.name) end
       end,
@@ -340,7 +344,8 @@ ns.HubBuilders.favor = function(data, state, Control)
         tip:AddLine(L("Fill with: ", "Fyld med: ") .. fill, 0.85, 0.87, 0.9, true)
         if b.buy > 0 then tip:AddDoubleLine(L("Buy", "Køb"), b.buy .. " x " .. (b.unit and ns.Money(b.unit) or "?"), 0.85, 0.87, 0.9, 1, 1, 1) end
         if s.cost > 0 then tip:AddDoubleLine(L("Crate", "Kasse"), ns.Money(s.cost), 0.85, 0.87, 0.9, 1, 1, 1) end
-        tip:AddDoubleLine(L("Per favor", "Pr. favor"), ns.Money((s.cost + b.spend) / s.crate[3]), 0.85, 0.87, 0.9, 1, 0.82, 0.3)
+        if s.back > 0 then tip:AddDoubleLine(L("Silver back", "Sølv tilbage"), "-" .. ns.Money(s.back), 0.85, 0.87, 0.9, 0.35, 0.9, 0.4) end
+        tip:AddDoubleLine(L("Per favor", "Pr. favor"), ns.Money(math.max(0, s.cost + b.spend - s.back) / s.crate[3]), 0.85, 0.87, 0.9, 1, 0.82, 0.3)
         if s.id then tip:AddLine(L("Click: find it on the auction house", "Klik: find den på auktionshuset"), 0.55, 0.58, 0.64) end
       end,
     }
