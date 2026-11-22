@@ -28,7 +28,8 @@ function ns.AddToList(mats, order, prof, target)
   prof = prof or (ns.Panel and ns.db.lastProf)
   if prof and target then
     for _, p in ipairs(plans) do
-      if p.prof == prof then p.target = math.max(p.target, target); ns.Refresh(); return end
+      -- the button you pressed decides: to the next rank replaces an older "to 300" plan, and the other way round
+      if p.prof == prof then p.target = target; if not S:IsShown() then S:Show() end; ns.Refresh(); return end
     end
     plans[#plans + 1] = { prof = prof, target = target }
   else

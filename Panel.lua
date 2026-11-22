@@ -120,7 +120,7 @@ addList:SetScript("OnClick", function(_, button)
     target = math.min(state.step[2], state.target)
   end
   ns.AddToList(nil, nil, state.prof, target)
-  ns.Print(T("addedList"))
+  ns.Print(T("addedList") .. " (" .. (state.rank or "") .. " → " .. target .. ")")
 end)
 
 local function SwitchChoice(delta)
