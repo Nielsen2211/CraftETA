@@ -1013,9 +1013,9 @@ win:SetHeight(SH)
 win:SetFrameStrata("DIALOG")
 local wHave = ns.Font(win, true, 12, 1, 0.82, 0.3); wHave:SetPoint("TOPRIGHT", -40, -13); wHave:SetJustifyH("RIGHT")
 local wSwitch = ns.Switch(win, function() ns.db.favorAll = not ns.db.favorAll; favorScroll = 0; win:Refresh() end)
-wSwitch:SetPoint("TOPRIGHT", -14, -78)
+wSwitch:SetPoint("TOPRIGHT", -14, -108)
 local wSwitchLabel = ns.Font(win, false, 10, 0.6, 0.62, 0.67); wSwitchLabel:SetPoint("RIGHT", wSwitch, "LEFT", -6, 0)
-local wCount = ns.Font(win, false, 10, 0.5, 0.52, 0.57); wCount:SetPoint("TOPLEFT", 16, -80)
+local wCount = ns.Font(win, false, 10, 0.5, 0.52, 0.57); wCount:SetPoint("TOPLEFT", 16, -110)
 local wEmpty = ns.Font(win, false, 11, 0.6, 0.62, 0.67); wEmpty:SetPoint("TOPLEFT", 16, -104); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
 wEmpty:SetWordWrap(true); wEmpty:SetJustifyH("LEFT")
 
@@ -1034,6 +1034,35 @@ for k, v in ipairs(FAVOR_VENDORS) do
 end
 local wVendNote = ns.Font(win, false, 10, 0.6, 0.62, 0.67)
 wVendNote:SetPoint("LEFT", wVend[#wVend], "RIGHT", 12, 0)
+-- click a vendor: only its things (click again: everything)
+local favorVendor, favorRole = nil, nil
+for k, b in ipairs(wVend) do
+  b.sel = b:CreateTexture(nil, "BACKGROUND"); b.sel:SetPoint("TOPLEFT", -2, 2); b.sel:SetPoint("BOTTOMRIGHT", 2, -2)
+  b.sel:SetColorTexture(1, 0.82, 0.3, 1); b.sel:Hide()
+  b:SetScript("OnMouseUp", function()
+    favorVendor = favorVendor ~= k and k or nil
+    favorCat = nil
+    favorScroll = 0
+    win:Refresh()
+  end)
+end
+-- what it is for: all, tank, melee, ranged, caster, healer, other
+local ROLES = { { nil, "All", "Alt" }, { "tank", "Tank", "Tank" }, { "melee", "Melee", "Melee" }, { "ranged", "Ranged", "Ranged" },
+  { "caster", "Caster", "Caster" }, { "healer", "Healer", "Healer" }, { "other", "Other", "Andet" } }
+local favorCat
+local roleBtns = {}
+for k = 1, 8 do
+  local b = ns.Button(win, "", 70, 20)
+  b.grow = true
+  b:SetScript("OnClick", function(self)
+    if self.cat ~= nil or self.isCat then favorCat = self.cat else favorRole = self.role end
+    favorScroll = 0
+    win:Refresh()
+  end)
+  roleBtns[k] = b
+end
+-- a different vendor: its own tabs start on All
+local pickVendor = function() favorCat = nil end
 
 -- the big rewards, known from the start (from Warcraft Wiki, "Merchant's Favor", CC BY-SA 4.0:
 -- https://warcraft.wiki.gg/wiki/Merchant's_Favor). Everything else is learned at the vendors themselves.
@@ -1080,9 +1109,91 @@ local function FavorItems(f)
   return all
 end
 
+-- what a crafted piece is for, from the name of its set (the vendors sell sets per role)
+local ROLE_SETS = {
+  tank = { "Guard's", "Sentinel's", "Defender's", "Warden's", "Protector's", "Warder's", "Enriched Thorium" },
+  melee = { "Veteran's", "Officer's", "Crusader's", "Justicar's", "Brawler's", "Prowler's", "Skulker's", "Totemic", "Skirmisher's",
+    "Thorium Cestus", "Legionite Glaive", "Thorium Greatmace" },
+  ranged = { "Trapper's", "Stalker's" },
+  healer = { "Acolyte's", "Prefect's", "Wisdom's", "Mender's", "Pristine", "Nethergeld", "Gilded" },
+  caster = { "Stormrider's", "Skycaller's", "Flame", "Fiery", "Netherflame", "Silky", "Frothing", "Netherfroth", "Pearly", "Golden",
+    "Nethershine", "Shadow", "Black", "Netherpearl", "Shining", "Radiant", "Netherlight", "Glimmering Staff", "Orb of", "Soulstaff",
+    "Dreamstaff", "Truesilver Conduit", "Twisting Essence Jar", "Brilliant Wand" },
+}
+local function RoleOf(name)
+  if type(name) ~= "string" then return "other" end
+  local bare = name:gsub("^[^:]+:%s*", "")
+  for role, sets in pairs(ROLE_SETS) do
+    for _, prefix in ipairs(sets) do
+      if bare:sub(1, #prefix) == prefix then return role end
+    end
+  end
+  return "other"
+end
+
+-- each vendor's own tabs, like the guide: { key, English, Danish, name starts or contains }
+local CATS = {
+  [171] = { { "potion", "Potions", "Potions", { "Potion" } }, { "elixir", "Elixirs", "Elixirs", { "Elixir" } } },
+  [164] = { { "tank", "Tank", "Tank", { "Guard's", "Sentinel's" } },
+    { "melee", "Melee DPS", "Melee DPS", { "Veteran's", "Officer's", "Thorium Cestus", "Legionite Glaive" } },
+    { "healer", "Healer", "Healer", { "Acolyte's", "Prefect's" } },
+    { "ptank", "Paladin Tank", "Paladin Tank", { "Protector's", "Warder's", "Enriched Thorium" } },
+    { "ret", "Retribution", "Retribution", { "Crusader's", "Justicar's", "Thorium Greatmace" } } },
+  [185] = { { "smoothie", "Smoothies", "Smoothies", { "Smoothie", "Smrrthle" } } },
+  [333] = { { "relic", "Relics", "Relics", { "Tenets", "Libram", "Talons", "Totem", "Idol" } },
+    { "weapon", "Caster weapons", "Caster våben", { "Staff", "Orb of", "Soulstaff", "Dreamstaff", "Conduit", "Essence Jar", "Wand" } },
+    { "enchant", "Enchants", "Enchants", { "Enchant" } } },
+  [202] = { { "bomb", "Bombs", "Bomber", { "Bomb", "Dynamite" } }, { "goggles", "Goggles", "Goggles", { "Goggles" } },
+    { "belt", "Belts", "Bælter", { "Cord", "Girdle", "Waistwrap" } },
+    { "gadget", "Gadgets", "Gadgets", { "Cloak", "Parachute", "Poultryizer", "Carrier", "Stealthman", "Glider", "Battery" } },
+    { "part", "Parts", "Dele", { "Tabs", "Wrap", "Padding", "Bell", "Fuse" } } },
+  [165] = { { "rogue", "Rogue", "Rogue", { "Brawler's", "Prowler's", "Skulker's" } }, { "tank", "Tank", "Tank", { "Defender's", "Warden's" } },
+    { "hunter", "Hunter", "Hunter", { "Trapper's", "Stalker's" } }, { "enh", "Enhancement", "Enhancement", { "Totemic", "Skirmisher's" } },
+    { "ele", "Elemental", "Elemental", { "Stormrider's", "Skycaller's" } }, { "healer", "Healer", "Healer", { "Wisdom's", "Mender's" } },
+    { "kit", "Armor kits", "Armor kits", { "Armor Kit" } } },
+  [197] = { { "flame", "Flame", "Flame", { "Flame", "Fiery", "Netherflame" } }, { "silky", "Silky", "Silky", { "Silky", "Frothing", "Netherfroth" } },
+    { "pearly", "Pearly", "Pearly", { "Pearly", "Golden", "Nethershine" } }, { "shadow", "Shadow", "Shadow", { "Shadow", "Black", "Netherpearl" } },
+    { "shining", "Shining", "Shining", { "Shining", "Radiant", "Netherlight" } }, { "healer", "Healer", "Healer", { "Pristine", "Nethergeld", "Gilded" } },
+    { "bag", "Bags", "Tasker", { "Bag" } } },
+}
+local function CatOf(prof, name)
+  local cats = CATS[prof]
+  if not (cats and type(name) == "string") then return nil end
+  local bare = name:gsub("^[^:]+:%s*", "")
+  for _, c in ipairs(cats) do
+    for _, word in ipairs(c[4]) do
+      if bare:find(word, 1, true) then return c[1] end
+    end
+  end
+  return nil
+end
+
+-- a recipe you already know, on any of your professions' books (the product's name, or "Recipe: name")
+local function KnownRecipe(name)
+  local me = ns.Me and ns.Me()
+  if not (me and me.book and name) then return false end
+  local bare = name:gsub("^[^:]+:%s*", "")
+  for _, book in pairs(me.book) do
+    for _, r in pairs(book) do
+      if r.l and (r.n == bare or r.n == name) then return true end
+    end
+  end
+  return false
+end
+-- the game's own item for a thing, when it knows it: its icon and tooltip are Blizzard's
+local function GameItem(key, e)
+  if type(key) == "number" then return key end
+  local id = ns.ItemID and ns.ItemID(e.n)
+  if not id and GetItemInfoInstant then
+    local ok, iid = pcall(GetItemInfoInstant, e.n)
+    if ok and type(iid) == "number" then id = iid end
+  end
+  return id
+end
+
 local WCOLS, WT_H = 2, 46
 local WT_W = math.floor((SW - 32 - 8) / WCOLS)
-local WROWS = 7
+local WROWS = 6
 local wTiles = {}
 local function WTile(i)
   if wTiles[i] then return wTiles[i] end
@@ -1103,7 +1214,7 @@ local function WTile(i)
   wTiles[i] = t
   return t
 end
-local wMore = ns.Font(win, false, 9, 0.45, 0.47, 0.52); wMore:SetPoint("TOPRIGHT", -16, -100 - WROWS * WT_H); wMore:SetJustifyH("RIGHT")
+local wMore = ns.Font(win, false, 9, 0.45, 0.47, 0.52); wMore:SetPoint("TOPRIGHT", -16, -128 - WROWS * WT_H); wMore:SetJustifyH("RIGHT")
 
 -- the basket card
 local basket = CreateFrame("Frame", nil, win)
@@ -1141,15 +1252,17 @@ function win:Refresh()
   local byVendor, opened = {}, 0
   for _, e in pairs(learned) do if e.v then byVendor[e.v] = (byVendor[e.v] or 0) + 1 end end
   local camp = f == "h" and "Crossroads, The Barrens" or "Three Corners, Redridge Mountains"
-  for _, b in ipairs(wVend) do
+  for vi, b in ipairs(wVend) do
     local v = b.v
     local npc = v[f] or v.h
     local n = byVendor[npc]
     if n then opened = opened + 1 end
     b.icon:SetTexture(v.icon or ns.ProfIcon(v.prof))
-    b.icon:SetDesaturated(not n)
-    b.icon:SetAlpha(n and 1 or 0.55)
-    b.check:SetShown(n ~= nil)
+    local has = n or (v.prof and ns.FAVOR_RECIPES and ns.FAVOR_RECIPES[v.prof]) or (not v.prof)
+    b.icon:SetDesaturated(not has)
+    b.icon:SetAlpha(has and 1 or 0.55)
+    b.check:SetShown(n ~= nil or (v.prof and ns.FAVOR_RECIPES and ns.FAVOR_RECIPES[v.prof]) ~= nil)
+    b.sel:SetShown(favorVendor == vi)
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       GameTooltip:SetText(npc, 1, 0.82, 0.3)
@@ -1162,16 +1275,50 @@ function win:Refresh()
   end
   wVendNote:SetText(opened == #wVend and L("All vendors known", "Alle handlere kendt")
     or L("%d of %d vendors known  ·  open the grey ones once", "%d af %d handlere kendt  ·  åbn de grå én gang"):format(opened, #wVend))
+  -- the tabs: the chosen vendor's own, or the roles across everything
+  local da = ns.db.lang == "da"
+  local vend = favorVendor and FAVOR_VENDORS[favorVendor]
+  local tabsNow = {}
+  if vend and vend.prof and CATS[vend.prof] then
+    tabsNow[1] = { isCat = true, cat = nil, text = da and "Alt" or "All" }
+    for _, c in ipairs(CATS[vend.prof]) do tabsNow[#tabsNow + 1] = { isCat = true, cat = c[1], text = da and c[3] or c[2] } end
+  elseif not vend then
+    for _, r in ipairs(ROLES) do tabsNow[#tabsNow + 1] = { role = r[1], text = da and r[3] or r[2] } end
+  end
+  local x = 16
+  for k, b in ipairs(roleBtns) do
+    local t = tabsNow[k]
+    if t then
+      b.isCat, b.cat, b.role = t.isCat, t.cat, t.role
+      b:SetWidth(70); b:SetText(t.text)
+      local w = math.max(70, (b.label:GetStringWidth() or 0) + 20)
+      b:SetWidth(w)
+      b:ClearAllPoints(); b:SetPoint("TOPLEFT", x, -80)
+      x = x + w + 4
+      local on = t.isCat and favorCat == t.cat or (not t.isCat and favorRole == t.role)
+      b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
+      b:Show()
+    else
+      b:Hide()
+    end
+  end
   wSwitch:SetOn(not ns.db.favorAll)
   wSwitchLabel:SetText(L("Only what I can use", "Kun det jeg kan bruge"))
 
   local list = {}
   for id, e in pairs(shopList) do
-    if ns.db.favorAll or e.u then list[#list + 1] = { id = id, e = e } end
+    local known = (e.prof or (type(e.n) == "string" and e.n:find(":", 1, true))) and KnownRecipe(e.n)
+    local vend = favorVendor and FAVOR_VENDORS[favorVendor]
+    local okVendor = not vend or e.v == vend[f] or (vend.prof and e.prof == vend.prof)
+    local vprof = vend and vend.prof
+    local okRole
+    if vprof then okRole = not favorCat or CatOf(vprof, e.n) == favorCat
+    else okRole = not favorRole or RoleOf(e.n) == favorRole end
+    if okVendor and okRole and (ns.db.favorAll or (e.u and not known)) then list[#list + 1] = { id = id, e = e, known = known } end
   end
   table.sort(list, function(a, b) if a.e.c ~= b.e.c then return a.e.c < b.e.c end return a.e.n < b.e.n end)
   wEmpty:ClearAllPoints()
-  wEmpty:SetPoint("TOPLEFT", 16, -100 - math.ceil(#list / WCOLS) * WT_H - 6); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
+  wEmpty:SetPoint("TOPLEFT", 16, -128 - math.min(WROWS, math.ceil(#list / WCOLS)) * WT_H - 6); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
   wCount:SetText(L("%d things  ·  click: in the basket  ·  right-click: out", "%d ting  ·  klik: i kurven  ·  højreklik: ud"):format(#list))
   local fit = WROWS * WCOLS
   favorScroll = math.min(favorScroll, math.max(0, #list - fit))
@@ -1185,22 +1332,30 @@ function win:Refresh()
   for k = 1, math.min(#list - favorScroll, fit) do
     local it, t = list[favorScroll + k], WTile(k)
     local e, id = it.e, it.id
+    local known = it.known
+    local recipe = e.prof ~= nil or (type(e.n) == "string" and e.n:find(":", 1, true) ~= nil)
+    local item = GameItem(id, e)
+    local gameIcon = item and C_Item and C_Item.GetItemIconByID and Plain(C_Item.GetItemIconByID(item))
     t:ClearAllPoints()
-    t:SetPoint("TOPLEFT", 16 + ((k - 1) % WCOLS) * (WT_W + 8), -100 - math.floor((k - 1) / WCOLS) * WT_H)
-    t.icon:SetTexture(e.i or 134400)
+    t:SetPoint("TOPLEFT", 16 + ((k - 1) % WCOLS) * (WT_W + 8), -128 - math.floor((k - 1) / WCOLS) * WT_H)
+    t.icon:SetTexture(gameIcon or e.i or 134400)
+    t.icon:SetDesaturated(known and true or false)
     t.name:SetText(e.n)
-    t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4)
+    if known then t.name:SetTextColor(0.5, 0.52, 0.57)
+    else t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4) end
     t.sub:SetText((e.v or "") .. (e.skill and ("  ·  " .. e.skill) or "") .. (e.rep and ("  ·  |cffffd24a" .. (e.rep == 2 and "Honored" or "Friendly") .. "|r") or ""))
     t.cost:SetText(e.c .. " favor")
     local inCart = cart[id]
     local short = e.c - have
-    t.state:SetText(inCart and ("|cffffd24a" .. L("%d in basket", "%d i kurven"):format(inCart) .. "|r")
+    t.state:SetText(known and ("|cff8c8f96" .. L("already learned", "allerede lært") .. "|r") or inCart and ("|cffffd24a" .. L("%d in basket", "%d i kurven"):format(inCart) .. "|r")
       or (short <= 0 and ("|cff73d973" .. L("you can buy it", "du kan købe den") .. "|r") or L("%d to go", "%d mangler"):format(short)))
     t.mark:SetColorTexture(1, 0.82, 0.3, inCart and 1 or 0)
     t.bg:SetColorTexture(inCart and 0.13 or 0.086, inCart and 0.12 or 0.094, inCart and 0.1 or 0.122, 1)
     t:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      if type(id) == "number" then GameTooltip:SetItemByID(id) else GameTooltip:SetText(e.n, 1, 1, 1) end
+      local okI = item and pcall(GameTooltip.SetItemByID, GameTooltip, item)
+      if not okI or GameTooltip:NumLines() == 0 then GameTooltip:SetText(e.n or "?", 1, 1, 1) end
+      if known then GameTooltip:AddLine(L("You already know this recipe.", "Du kender allerede denne opskrift."), 0.55, 0.9, 0.4) end
       if e.shared then GameTooltip:AddLine(L("From your guild (%s)", "Fra din guild (%s)"):format(type(e.shared) == "string" and e.shared or "?"), 0.55, 0.58, 0.64) end
       if e.prof then
         GameTooltip:AddLine(L("Recipe: %s %d", "Opskrift: %s %d"):format(ns.ProfName(e.prof), e.skill), e.canNow and 0.35 or 1, e.canNow and 0.9 or 0.42, e.canNow and 0.4 or 0.32)
@@ -1216,6 +1371,10 @@ function win:Refresh()
     t:SetScript("OnClick", function(_, button)
       if button == "RightButton" then
         cart[id] = (cart[id] or 0) > 1 and cart[id] - 1 or nil
+      elseif known then
+        return
+      elseif recipe then
+        cart[id] = 1                      -- a recipe is learned once: one is enough
       else
         cart[id] = (cart[id] or 0) + 1
       end
