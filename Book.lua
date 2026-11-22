@@ -383,7 +383,8 @@ function ns.Whisper(target)
   end
 end
 
-ns.On("ADDON_LOADED", function()
+ns.On("ADDON_LOADED", function(name)
+  if name ~= "CraftETA" then return end   -- only when CraftETA itself has loaded
   ns.db.chars = ns.db.chars or {}
   if ns.db.tooltip == nil then ns.db.tooltip = true end
   if ns.db.guildShare == nil then ns.db.guildShare = true end
