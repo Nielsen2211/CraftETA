@@ -90,6 +90,15 @@ local function MatID(name)
   return id
 end
 local function Price(name) return ns.PriceID(MatID(name), name) end
+local function IconOf(name, id)
+  id = id or MatID(name)
+  if id and C_Item and C_Item.GetItemIconByID then
+    local ok, tex = pcall(C_Item.GetItemIconByID, id)
+    if ok and Plain(tex) then return Plain(tex) end
+  end
+  local tex = ns.ItemIcon(name)
+  return (tex and tex ~= 134400) and tex or "Interface\\Icons\\INV_Crate_01"
+end
 local function Have(name)
   local id = MatID(name)
   if id and ns.BagCount then return ns.BagCount(id) end
@@ -310,7 +319,8 @@ ns.HubBuilders.favor = function(data, state, Control)
   Btn(3, 148, 30, "+", function() ns.db.favorGoal = goal + (IsShiftKeyDown() and 10 or 50); ns.RefreshHub() end, L("Shift: 10", "Shift: 10"))
   Btn(4, 190, 130, L("Scan AH crates", "Scan kasser på AH"), function() ns.ScanCrates() end,
     L("At the auction house: finds every Waylaid Crate for sale and its price.", "Ved auktionshuset: finder alle Waylaid Crates til salg og deres pris."))
-  local steps, got, gold = ns.FavorPlan(goal)
+  local have = ns.FavorNow() or 0
+  local steps, got, gold = ns.FavorPlan(math.max(0, goal - have))
   Btn(5, 324, 140, L("Mats to shopping list", "Mats på indkøbslisten"), function()
     local mats, order = {}, {}
     for _, s in ipairs(steps) do
@@ -324,24 +334,36 @@ ns.HubBuilders.favor = function(data, state, Control)
   end)
 
   local f = ns.Faction()
-  Head(data, L("Plan: %d of %d favor  ·  %s", "Plan: %d af %d favor  ·  %s"):format(got, goal, ns.Money(gold)))
+  Head(data, L("Plan: %d + %d of %d favor  ·  %s", "Plan: %d + %d af %d favor  ·  %s"):format(have, got, goal, ns.Money(gold)))
   if #steps == 0 then
     data[#data + 1] = { indent = 8, name = L("No crates to plan with yet: scan the auction house, or loot some crates.",
       "Ingen kasser at planlægge med endnu: scan auktionshuset, eller find nogle kasser."), r = 0.6, g = 0.62, b = 0.67 }
   end
+  -- the same crate from the same place, filled the same way, is one row with a count
+  local groups, order = {}, {}
   for _, s in ipairs(steps) do
+    local key = CrateName(s.crate) .. "|" .. s.from .. "|" .. (s.id or "") .. "|" .. s.cost .. "|" .. s.bundle.mat .. "|" .. s.bundle.have
+    local g = groups[key]
+    if not g then g = { s = s, n = 0, gold = 0 }; groups[key] = g; order[#order + 1] = g end
+    g.n = g.n + 1
+    g.gold = g.gold + math.max(0, s.cost + s.bundle.spend - s.back)
+  end
+  for _, g in ipairs(order) do
+    local s, n = g.s, g.n
     local b = s.bundle
     local where = s.from == "bag" and L("in your bags", "i dine tasker") or (L("AH ", "AH ") .. ns.Money(s.cost))
     local fill = b.count .. " " .. b.mat .. (b.have > 0 and L(" (have %d)", " (har %d)"):format(b.have) or "")
     data[#data + 1] = {
-      indent = 8, icon = ns.ItemIcon(b.mat), name = CrateName(s.crate) .. "  |cff8c8f96" .. where .. "  ·  " .. fill .. "|r",
-      value = "+" .. s.crate[3] .. "  " .. ns.Money(math.max(0, s.cost + b.spend - s.back)), vr = 1, vg = 0.82, vb = 0.3,
+      indent = 8, icon = s.id and IconOf(s.name, s.id) or IconOf(b.mat),
+      name = (n > 1 and ("|cffffd24a" .. n .. " x|r  ") or "") .. CrateName(s.crate) .. "  |cff8c8f96" .. where .. "  ·  " .. fill .. "|r",
+      value = "+" .. (s.crate[3] * n) .. "  " .. ns.Money(g.gold), vr = 1, vg = 0.82, vb = 0.3,
       click = function()
         if s.id and ns.AHSearch then ns.AHSearch(s.id, s.name) end
       end,
       tip = function(tip)
-        tip:SetText(CrateName(s.crate), 1, 0.82, 0.3)
-        tip:AddLine(L("Fill with: ", "Fyld med: ") .. fill, 0.85, 0.87, 0.9, true)
+        tip:SetText((n > 1 and (n .. " x ") or "") .. CrateName(s.crate), 1, 0.82, 0.3)
+        tip:AddLine(L("Fill each with: ", "Fyld hver med: ") .. b.count .. " " .. b.mat, 0.85, 0.87, 0.9, true)
+        if s.from == "ah" then tip:AddLine(L("AH price is the cheapest listing: more crates can cost a bit more.", "AH-prisen er den billigste: flere kasser kan koste lidt mere."), 0.55, 0.58, 0.64, true) end
         if b.buy > 0 then tip:AddDoubleLine(L("Buy", "Køb"), b.buy .. " x " .. (b.unit and ns.Money(b.unit) or "?"), 0.85, 0.87, 0.9, 1, 1, 1) end
         if s.cost > 0 then tip:AddDoubleLine(L("Crate", "Kasse"), ns.Money(s.cost), 0.85, 0.87, 0.9, 1, 1, 1) end
         if s.back > 0 then tip:AddDoubleLine(L("Silver back", "Sølv tilbage"), "-" .. ns.Money(s.back), 0.85, 0.87, 0.9, 0.35, 0.9, 0.4) end
@@ -364,7 +386,7 @@ ns.HubBuilders.favor = function(data, state, Control)
     local c, b = r.c, r.b
     local locked = level < LVL[c[1]]
     data[#data + 1] = {
-      indent = 8, icon = b and ns.ItemIcon(b.mat) or 134400,
+      indent = 8, icon = b and IconOf(b.mat) or "Interface\\Icons\\INV_Crate_01",
       name = CrateName(c) .. "  |cff8c8f96" .. (b and (b.count .. " " .. b.mat) or "?") .. (locked and L("  ·  level %d", "  ·  level %d"):format(LVL[c[1]]) or "") .. "|r",
       r = locked and 0.5 or 0.85, g = locked and 0.52 or 0.87, b = locked and 0.57 or 0.9,
       value = (c[3] and ("+" .. c[3] .. "  ") or "?  ") .. (b and ns.Money(b.spend) or "?"),
@@ -380,6 +402,22 @@ ns.HubBuilders.favor = function(data, state, Control)
       end,
     }
   end
+  -- how the system works, from the guide: favor comes from crates, reputation from writs and receipts
+  Head(data, L("Good to know", "Godt at vide"))
+  local tips = {
+    { "Interface\\Icons\\INV_Letter_15", L("First crate or writ: a Shipping Label. Its quest gives +50 favor and 2,000 reputation.",
+      "Første kasse eller writ: et Shipping Label. Questen giver +50 favor og 2.000 reputation.") },
+    { "Interface\\Icons\\INV_Crate_01", L("Sealed crates give favor and silver, but no reputation.",
+      "Sealed-kasser giver favor og sølv, men ingen reputation.") },
+    { "Interface\\Icons\\INV_Scroll_03", L("Reputation: Craftsman's Writs (75 / 125 / 200, each writ once a day). You don't need the profession.",
+      "Reputation: Craftsman's Writs (75 / 125 / 200, hver writ én gang om dagen). Du behøver ikke faget.") },
+    { "Interface\\Icons\\INV_Scroll_05", L("From Friendly: a Forged Delivery Receipt (15 favor) turns the cheapest empty crate into 50 reputation.",
+      "Fra Friendly: en Forged Delivery Receipt (15 favor) gør den billigste tomme kasse til 50 reputation.") },
+  }
+  for _, t in ipairs(tips) do
+    data[#data + 1] = { indent = 8, icon = t[1], name = t[2], r = 0.7, g = 0.72, b = 0.77 }
+  end
+
   local fav = ns.FavorNow()
   state.footer = (fav and (L("You have %d Merchant's Favor.  ", "Du har %d Merchant's Favor.  "):format(fav)) or "")
     .. L("Hand in: ", "Aflever: ") .. TURN_IN[f]
