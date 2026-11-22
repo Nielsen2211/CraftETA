@@ -49,7 +49,7 @@ local LOC = {
     c_recipes = "Recipes", c_materials = "Materials", lvlClass = "Level %d %s", tracker = "Item tracker",
     cdReady = "%s is ready on %s.", trackOff = "%s is off", trackHint = "turn it on to see it on your minimap.", turnOn = "Turn on",
     trackerHint = "Mouse wheel: change the goal. Right-click: stop tracking.", trackerEmpty = "Right-click a material in Codex or Gold to track it.",
-    almostCapped = "%s is almost capped", learnRankAt = "Learn the next rank (level %d): %s", levelWith = "Level %s: %s",
+    almostCapped = "%s is almost capped", trainNow = "Train %s %s", trainWhere = "Trainer: %s", trainLevel = "you need level %d", trainBar = "Learn %s now: %s", learnRankAt = "Learn the next rank (level %d): %s", levelWith = "Level %s: %s",
     specReady = "You can become a %s", repair = "Repair your gear", duraLeft = "%d%% durability left", bagsFull = "Your bags are almost full",
     bagsLeft = "%d free slots", cdReadyShort = "%s is ready", cdUse = "Use it before you log off", dragRotate = "Drag to rotate  ·  wheel to zoom",
     levelLine = "Level %d %s %s", experience = "Experience", rested = "rested", maxLevel = "Max level", gold = "Gold",
@@ -103,7 +103,7 @@ local LOC = {
     c_recipes = "Opskrifter", c_materials = "Materialer", lvlClass = "Level %d %s", tracker = "Item tracker",
     cdReady = "%s er klar på %s.", trackOff = "%s er slået fra", trackHint = "slå det til for at se det på dit minimap.", turnOn = "Slå til",
     trackerHint = "Musehjul: skift målet. Højreklik: stop med at følge.", trackerEmpty = "Højreklik et materiale i Codex eller Guld for at følge det.",
-    almostCapped = "%s er næsten på loftet", learnRankAt = "Lær næste rank (level %d): %s", levelWith = "Level %s: %s",
+    almostCapped = "%s er næsten på loftet", trainNow = "Træn %s %s", trainWhere = "Træner: %s", trainLevel = "du skal være level %d", trainBar = "Lær %s nu: %s", learnRankAt = "Lær næste rank (level %d): %s", levelWith = "Level %s: %s",
     specReady = "Du kan blive %s", repair = "Reparer dit udstyr", duraLeft = "%d%% holdbarhed tilbage", bagsFull = "Dine tasker er næsten fulde",
     bagsLeft = "%d ledige pladser", cdReadyShort = "%s er klar", cdUse = "Brug den før du logger af", dragRotate = "Træk for at dreje  ·  hjul for zoom",
     levelLine = "Level %d %s %s", experience = "Erfaring", rested = "rested", maxLevel = "Max level", gold = "Guld",
@@ -459,7 +459,7 @@ end
 
 -- the next rank you have to learn: { at, need, lvl, where } or nil
 function ns.NextRank(profID, rank, max)
-  local guide = ns.GUIDES[profID]
+  local guide = ns.GUIDES[profID] or (ns.GATHER and ns.GATHER[profID])
   if not guide then return nil end
   for _, r in ipairs(guide.ranks) do
     if max <= r.at then
@@ -467,6 +467,15 @@ function ns.NextRank(profID, rank, max)
     end
   end
   return nil
+end
+
+-- the rank you can go and learn right now, with its name and where: r, "Expert", "Doctor Herbert Halsey, Undercity"
+local RANK_AT = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
+function ns.TrainNow(profID, rank, max)
+  if not rank or not max or max >= 300 then return nil end
+  local r = ns.NextRank(profID, rank, max)
+  if not r or rank < r.need then return nil end
+  return r, RANK_AT[r.at] or "", r[ns.Faction()] or ""
 end
 
 -- the cap you are working toward: what your rank lets you reach (75, 150, 225 or 300)

@@ -11,8 +11,8 @@ ns.GATHER = {
     name = "Mining", icon = "Interface\\Icons\\Trade_Mining",
     ranks = {
       { at = 75, need = 50, lvl = 10, h = "Makaru (Orgrimmar), Krunn (Razor Hill)", a = "Gelman Stonehand (Stormwind), Geofram Bouldertoe (Ironforge)" },
-      { at = 150, need = 125, lvl = 20, h = "Any full Mining trainer", a = "Any full Mining trainer" },
-      { at = 225, need = 200, lvl = 35, h = "Any full Mining trainer", a = "Any full Mining trainer" },
+      { at = 150, need = 125, lvl = 20, h = "Makaru (Orgrimmar), Brom Killian (Undercity)", a = "Gelman Stonehand (Stormwind), Geofram Bouldertoe (Ironforge)" },
+      { at = 225, need = 200, lvl = 35, h = "Makaru (Orgrimmar), Brom Killian (Undercity)", a = "Gelman Stonehand (Stormwind), Geofram Bouldertoe (Ironforge)" },
     },
     steps = {
       { 1, 65, what = "Copper Ore", a = "Elwynn Forest, Dun Morogh, Teldrassil, Zephras Isle", h = "Durotar, Mulgore, Tirisfal Glades, Zephras Isle",
@@ -34,8 +34,8 @@ ns.GATHER = {
     name = "Herbalism", icon = "Interface\\Icons\\Trade_Herbalism",
     ranks = {
       { at = 75, need = 50, lvl = 10, h = "Jandi (Orgrimmar), Mishiki (Sen'jin Village), Faruza (Brill)", a = "Tannysa (Stormwind), Herbalist Pomeroy (Elwynn), Malorne Bladeleaf (Dolanaar)" },
-      { at = 150, need = 125, lvl = 20, h = "Any full Herbalism trainer", a = "Any full Herbalism trainer" },
-      { at = 225, need = 200, lvl = 35, h = "Any full trainer (none in Tanaris or Searing Gorge)", a = "Any full trainer (none in Tanaris or Searing Gorge)" },
+      { at = 150, need = 125, lvl = 20, h = "Jandi (Orgrimmar), Martha Alliestar (Undercity), Komin Winterhoof (Thunder Bluff)", a = "Tannysa (Stormwind), Reyna Stonebranch (Ironforge), Firodren Mooncaller (Darnassus)" },
+      { at = 225, need = 200, lvl = 35, h = "Jandi (Orgrimmar), Martha Alliestar (Undercity), Komin Winterhoof (Thunder Bluff). None in Tanaris or Searing Gorge", a = "Tannysa (Stormwind), Reyna Stonebranch (Ironforge), Firodren Mooncaller (Darnassus). None in Tanaris or Searing Gorge" },
     },
     steps = {
       { 1, 70, what = "Peacebloom, Silverleaf, Earthroot (15)", a = "Elwynn Forest, Dun Morogh, Teldrassil, Zephras Isle", h = "Durotar, Mulgore, Tirisfal Glades, Zephras Isle",
@@ -57,8 +57,8 @@ ns.GATHER = {
     name = "Skinning", icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",
     ranks = {
       { at = 75, need = 50, lvl = 10, h = "Thuwd (Orgrimmar), Yonn Deepcut (Bloodhoof Village)", a = "Maris Granger (Stormwind), Helene Peltskinner (Goldshire)" },
-      { at = 150, need = 125, lvl = 20, h = "Your capital trainer", a = "Your capital trainer" },
-      { at = 225, need = 200, lvl = 35, h = "Your capital trainer", a = "Your capital trainer" },
+      { at = 150, need = 125, lvl = 20, h = "Thuwd (Orgrimmar), Killian Sanatha (Undercity), Mooranta (Thunder Bluff)", a = "Maris Granger (Stormwind), Balthus Stoneflayer (Ironforge), Radnaal Maneweaver (Darnassus)" },
+      { at = 225, need = 200, lvl = 35, h = "Thuwd (Orgrimmar), Killian Sanatha (Undercity), Mooranta (Thunder Bluff)", a = "Maris Granger (Stormwind), Balthus Stoneflayer (Ironforge), Radnaal Maneweaver (Darnassus)" },
     },
     steps = {
       { 1, 75, what = "Level 1-10 beasts", a = "Northshire Valley: Young and Timber Wolves", h = "Valley of Trials: Mottled Boars",
@@ -79,7 +79,7 @@ ns.GATHER = {
   [356] = {
     name = "Fishing", icon = "Interface\\Icons\\Trade_Fishing",
     ranks = {
-      { at = 75, need = 50, lvl = 10, h = "Any Fishing trainer", a = "Any Fishing trainer" },
+      { at = 75, need = 50, lvl = 10, h = "Lumak (Orgrimmar), Armand Cromwell (Undercity), Kah Mistrunner (Thunder Bluff)", a = "Arnold Leland (Stormwind), Grimnur Stonebrand (Ironforge), Astaia (Darnassus)" },
       { at = 150, need = 125, lvl = 20, h = "Book from Old Man Heming, Booty Bay (or the AH)", a = "Book from Old Man Heming, Booty Bay (or the AH)" },
       { at = 225, need = 225, lvl = 35, h = "Quest: Nat Pagle, Angler Extreme (Dustwallow Marsh)", a = "Quest: Nat Pagle, Angler Extreme (Dustwallow Marsh)" },
     },

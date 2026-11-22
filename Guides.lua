@@ -16,7 +16,7 @@ ns.GUIDES = {
   [171] = {
     name = "Alchemy",
     ranks = {
-      { at = 75, need = 50, lvl = 10, h = "Any capital trainer", a = "Any capital trainer" },
+      { at = 75, need = 50, lvl = 10, h = "Yelmak (Orgrimmar), Doctor Martin Felben (Undercity), Bena Winterhoof (Thunder Bluff)", a = "Lilyssia Nightbreeze (Stormwind), Tally Berryfizz (Ironforge), Ainethil (Darnassus)" },
       { at = 150, need = 125, lvl = 20, h = "Doctor Herbert Halsey, Undercity (50s)", a = "Ainethil, Darnassus (50s)" },
       { at = 225, need = 200, lvl = 35, h = "Rogvar, Stonard (Swamp of Sorrows)", a = "Kylanna Windwhisper, Feathermoon Stronghold (Feralas)" },
     },
@@ -220,7 +220,7 @@ ns.GUIDES = {
   [129] = {
     name = "First Aid",
     ranks = {
-      { at = 75, need = 50, lvl = 1, h = "Any First Aid trainer", a = "Any First Aid trainer" },
+      { at = 75, need = 50, lvl = 1, h = "Arnok (Orgrimmar), Mary Edras (Undercity), Pand Stonebinder (Thunder Bluff)", a = "Shaina Fuller (Stormwind), Nissa Firestone (Ironforge), Byancie (Darnassus)" },
       { at = 150, need = 125, lvl = 1, h = "Book Expert First Aid - Under Wraps: Balai Lok'Wein, Dustwallow Marsh", a = "Book Expert First Aid - Under Wraps: Deneb Walker, Arathi Highlands" },
       { at = 225, need = 225, lvl = 35, h = "Quest Triage: Doctor Gregory Victor, Hammerfall", a = "Quest Triage: Doctor Gustaf VanHowzen, Theramore" },
     },
@@ -242,7 +242,7 @@ ns.GUIDES = {
   [185] = {
     name = "Cooking",
     ranks = {
-      { at = 75, need = 50, lvl = 1, h = "Any Cooking trainer", a = "Any Cooking trainer" },
+      { at = 75, need = 50, lvl = 1, h = "Zamja (Orgrimmar), Eunice Burch (Undercity), Aska Mistrunner (Thunder Bluff)", a = "Stephen Ryback (Stormwind), Daryl Riknussun (Ironforge), Alegorn (Darnassus)" },
       { at = 150, need = 125, lvl = 1, h = "Expert Cookbook: Wulan, Shadowprey Village (Desolace)", a = "Expert Cookbook: Shandrina, Mystral Lake (Ashenvale)" },
       { at = 225, need = 225, lvl = 35, h = "Quest Clamlette Surprise: Dirge Quikcleave, Gadgetzan", a = "Quest Clamlette Surprise: Dirge Quikcleave, Gadgetzan" },
     },

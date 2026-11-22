@@ -110,7 +110,13 @@ function ns.NextSteps()
     local id, rank, max = p.id, p.rank, p.max or 300
     local guide = ns.GUIDES[id] or ns.GATHER[id]
     local icon = ns.ProfIcon(id)
-    if max < 300 and max - rank <= 10 then
+    local train, rankName, where = ns.TrainNow(id, rank, max)
+    if train then
+      local lvl = UnitLevel("player") or 0
+      table.insert(out, 1, { icon = icon, title = T("trainNow", rankName, guide.name),
+        sub = T("trainWhere", where) .. (lvl < train.lvl and ("  ·  " .. T("trainLevel", train.lvl)) or ""),
+        r = 1, g = 0.82, b = 0.3, prof = id })
+    elseif max < 300 and max - rank <= 10 then
       local nextRank
       for _, r in ipairs(guide.ranks) do
         if max <= r.at then nextRank = r; break end
@@ -683,6 +689,9 @@ local tlAction = ns.Button(tl, "", 120, 22)
 tlAction:SetPoint("TOPRIGHT", -12, -10)
 local tlCount = ns.Font(tl, false, 10, 0.55, 0.58, 0.64)
 tlCount:SetPoint("RIGHT", tlAction, "LEFT", -12, 0)
+tlCount:SetJustifyH("RIGHT")
+tlCount:SetWidth(330)
+tlCount:SetWordWrap(false)
 
 -- opens the profession window (the panel then shows the step with Craft 1 / Craft all)
 function ns.OpenProfessionWindow(id)
@@ -786,7 +795,12 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
   local near = skill and max < 300 and max - rank <= 10
   tlSkill:SetText(skill and ("%d / %d"):format(rank, max) or "")
   tlSkill:SetTextColor(near and 1 or 1, near and 0.42 or 0.82, near and 0.32 or 0.3)
-  tlCount:SetText(T("steps", #guide.steps))
+  local train, rankName, where = skill and ns.TrainNow(id, rank, max)
+  if train then
+    tlCount:SetText("|cffffd24a" .. T("trainBar", rankName, where) .. "|r")
+  else
+    tlCount:SetText(T("steps", #guide.steps))
+  end
   -- the button on the bar: craft for a crafting profession, start farming for a gathering one
   if skill and rank < 300 then
     if ns.GUIDES[id] then
