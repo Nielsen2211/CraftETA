@@ -85,6 +85,25 @@ local source = ns.Font(P, false, 9, 0.42, 0.43, 0.47)
 
 local state = {}
 
+-- skip a step (or go back to the one your skill is on)
+local skipBack = ns.IconButton(P, "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up", 16, function() return T("stepBack") end)
+local skipNext = ns.IconButton(P, "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", 16, function() return T("stepSkip") end)
+skipBack.icon:SetTexCoord(0, 1, 0, 1)
+skipNext.icon:SetTexCoord(0, 1, 0, 1)
+local function Skip(delta)
+  if not state.prof or not state.index then return end
+  local guide = ns.GUIDES[state.prof]
+  local base = ns.StepIndex(guide, state.rank)
+  local to = math.max(base, math.min(#guide.steps, state.index + delta))
+  ns.db.view = ns.db.view or {}
+  ns.db.view[state.prof] = to > base and to or nil
+  ns.Refresh()
+end
+skipBack:SetScript("OnClick", function() Skip(-1) end)
+skipNext:SetScript("OnClick", function() Skip(1) end)
+ns.SkipStep = Skip
+
+
 craft1:SetScript("OnClick", function()
   if state.recipe then ns.Craft(state.recipe, 1) end
 end)
@@ -210,10 +229,15 @@ function ns.RefreshPanel()
     warn:SetText(""); warn:Hide()
   end
 
-  -- the step
+  -- the step: the one your skill is on, or one you skipped ahead to
   local index = ns.StepIndex(guide, rank)
+  local base = index
+  local view = ns.db.view and ns.db.view[profID]
+  if index and view then
+    if view > index and guide.steps[view] then index = view else ns.db.view[profID] = nil end
+  end
   if not index then
-    for _, w in ipairs({ stepHead, recipeName, recipeCount, note, craft1, craftAll, addList, status, nextLine }) do w:Hide() end
+    for _, w in ipairs({ stepHead, recipeName, recipeCount, note, craft1, craftAll, addList, status, nextLine, skipBack, skipNext }) do w:Hide() end
     recipeIcon:Hide()
     source:ClearAllPoints(); source:SetPoint("TOPLEFT", 14, y - 6); source:SetText(T("source", ns.SOURCE)); source:Show()
     P:SetHeight(-y + 32)
@@ -224,7 +248,12 @@ function ns.RefreshPanel()
   state.step, state.index, state.pick = step, index, pick
   y = y - 6
   stepHead:ClearAllPoints(); stepHead:SetPoint("TOPLEFT", 14, y)
-  stepHead:SetText(string.upper(T("stepOf", index, #guide.steps) .. "  ·  " .. step[1] .. "-" .. step[2])); stepHead:Show()
+  stepHead:SetText(string.upper(T("stepOf", index, #guide.steps) .. "  ·  " .. step[1] .. "-" .. step[2]
+    .. (index > base and ("  ·  " .. T("skippedAhead")) or ""))); stepHead:Show()
+  skipNext:ClearAllPoints(); skipNext:SetPoint("TOPRIGHT", -14, y + 3)
+  skipBack:ClearAllPoints(); skipBack:SetPoint("RIGHT", skipNext, "LEFT", -2, 0)
+  skipNext:SetShown(index < #guide.steps)
+  skipBack:SetShown(index > base)
   y = y - 16
 
   -- in a step of several crafts, the first one not done (in order); a done one has its points
