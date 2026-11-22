@@ -409,7 +409,8 @@ function ns.TrackItem(name, goal)
   ns.RefreshTracker()
 end
 
-ns.On("ADDON_LOADED", function()
+ns.On("ADDON_LOADED", function(name)
+  if name ~= "CraftETA" then return end   -- only when CraftETA itself has loaded
   ns.db.track = ns.db.track or {}
   if ns.db.cdAlert == nil then ns.db.cdAlert = true end
   if ns.db.trackReminder == nil then ns.db.trackReminder = true end
