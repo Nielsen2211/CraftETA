@@ -2,6 +2,8 @@
 local _, ns = ...
 
 local Plain = ns.Plain
+-- Forever's client has no global GetItemCount any more: C_Item first (the craft button stayed grey without it)
+local ItemCount = (C_Item and C_Item.GetItemCount) or GetItemCount
 local recipes = {}   -- recipe name -> { id, learned, mats = { name, count, ... } }
 local openID         -- the profession whose recipes are in `recipes`
 
@@ -74,6 +76,8 @@ function ns.ReadRecipes()
               ns.LearnItem(itemName, itemID)
               entry.mats[#entry.mats + 1] = itemName
               entry.mats[#entry.mats + 1] = count
+              entry.matIDs = entry.matIDs or {}
+              entry.matIDs[itemName] = itemID
             end
           end
         end
@@ -119,10 +123,11 @@ function ns.CanMake(name)
   if n > 0 then return n end
   local mats = entry.mats or {}
   if #mats == 0 then return 0 end
+  if not ItemCount then return 0 end
   local can = math.huge
   for i = 1, #mats, 2 do
-    local id = ns.ItemID(mats[i])
-    local okC, have = pcall(GetItemCount, id or mats[i])   -- bags only: what crafting can use
+    local id = (entry.matIDs and entry.matIDs[mats[i]]) or ns.ItemID(mats[i])
+    local okC, have = pcall(ItemCount, id or mats[i])   -- bags only: what crafting can use
     have = okC and tonumber(Plain(have)) or 0
     can = math.min(can, math.floor(have / math.max(1, mats[i + 1] or 1)))
   end
