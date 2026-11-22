@@ -887,15 +887,43 @@ win:SetHeight(SH)
 win:SetFrameStrata("DIALOG")
 local wHave = ns.Font(win, true, 12, 1, 0.82, 0.3); wHave:SetPoint("TOPRIGHT", -40, -13); wHave:SetJustifyH("RIGHT")
 local wSwitch = ns.Switch(win, function() ns.db.favorAll = not ns.db.favorAll; favorScroll = 0; win:Refresh() end)
-wSwitch:SetPoint("TOPRIGHT", -14, -44)
+wSwitch:SetPoint("TOPRIGHT", -14, -78)
 local wSwitchLabel = ns.Font(win, false, 10, 0.6, 0.62, 0.67); wSwitchLabel:SetPoint("RIGHT", wSwitch, "LEFT", -6, 0)
-local wCount = ns.Font(win, false, 10, 0.5, 0.52, 0.57); wCount:SetPoint("TOPLEFT", 16, -46)
-local wEmpty = ns.Font(win, false, 11, 0.6, 0.62, 0.67); wEmpty:SetPoint("TOPLEFT", 16, -80); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
+local wCount = ns.Font(win, false, 10, 0.5, 0.52, 0.57); wCount:SetPoint("TOPLEFT", 16, -80)
+local wEmpty = ns.Font(win, false, 11, 0.6, 0.62, 0.67); wEmpty:SetPoint("TOPLEFT", 16, -104); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
 wEmpty:SetWordWrap(true); wEmpty:SetJustifyH("LEFT")
+
+-- the favor vendors (who sells what, per faction): which you have opened shows with a check
+local FAVOR_VENDORS = {
+  { prof = 171, h = "Apothecary Durelle", a = "Nina Surefire" },
+  { prof = 164, h = "Gor'mak", a = "Stondry Darkhammer" },
+  { prof = 185, h = "Aza'bek", a = "Kalsey Sanden" },
+  { prof = 333, h = "Beneris", a = "Alynsia" },
+  { prof = 202, h = "Fizzlefuse", a = "Fritz Fizzle" },
+  { prof = 165, h = "Pawani", a = "Daniel Stitchsong" },
+  { prof = 197, h = "Jim'bek", a = "Mivin Shadowweave" },
+  { icon = "Interface\\Icons\\Ability_Mount_Kodo_01", what = { "Mount", "Mount" }, h = "Okamache", a = "Huey Sunnydale" },
+  { icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01", what = { "Tabard, pet treat and more", "Tabard, pet treat og mere" }, h = "Gishah", a = "Tamelyn Aldridge" },
+}
+local wVend = {}
+for k, v in ipairs(FAVOR_VENDORS) do
+  local b = CreateFrame("Frame", nil, win)
+  b:SetSize(28, 28)
+  b:SetPoint("TOPLEFT", 16 + (k - 1) * 34, -42)
+  b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetAllPoints(); b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  b.check = b:CreateTexture(nil, "OVERLAY"); b.check:SetSize(14, 14); b.check:SetPoint("BOTTOMRIGHT", 3, -3)
+  b.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+  b:EnableMouse(true)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  b.v = v
+  wVend[k] = b
+end
+local wVendNote = ns.Font(win, false, 10, 0.6, 0.62, 0.67)
+wVendNote:SetPoint("LEFT", wVend[#wVend], "RIGHT", 12, 0)
 
 local WCOLS, WT_H = 2, 46
 local WT_W = math.floor((SW - 32 - 8) / WCOLS)
-local WROWS = 8
+local WROWS = 7
 local wTiles = {}
 local function WTile(i)
   if wTiles[i] then return wTiles[i] end
@@ -916,7 +944,7 @@ local function WTile(i)
   wTiles[i] = t
   return t
 end
-local wMore = ns.Font(win, false, 9, 0.45, 0.47, 0.52); wMore:SetPoint("TOPRIGHT", -16, -68 - WROWS * WT_H); wMore:SetJustifyH("RIGHT")
+local wMore = ns.Font(win, false, 9, 0.45, 0.47, 0.52); wMore:SetPoint("TOPRIGHT", -16, -100 - WROWS * WT_H); wMore:SetJustifyH("RIGHT")
 
 -- the basket card
 local basket = CreateFrame("Frame", nil, win)
@@ -949,6 +977,31 @@ function win:Refresh()
   for _ in pairs(shopList) do shopN = shopN + 1 end
   self.title:SetText(L("|cffffffffBuy for|r |cffffd24afavor|r", "|cffffffffKøb for|r |cffffd24afavor|r"))
   wHave:SetText(L("You have %d favor", "Du har %d favor"):format(have))
+  -- the vendors: opened (a check and how many things) or still to open
+  local byVendor, opened = {}, 0
+  for _, e in pairs(shopList) do if e.v then byVendor[e.v] = (byVendor[e.v] or 0) + 1 end end
+  local camp = f == "h" and "Crossroads, The Barrens" or "Three Corners, Redridge Mountains"
+  for _, b in ipairs(wVend) do
+    local v = b.v
+    local npc = v[f] or v.h
+    local n = byVendor[npc]
+    if n then opened = opened + 1 end
+    b.icon:SetTexture(v.icon or ns.ProfIcon(v.prof))
+    b.icon:SetDesaturated(not n)
+    b.icon:SetAlpha(n and 1 or 0.55)
+    b.check:SetShown(n ~= nil)
+    b:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+      GameTooltip:SetText(npc, 1, 0.82, 0.3)
+      GameTooltip:AddLine(v.prof and ns.ProfName(v.prof) or (ns.db.lang == "da" and v.what[2] or v.what[1]), 0.85, 0.87, 0.9)
+      GameTooltip:AddLine(camp, 0.6, 0.62, 0.67)
+      GameTooltip:AddLine(n and L("Known: %d things", "Kendt: %d ting"):format(n) or L("Not opened yet: open it once and CraftETA remembers what it sells.", "Ikke åbnet endnu: åbn den én gang, så husker CraftETA, hvad den sælger."),
+        n and 0.35 or 1, n and 0.9 or 0.82, n and 0.4 or 0.3, true)
+      GameTooltip:Show()
+    end)
+  end
+  wVendNote:SetText(opened == #wVend and L("All vendors known", "Alle handlere kendt")
+    or L("%d of %d vendors known  ·  open the grey ones once", "%d af %d handlere kendt  ·  åbn de grå én gang"):format(opened, #wVend))
   wSwitch:SetOn(not ns.db.favorAll)
   wSwitchLabel:SetText(L("Only what I can use", "Kun det jeg kan bruge"))
 
@@ -971,7 +1024,7 @@ function win:Refresh()
     local it, t = list[favorScroll + k], WTile(k)
     local e, id = it.e, it.id
     t:ClearAllPoints()
-    t:SetPoint("TOPLEFT", 16 + ((k - 1) % WCOLS) * (WT_W + 8), -68 - math.floor((k - 1) / WCOLS) * WT_H)
+    t:SetPoint("TOPLEFT", 16 + ((k - 1) % WCOLS) * (WT_W + 8), -100 - math.floor((k - 1) / WCOLS) * WT_H)
     t.icon:SetTexture(e.i or 134400)
     t.name:SetText(e.n)
     t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4)
