@@ -17,6 +17,7 @@ Profession.lua
 Book.lua
 Panel.lua
 Vendors.lua
+Places.lua
 Shop.lua
 Hub.lua
 Extra.lua
