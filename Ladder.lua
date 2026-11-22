@@ -111,3 +111,112 @@ function ns.MatCost(name, count)
   if vendor then return vendor * count, "vendor" end
   return nil
 end
+
+---------------------------------------------------------------------------
+-- Quick scan: only what CraftETA uses (the shopping list, the rest of your professions' routes, the favor
+-- crates' materials and the crates), one search each. Every answer goes into the price ladders above.
+---------------------------------------------------------------------------
+local quick       -- { ids = { {id, name} }, i, token, waiting }
+local lastScan
+
+local function AHOpen() return AuctionHouseFrame and AuctionHouseFrame:IsShown() end
+
+function ns.QuickScanItems()
+  local seen, out = {}, {}
+  local function Add(name)
+    if not name or seen[name] then return end
+    seen[name] = true
+    if ns.VendorSells and ns.VendorSells(name) and ns.AtVendor and ns.AtVendor(name) then return end
+    local id = ns.ItemID(name)
+    if id then out[#out + 1] = { id = id, name = name } end
+  end
+  for _, item in ipairs(ns.ListItems and ns.ListItems() or {}) do
+    if not item.crate then Add(item.name) end
+  end
+  for profID, s in pairs(ns.Skills()) do
+    if ns.GUIDES[profID] and s.rank < 300 then
+      local _, mats, names = ns.Plan(profID, s.rank, 300)
+      for _, name in ipairs(names or {}) do Add(name) end
+    end
+  end
+  local level = UnitLevel("player") or 1
+  local LV = { Apprentice = 10, Journeyman = 10, Expert = 20, Artisan = 35 }
+  for _, c in ipairs(ns.CRATES or {}) do
+    if level >= (LV[c[1]] or 1) then
+      for k = 4, #c do Add(c[k][1]) end
+    end
+  end
+  return out
+end
+
+local function Finish(stopped)
+  local n = quick and #quick.ids or 0
+  quick = nil
+  if not stopped then
+    lastScan = time()
+    ns.db.lastQuickScan = lastScan
+    if ns.ScanCrates and AHOpen() then ns.ScanCrates() end
+    ns.Print(((ns.db.lang == "da") and "Scan færdig: %d priser opdateret." or "Scan done: %d prices updated."):format(n))
+  end
+  if ns.UpdateScanButton then ns.UpdateScanButton() end
+  if ns.Refresh then ns.Refresh() end
+  if ns.RefreshHub then ns.RefreshHub() end
+end
+
+local Next
+local function Send()
+  if not quick then return end
+  if not AHOpen() then Finish(true) return end
+  if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then
+    quick.waiting = true      -- AUCTION_HOUSE_THROTTLED_SYSTEM_READY sends it
+    return
+  end
+  quick.waiting = false
+  local e = quick.ids[quick.i]
+  local token = {}
+  quick.token = token
+  pcall(C_AuctionHouse.SendSearchQuery, C_AuctionHouse.MakeItemKey(e.id), {}, true)
+  C_Timer.After(2.5, function() if quick and quick.token == token then Next() end end)   -- no answer: on to the next
+end
+Next = function()
+  if not quick then return end
+  quick.i = quick.i + 1
+  if ns.UpdateScanButton then ns.UpdateScanButton() end
+  if quick.i > #quick.ids then Finish() return end
+  Send()
+end
+
+function ns.QuickScan()
+  if quick then Finish(true) return end      -- a second click stops it
+  if not AHOpen() then
+    ns.Print((ns.db.lang == "da") and "Åbn auktionshuset for at scanne." or "Open the auction house to scan.")
+    return
+  end
+  local ids = ns.QuickScanItems()
+  if #ids == 0 then Finish() return end
+  quick = { ids = ids, i = 0 }
+  Next()
+end
+function ns.QuickScanState()
+  if quick then return quick.i, #quick.ids end
+  return nil, nil, lastScan or (ns.db and ns.db.lastQuickScan)
+end
+
+ns.Register("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
+ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() if quick and quick.waiting then Send() end end)
+ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
+  local e = quick and quick.ids[quick.i]
+  if e and ns.Plain(itemID) == e.id then C_Timer.After(0.05, Next) end
+end)
+ns.Register("ITEM_SEARCH_RESULTS_UPDATED")
+ns.On("ITEM_SEARCH_RESULTS_UPDATED", function(key)
+  local e = quick and quick.ids[quick.i]
+  if e and type(key) == "table" and key.itemID == e.id then C_Timer.After(0.05, Next) end
+end)
+for _, ev in ipairs({ "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED" }) do
+  ns.Register(ev)
+  ns.On(ev, function()
+    if ev == "AUCTION_HOUSE_CLOSED" and quick then quick = nil end
+    C_Timer.After(0.1, function() if ns.UpdateScanButton then ns.UpdateScanButton() end end)
+  end)
+end

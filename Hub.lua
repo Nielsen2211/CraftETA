@@ -110,6 +110,34 @@ trackerButton:Hide()
 local listButton = ns.IconButton(side, "Interface\\Icons\\INV_Misc_Note_05", 22, function() return T("list") end)
 listButton:SetPoint("BOTTOMLEFT", 12, 52)
 listButton:SetScript("OnClick", function() ns.ToggleList() end)
+-- scan the auction house: only what CraftETA uses, fast (Ladder.lua)
+local scanBtn = ns.Primary(ns.Button(side, "", SIDE - 52, 22), 11)
+scanBtn:SetPoint("LEFT", listButton, "RIGHT", 6, 0)
+scanBtn:SetScript("OnClick", function() if ns.QuickScan then ns.QuickScan() end end)
+local function Ago(t)
+  local m = math.floor((time() - t) / 60)
+  if m < 1 then return (ns.db.lang == "da") and "lige nu" or "just now" end
+  if m < 60 then return ((ns.db.lang == "da") and "for %d min siden" or "%d min ago"):format(m) end
+  return ((ns.db.lang == "da") and "for %d t siden" or "%d h ago"):format(math.floor(m / 60))
+end
+function ns.UpdateScanButton()
+  if not ns.db then return end
+  local da = ns.db.lang == "da"
+  local i, n, last = ns.QuickScanState()
+  local atAH = AuctionHouseFrame and AuctionHouseFrame:IsShown()
+  if i then
+    scanBtn:SetText((da and "Scanner %d / %d" or "Scanning %d / %d"):format(math.min(i, n), n))
+    scanBtn:Enable()
+  else
+    scanBtn:SetText(da and "Scan AH" or "Scan AH")
+    scanBtn:SetEnabled(atAH and true or false)
+  end
+  scanBtn.tip = (i and (da and "Klik for at stoppe." or "Click to stop.") or
+    ((da and "Scanner kun det CraftETA bruger: din indkøbsliste, resten af dine professions ruter og favor-kassernes mats. Hurtigt, ikke en fuld scan."
+      or "Scans only what CraftETA uses: your shopping list, the rest of your professions' routes and the favor crates' materials. Fast, not a full scan.")
+    .. (atAH and "" or ("\n" .. (da and "Åbn auktionshuset først." or "Open the auction house first.")))))
+    .. (last and ("\n" .. (da and "Sidste scan: " or "Last scan: ") .. Ago(last)) or "")
+end
 local meName = ns.Font(side, true, 12)
 meName:SetPoint("BOTTOMLEFT", 14, 28)
 local meSub = ns.Font(side, false, 10, 0.55, 0.58, 0.64)
@@ -779,6 +807,7 @@ function ns.RefreshHub()
   meName:SetText(me and me.name or "")
   if color then meName:SetTextColor(color.r, color.g, color.b) end
   meSub:SetText(me and T("lvlClass", me.level or 0, UnitClass("player") or "") or "")
+  if ns.UpdateScanButton then ns.UpdateScanButton() end
   trackerButton:SetText(T("tracker"))
   farmButton:SetText(ns.FarmActive and ns.FarmActive() and T("farmStop") or T("farmStart"))
   for key, frame in pairs(ns.HubCustom) do frame:SetShown(key == state.tab) end
