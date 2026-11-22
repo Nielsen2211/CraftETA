@@ -9,7 +9,8 @@
 local ADDON, ns = ...
 local T = ns.T
 
-local WIDTH, ROWS = 360, 14
+local WIDTH, ROWS = 360, 12
+local ROW_H = 32
 local S = ns.Window("CraftETAList", WIDTH)
 ns.List = S
 
@@ -147,29 +148,55 @@ shareSwitch:HookScript("OnEnter", function(self)
 end)
 shareSwitch:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
+-- the header, like the profession panel's: icon, "Shopping list", what is on it, and the total on the right
+local hIcon = S:CreateTexture(nil, "ARTWORK"); hIcon:SetSize(34, 34); hIcon:SetPoint("TOPLEFT", 14, -38)
+hIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10"); hIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+local hTitle = ns.Font(S, true, 15, 0.9, 0.91, 0.94); hTitle:SetPoint("TOPLEFT", hIcon, "TOPRIGHT", 10, 0)
+local hSub = ns.Font(S, false, 10, 0.5, 0.52, 0.57); hSub:SetPoint("BOTTOMLEFT", hIcon, "BOTTOMRIGHT", 10, 1)
+hSub:SetPoint("RIGHT", S, "RIGHT", -110, 0); hSub:SetWordWrap(false)
+local hTotal = ns.Font(S, true, 17, 1, 0.82, 0.3); hTotal:SetPoint("TOPRIGHT", -14, -37); hTotal:SetJustifyH("RIGHT")
+local hTotalSub = ns.Font(S, false, 10, 0.5, 0.52, 0.57); hTotalSub:SetPoint("TOPRIGHT", hTotal, "BOTTOMRIGHT", 0, -3); hTotalSub:SetJustifyH("RIGHT")
+-- how far the whole list is: what you have of what it needs
+local pBg = S:CreateTexture(nil, "ARTWORK"); pBg:SetPoint("TOPLEFT", 14, -82); pBg:SetPoint("TOPRIGHT", -14, -82); pBg:SetHeight(5)
+pBg:SetColorTexture(1, 1, 1, 0.08)
+local pFill = S:CreateTexture(nil, "OVERLAY"); pFill:SetPoint("TOPLEFT", pBg); pFill:SetPoint("BOTTOMLEFT", pBg); pFill:SetWidth(1)
+pFill:SetColorTexture(1, 0.82, 0.3, 1)
+-- the card the items sit on
+local card = S:CreateTexture(nil, "BORDER"); card:SetPoint("TOPLEFT", 10, -96); card:SetPoint("RIGHT", S, "RIGHT", -10, 0)
+card:SetColorTexture(0.086, 0.094, 0.122, 1)
+local moreText = ns.Font(S, false, 9, 0.45, 0.47, 0.52)
+
 local head = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
-head:SetPoint("TOPLEFT", 14, -36)
+head:SetPoint("TOPLEFT", 14, -36); head:Hide()
 local headStill = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
-headStill:SetPoint("TOPRIGHT", -104, -36)
+headStill:SetPoint("TOPRIGHT", -104, -36); headStill:Hide()
 local headMail = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
-headMail:SetPoint("TOPRIGHT", -78, -36)
+headMail:SetPoint("TOPRIGHT", -78, -36); headMail:Hide()
 local headEst = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
-headEst:SetPoint("TOPRIGHT", -14, -36)
+headEst:SetPoint("TOPRIGHT", -14, -36); headEst:Hide()
 
 local rows = {}
 for i = 1, ROWS do
-  local r = ns.Row(S, 18)
-  r:SetWidth(WIDTH - 28)
-  r:SetPoint("TOPLEFT", 14, -50 - (i - 1) * 19)
-  r.name:ClearAllPoints()
-  r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-  r.name:SetPoint("RIGHT", r, "RIGHT", -140, 0)
+  -- an item: icon, name with a bar of what you have under it, "have / need" and the price on the right
+  local r = ns.Row(S, ROW_H - 2)
+  r:SetWidth(WIDTH - 20)
+  r:SetPoint("TOPLEFT", 10, -102 - (i - 1) * ROW_H)
+  r.icon:SetSize(24, 24); r.icon:ClearAllPoints(); r.icon:SetPoint("LEFT", 10, 0)
   r.still = ns.Font(r, true, 11)
-  r.still:SetPoint("RIGHT", r, "RIGHT", -96, 0)
-  r.still:SetJustifyH("RIGHT")
+  r.still:SetPoint("TOPRIGHT", r, "TOPRIGHT", -10, -3); r.still:SetJustifyH("RIGHT")
+  r.value:ClearAllPoints(); r.value:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", -10, 3)
+  r.value:SetFont(ns.F_SEMI, 10, "")
+  r.name:ClearAllPoints()
+  r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 9, -1)
+  r.name:SetPoint("RIGHT", r, "RIGHT", -96, 0)
+  r.name:SetFont(ns.F_SEMI, 11, "")
+  r.barBg = r:CreateTexture(nil, "ARTWORK"); r.barBg:SetHeight(3)
+  r.barBg:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 9, 2); r.barBg:SetPoint("RIGHT", r, "RIGHT", -96, 0)
+  r.barBg:SetColorTexture(1, 1, 1, 0.07)
+  r.barFill = r:CreateTexture(nil, "OVERLAY"); r.barFill:SetHeight(3)
+  r.barFill:SetPoint("TOPLEFT", r.barBg); r.barFill:SetWidth(1)
   r.mail = ns.Font(r, false, 11, 0.55, 0.7, 1)
-  r.mail:SetPoint("RIGHT", r, "RIGHT", -64, 0)
-  r.mail:SetJustifyH("RIGHT")
+  r.mail:Hide()
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   r:SetScript("OnClick", function(self, button)
     if self.vendor and IsShiftKeyDown() and ns.ShowVendor then
@@ -207,9 +234,10 @@ local boughtText = ns.Font(S, false, 10, 0.65, 0.67, 0.72)
 local scanButton = ns.Button(S, T("scan"), 96, 22)
 local atrButton = ns.Button(S, T("auctionator"), 110, 22)
 local clearButton = ns.Button(S, T("clear"), 60, 22)
-local buyButton = ns.Button(S, "", WIDTH - 28 - 74, 30)
-buyButton.label:SetFont(ns.F_BOLD, 13, "")
-local skipButton = ns.Button(S, T("next2"), 68, 30)
+local buyButton = ns.Primary(ns.Button(S, "", WIDTH - 28 - 74, 32), 13)
+local skipButton = ns.Button(S, T("next2"), 68, 32)
+skipButton.label:SetTextColor(0.85, 0.87, 0.9)
+for _, b in ipairs({ scanButton, atrButton, clearButton }) do b.label:SetTextColor(0.85, 0.87, 0.9) end
 local guide = ns.Font(S, false, 10, 0.75, 0.72, 0.6)
 guide:SetWordWrap(true)
 guide:SetWidth(WIDTH - 28)
@@ -678,13 +706,30 @@ function ns.RefreshList()
   shareSwitch:SetOn(ns.db.shareList)
   shareLabel:SetText(ns.db.shareList and (da and "Alle karakterer" or "All characters")
     or (da and "Kun " or "Only ") .. (ns.Plain(UnitName("player")) or ""))
-  head:SetText(string.upper(T("item")))
-  headStill:SetText(string.upper(T("still")))
-  headMail:SetText("")
-  headEst:SetText(string.upper(T("est")))
   local items = ns.ListItems()
   local total, unknown, shown = 0, false, 0
+  local needAll, gotAll, left = 0, 0, 0
   for _, item in ipairs(items) do
+    local s = ns.db.scanned[item.name]
+    local est
+    if item.still > 0 and item.vendor then
+      local vc = ns.VendorCost(item.name)
+      est = vc and math.ceil(vc * item.still) or nil
+    elseif item.still > 0 then
+      est = ns.BuyCost(item.name, item.still)   -- the auctions themselves when the house showed them lately
+      if est then
+      elseif s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
+        est = Estimate(s, math.min(item.still, s.qty))
+      elseif AuxOrAtrPrice(item.name) then
+        est = AuxOrAtrPrice(item.name) * item.still
+      elseif ns.Price(item.name) then
+        est = ns.Price(item.name) * item.still
+      end
+    end
+    if est then total = total + est elseif item.still > 0 then unknown = true end
+    local got = math.min(item.need, item.need - item.still)
+    needAll, gotAll = needAll + item.need, gotAll + math.max(0, got)
+    if item.still > 0 then left = left + 1 end
     if shown < ROWS then
       shown = shown + 1
       local r = rows[shown]
@@ -692,47 +737,58 @@ function ns.RefreshList()
       r.icon:SetTexture(ns.ItemIcon(item.name))
       r.name:SetText(item.vendor and (item.name .. "  |cff8c8f96" .. T("vendTag") .. "|r") or item.name)
       r.vendor = item.vendor
-      r.still:SetText(item.still > 0 and ("|cffffffff" .. item.still .. "|r") or "|TInterface\\RaidFrame\\ReadyCheck-Ready:12|t")   -- the game's own check mark (the font has no ✓)
+      local done = item.still == 0
+      r.still:SetText(done and ("|TInterface\\RaidFrame\\ReadyCheck-Ready:12|t |cff73d973" .. item.need .. "|r")
+        or ("|cffe6594d" .. math.max(0, got) .. "|r |cff8c8f96/ " .. item.need .. "|r"))
+      local frac = item.need > 0 and math.max(0, got) / item.need or 1
+      local w = r.barBg:GetWidth() or 150
+      r.barFill:SetWidth(math.max(1, w * math.min(1, frac)))
+      r.barFill:SetColorTexture(done and 0.35 or 1, done and 0.9 or 0.82, done and 0.4 or 0.3, 1)
       r.mail:SetText("")
-      local s = ns.db.scanned[item.name]
-      local est
-      if item.still > 0 and item.vendor then
-        local vc = ns.VendorCost(item.name)
-        est = vc and math.ceil(vc * item.still) or nil
-      elseif item.still > 0 then
-        est = ns.BuyCost(item.name, item.still)   -- the auctions themselves when the house showed them lately
-        if est then
-        elseif s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
-          est = Estimate(s, math.min(item.still, s.qty))
-        elseif AuxOrAtrPrice(item.name) then
-          est = AuxOrAtrPrice(item.name) * item.still
-        elseif ns.Price(item.name) then
-          est = ns.Price(item.name) * item.still
-        end
-      end
-      if item.still == 0 then
-        r.value:SetText("")
+      if done then
+        r.value:SetText("|cff73d973" .. ((ns.db.lang == "da") and "klar" or "done") .. "|r")
       elseif item.vendor then
-        r.value:SetText(est and ns.Money(est) or ("|cffaaaaaa" .. T("vendor") .. "|r"))
+        r.value:SetText(est and ("|cffaaaaaa" .. T("vendor") .. "|r  " .. ns.Money(est)) or ("|cffaaaaaa" .. T("vendor") .. "|r"))
       elseif s and s.none and not AuxOrAtrPrice(item.name) then
         r.value:SetText("|cffe8574a" .. T("notListed") .. "|r")
-      elseif s and s.commodity == false then
+      elseif s and s.commodity == false and not est then
         r.value:SetText("|cffaaaaaa" .. T("vendor") .. "?|r")
       else
         r.value:SetText(est and ns.Money(est) or ("|cff888888" .. T("unknownPrice") .. "|r"))
       end
-      if est then total = total + est elseif item.still > 0 then unknown = true end
       r:Show()
     end
   end
   for i = shown + 1, ROWS do rows[i]:Hide() end
+  emptyText:ClearAllPoints(); emptyText:SetPoint("TOPLEFT", 20, -110)
   emptyText:SetShown(#items == 0)
   emptyText:SetText(T("empty"))
 
-  local y = -50 - math.max(1, shown) * 19 - 8
-  totalText:ClearAllPoints(); totalText:SetPoint("TOPLEFT", 14, y)
-  totalText:SetText(T("total") .. ": " .. ns.Money(total) .. (unknown and "+" or ""))
-  y = y - 20
+  -- the header
+  local da = ns.db.lang == "da"
+  hTitle:SetText(da and "Indkøbsliste" or "Shopping list")
+  local what = {}
+  for _, p in ipairs(List().plans) do what[#what + 1] = (ns.ProfName and ns.ProfName(p.prof) or "?") .. " → " .. p.target end
+  if List().favor then what[#what + 1] = "Favor " .. List().favor end
+  if next(List().extra) then what[#what + 1] = da and "ekstra" or "extra" end
+  hSub:SetText(#what > 0 and table.concat(what, "  ·  ") or (da and "Tom" or "Empty"))
+  hTotal:SetText(ns.Money(total) .. (unknown and "+" or ""))
+  hTotalSub:SetText(left > 0 and ((da and "%d ting at købe" or "%d to buy"):format(left)) or (#items > 0 and (da and "alt er klar" or "all done") or ""))
+  pFill:SetWidth(math.max(1, (pBg:GetWidth() or (WIDTH - 28)) * (needAll > 0 and gotAll / needAll or 0)))
+  pFill:SetShown(needAll > 0)
+
+  -- the card under the rows, and what didn't fit
+  local cardH = 12 + math.max(1, shown) * ROW_H
+  if #items > ROWS then
+    moreText:ClearAllPoints(); moreText:SetPoint("TOPLEFT", 20, -96 - cardH + 2)
+    moreText:SetText((da and "+ %d mere (de øverste købes først)" or "+ %d more (the top ones are bought first)"):format(#items - ROWS))
+    moreText:Show(); cardH = cardH + 14
+  else
+    moreText:Hide()
+  end
+  card:SetHeight(cardH)
+  local y = -96 - cardH - 10
+  totalText:Hide()
 
   -- the buy guide, at the auction house
   local atAH = AH.open and ns.db.ah
