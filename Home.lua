@@ -802,14 +802,9 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
     tlCount:SetText(T("steps", #guide.steps))
   end
   -- the button on the bar: craft for a crafting profession, start farming for a gathering one
-  if skill and rank < 300 then
-    if ns.GUIDES[id] then
-      tlAction:SetText(T("craftNow"))
-      tlAction:SetScript("OnClick", function() ns.OpenProfessionWindow(id) end)
-    else
-      tlAction:SetText(ns.FarmActive() and T("farmStop") or T("farmStart"))
-      tlAction:SetScript("OnClick", function() ns.ToggleFarm(); ns.RefreshHub() end)
-    end
+  if skill and rank < 300 and ns.GUIDES[id] then
+    tlAction:SetText(T("craftNow"))
+    tlAction:SetScript("OnClick", function() ns.OpenProfessionWindow(id) end)
     tlAction:Show()
   else
     tlAction:Hide()
