@@ -640,7 +640,7 @@ function ns.RefreshList()
     elseif item then
       local qty = math.min(item.still, (s and s.avail) or item.still)
       local est = Estimate(s, qty, item.name)
-      buyButton:SetText(T("buy", qty, item.name) .. (est and ("  ≈ " .. ns.Money(est)) or ""))
+      buyButton:SetText(T("buy", qty, item.name) .. (est and ("  ~" .. ns.Money(est)) or ""))
       buyButton:Enable()
     else
       local anyLeft = false
