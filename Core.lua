@@ -124,8 +124,13 @@ local LOC = {
 function ns.T(key, ...)
   local lang = (ns.db and ns.db.lang) or "en"
   local text = (LOC[lang] or LOC.en)[key] or LOC.en[key] or key
-  if select("#", ...) > 0 then
-    return text:format(...)
+  local n = select("#", ...)
+  if n > 0 then
+    -- a missing value shows as empty instead of a Lua error
+    local args = { ... }
+    for i = 1, n do if args[i] == nil then args[i] = "" end end
+    local ok, out = pcall(string.format, text, unpack(args, 1, n))
+    return ok and out or text
   end
   return text
 end
