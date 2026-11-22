@@ -621,6 +621,23 @@ local function BuildGuide()
   end
   -- the route as a bar on top (Home.lua draws it), the step text under it, then the steps
   local tlH = (ns.ShowTimeline and ns.ShowTimeline(id, guide, skill, current, data, extra) or 0) + extra
+  -- the step as cards (GuideView.lua); "All steps" shows the whole route as a list instead
+  if ns.ShowGuideView and not state.stepsOpen then
+    ns.ShowGuideView(id, guide, skill, current, TOP - tlH - 10)
+    listTop = -2000
+    state.footer = ""
+    return
+  end
+  if ns.ShowGuideView then
+    local back = Control(#list + 2)
+    back:ClearAllPoints()
+    back:SetPoint("TOPRIGHT", H, "TOPRIGHT", -178, -22)
+    back:SetWidth(124)
+    back:SetText((ns.db.lang == "da") and "Tilbage til trinnet" or "Back to the step")
+    back.label:SetTextColor(1, 0.82, 0.3)
+    back:SetScript("OnClick", function() state.stepsOpen = nil; state.offset = 0; ns.RefreshHub() end)
+    back:Show()
+  end
   detail:ClearAllPoints()
   detail:SetPoint("TOPLEFT", X + 10, TOP - tlH - 20)
   detail:SetWidth(CW - 20)
@@ -673,6 +690,7 @@ function ns.RefreshHub()
   for _, b in ipairs(controls) do b:Hide() end
   search:Hide(); searchButton:Hide(); detail:Hide(); detailBg:Hide()
   if ns.HideTimeline then ns.HideTimeline() end
+  if ns.HideGuideView then ns.HideGuideView() end
   listTop = TOP
   state.footer = nil
   state.ctrlShift = 0
