@@ -183,6 +183,13 @@ model:EnableMouse(true)
 model.facing = 0
 model:SetScript("OnMouseDown", function(self) self.dragX = GetCursorPosition() end)
 model:SetScript("OnMouseUp", function(self) self.dragX = nil end)
+-- zoomed out so the whole character fits; the mouse wheel zooms in and out
+model.zoom = 1.45
+model:EnableMouseWheel(true)
+model:SetScript("OnMouseWheel", function(self, delta)
+  self.zoom = math.max(0.9, math.min(2.2, self.zoom - delta * 0.1))
+  self:SetCamDistanceScale(self.zoom)
+end)
 model:SetScript("OnUpdate", function(self)
   if self.dragX then
     local x = GetCursorPosition()
@@ -301,6 +308,8 @@ function home:Refresh()
   ns.Facts()
   local me = ns.Me()
   model:SetUnit("player")
+  model:SetPortraitZoom(0)
+  model:SetCamDistanceScale(model.zoom)
   model:SetFacing(model.facing)
   dragHint:SetText(T("dragRotate"))
   local color = me.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[me.class]
