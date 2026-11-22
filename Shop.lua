@@ -133,7 +133,10 @@ for i = 1, ROWS do
   r.mail:SetJustifyH("RIGHT")
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   r:SetScript("OnClick", function(self, button)
-    if button == "RightButton" then
+    if self.vendor and IsShiftKeyDown() and ns.ShowVendor then
+      -- a vendor material: the map arrow to where it is sold (Places.lua)
+      ns.ShowVendor(self.item)
+    elseif button == "RightButton" then
       -- you get this one yourself: off the list
       List().skip[self.item] = true
       ns.Refresh()
@@ -148,6 +151,7 @@ for i = 1, ROWS do
       GameTooltip:AddLine(" ")
       GameTooltip:AddLine(T("vendHead"), 1, 0.82, 0.3)
       for _, l in ipairs(ns.VendorWhere(self.item)) do GameTooltip:AddLine(l, 0.85, 0.86, 0.9, true) end
+      GameTooltip:AddLine((ns.db and ns.db.lang == "da") and "Shift-klik: vis på kortet" or "Shift-click: show on the map", 0.55, 0.58, 0.64)
     end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine((ns.AHName() ~= "CraftETA" and (T("searchAux", ns.AHName()) .. "  ·  ") or "") .. "Right-click: remove", 0.62, 0.6, 0.56)
