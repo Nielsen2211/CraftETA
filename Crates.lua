@@ -223,6 +223,11 @@ local function OnCrateBrowse()
   ahScan = nil
   if ns.RefreshHub then ns.RefreshHub() end
 end
+-- the Favor page shows its scan button only while the auction house is open
+for _, e in ipairs({ "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED" }) do
+  ns.Register(e)
+  ns.On(e, function() C_Timer.After(0, function() if ns.RefreshHub then ns.RefreshHub() end end) end)
+end
 ns.Register("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
 ns.On("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function() pcall(OnCrateBrowse) end)
 ns.Register("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
@@ -369,11 +374,15 @@ ns.HubBuilders.favor = function(data, state, Control)
   Btn(1, 0, 30, "-", function() ns.db.favorGoal = math.max(5, goal - (IsShiftKeyDown() and 10 or 50)); ns.RefreshHub() end, L("Shift: 10", "Shift: 10"))
   Btn(2, 34, 110, L("Goal: %d favor", "Mål: %d favor"):format(goal), function() end)
   Btn(3, 148, 30, "+", function() ns.db.favorGoal = goal + (IsShiftKeyDown() and 10 or 50); ns.RefreshHub() end, L("Shift: 10", "Shift: 10"))
-  Btn(4, 190, 130, L("Scan AH crates", "Scan kasser på AH"), function() ns.ScanCrates() end,
-    L("At the auction house: finds every Waylaid Crate for sale and its price.", "Ved auktionshuset: finder alle Waylaid Crates til salg og deres pris."))
+  -- scanning only makes sense at the auction house: away from it the button is gone
+  local atAH = ns.AH and ns.AH.open
+  if atAH then
+    Btn(4, 190, 130, L("Scan AH crates", "Scan kasser på AH"), function() ns.ScanCrates() end,
+      L("Finds every Waylaid Crate for sale and its price.", "Finder alle Waylaid Crates til salg og deres pris."))
+  end
   local have = ns.FavorNow() or 0
   local steps, got, gold = ns.FavorPlan(math.max(0, goal - have))
-  Btn(5, 324, 150, L("Plan to shopping list", "Planen på indkøbslisten"), function()
+  Btn(5, atAH and 324 or 190, 150, L("Plan to shopping list", "Planen på indkøbslisten"), function()
     -- a plan on the list, like a profession's: it works itself out again as you buy, fill and hand in
     if ns.SetFavorPlan then ns.SetFavorPlan(goal) end
     ns.Print(L("Favor plan on the shopping list: %d favor. The crates are bought with the buy button at the auction house.",
