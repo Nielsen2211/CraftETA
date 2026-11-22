@@ -163,9 +163,20 @@ function ns.ReadCooldowns()
       -- a global cooldown (1.5 s) is not the real one
       local left = (dur > 2 and start > 0) and (start + dur - GetTime()) or 0
       local was = c.cd[entry[1]]
-      local told = nil
-      if left <= 0 then told = (was == nil) or was.told or nil end -- seen ready the first time: nothing to tell
-      c.cd[entry[1]] = { ready = time() + math.max(0, left), told = told }
+      local now = time()
+      local ready = now + math.max(0, left)
+      -- the game sometimes answers 0 while the cooldown runs (the global cooldown, a hidden value):
+      -- a cooldown we know is still running stays as it is
+      if left <= 0 and was and was.ready > now + 5 then ready = was.ready end
+      local told
+      if not was then
+        told = ready <= now or nil              -- seen ready the first time: nothing to tell
+      elseif ready > was.ready + 60 then
+        told = nil                              -- a new cooldown started: tell once when it is ready
+      else
+        told = was.told                         -- the same cooldown: told stays told
+      end
+      c.cd[entry[1]] = { ready = ready, told = told }
     else
       c.cd[entry[1]] = nil
     end
