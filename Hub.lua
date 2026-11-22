@@ -125,8 +125,11 @@ function ns.UpdateScanButton()
   local da = ns.db.lang == "da"
   local i, n, last = ns.QuickScanState()
   local atAH = AuctionHouseFrame and AuctionHouseFrame:IsShown()
-  if i then
-    scanBtn:SetText((da and "Scanner %d / %d" or "Scanning %d / %d"):format(math.min(i, n), n))
+  if i == "browse" then
+    scanBtn:SetText((da and "Henter priser... %d" or "Getting prices... %d"):format(n or 0))
+    scanBtn:Enable()
+  elseif i then
+    scanBtn:SetText((da and "Indkøbsliste %d / %d" or "Shopping list %d / %d"):format(math.min(i, n), n))
     scanBtn:Enable()
   else
     scanBtn:SetText(da and "Scan AH" or "Scan AH")

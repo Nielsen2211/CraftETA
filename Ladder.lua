@@ -64,6 +64,8 @@ function ns.BuyUnit(name)
   local id = ns.ItemID(name)
   local l = Fresh(id)
   if l then return l.p[1] end
+  local b = id and ns.db and ns.db.browse and ns.db.browse[id]
+  if b and b.t and time() - b.t < FRESH then return b.p end
   local aux = _G.AuxForeverAPI
   if id and aux and aux.IsReady and aux.IsReady() then
     for _, fn in ipairs({ aux.GetLatestPrice, aux.GetUsualPrice }) do
@@ -149,8 +151,10 @@ function ns.QuickScanItems()
   return out
 end
 
+-- step 1: one browse of all Trade Goods (a few pages) gives the lowest price of every material at once.
+-- Step 2: only what your shopping list still needs is looked up one by one, for the whole price ladder.
 local function Finish(stopped)
-  local n = quick and #quick.ids or 0
+  local n = quick and quick.priced or 0
   quick = nil
   if not stopped then
     lastScan = time()
@@ -163,27 +167,70 @@ local function Finish(stopped)
   if ns.RefreshHub then ns.RefreshHub() end
 end
 
+local function Ready()
+  return not (C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady())
+end
+
 local Next
 local function Send()
   if not quick then return end
   if not AHOpen() then Finish(true) return end
-  if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then
-    quick.waiting = true      -- AUCTION_HOUSE_THROTTLED_SYSTEM_READY sends it
-    return
-  end
+  if not Ready() then quick.waiting = true return end      -- AUCTION_HOUSE_THROTTLED_SYSTEM_READY sends it
   quick.waiting = false
-  local e = quick.ids[quick.i]
   local token = {}
   quick.token = token
-  pcall(C_AuctionHouse.SendSearchQuery, C_AuctionHouse.MakeItemKey(e.id), {}, true)
-  C_Timer.After(2.5, function() if quick and quick.token == token then Next() end end)   -- no answer: on to the next
+  if quick.phase == "browse" then
+    if quick.more then
+      pcall(C_AuctionHouse.RequestMoreBrowseResults)
+    else
+      local class = (Enum and Enum.ItemClass and Enum.ItemClass.Tradegoods) or 7
+      pcall(C_AuctionHouse.SendBrowseQuery, { searchString = "", sorts = {}, filters = {}, itemClassFilters = { { classID = class } } })
+    end
+  else
+    local e = quick.deep[quick.i]
+    pcall(C_AuctionHouse.SendSearchQuery, C_AuctionHouse.MakeItemKey(e.id), {}, true)
+  end
+  C_Timer.After(4, function() if quick and quick.token == token then Next() end end)   -- no answer: go on
 end
 Next = function()
   if not quick then return end
+  if quick.phase == "browse" then
+    -- the browse is done (or gave up): the deep look-ups
+    quick.phase, quick.i = "deep", 0
+  end
   quick.i = quick.i + 1
   if ns.UpdateScanButton then ns.UpdateScanButton() end
-  if quick.i > #quick.ids then Finish() return end
+  if quick.i > #quick.deep then Finish() return end
   Send()
+end
+
+-- the browse results: the lowest price of each material we want
+local function OnBrowse()
+  if not (quick and quick.phase == "browse") then return end
+  local ok, results = pcall(C_AuctionHouse.GetBrowseResults)
+  ns.db.browse = ns.db.browse or {}
+  for _, r in ipairs(ok and results or {}) do
+    local id = r.itemKey and ns.Plain(r.itemKey.itemID)
+    local price = ns.Plain(r.minPrice)
+    if id and quick.want[id] and price and price > 0 and not quick.got[id] then
+      quick.got[id] = true
+      quick.priced = quick.priced + 1
+      ns.db.browse[id] = { p = price, q = ns.Plain(r.totalQuantity) or 0, t = time() }
+    end
+  end
+  if ns.UpdateScanButton then ns.UpdateScanButton() end
+  local okF, full = pcall(C_AuctionHouse.HasFullBrowseResults)
+  if okF and not full then
+    quick.more = true
+    Send()
+  else
+    quick.token = nil
+    C_Timer.After(0.05, Next)
+  end
+end
+for _, ev in ipairs({ "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", "AUCTION_HOUSE_BROWSE_RESULTS_ADDED" }) do
+  ns.Register(ev)
+  ns.On(ev, function() pcall(OnBrowse) end)
 end
 
 function ns.QuickScan()
@@ -192,26 +239,39 @@ function ns.QuickScan()
     ns.Print((ns.db.lang == "da") and "Åbn auktionshuset for at scanne." or "Open the auction house to scan.")
     return
   end
-  local ids = ns.QuickScanItems()
-  if #ids == 0 then Finish() return end
-  quick = { ids = ids, i = 0 }
-  Next()
+  local want = {}
+  for _, e in ipairs(ns.QuickScanItems()) do want[e.id] = e.name end
+  -- one by one: only what the shopping list still has to buy on the auction house
+  local deep = {}
+  for _, item in ipairs(ns.ListItems and ns.ListItems() or {}) do
+    local id = ns.ItemID(item.name)
+    if id and item.still > 0 and not item.vendor and not item.crate then deep[#deep + 1] = { id = id, name = item.name } end
+  end
+  quick = { phase = "browse", want = want, got = {}, priced = 0, deep = deep, i = 0 }
+  Send()
 end
 function ns.QuickScanState()
-  if quick then return quick.i, #quick.ids end
+  if quick then
+    if quick.phase == "browse" then return "browse", quick.priced end
+    return quick.i, #quick.deep
+  end
   return nil, nil, lastScan or (ns.db and ns.db.lastQuickScan)
 end
 
 ns.Register("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
 ns.On("AUCTION_HOUSE_THROTTLED_SYSTEM_READY", function() if quick and quick.waiting then Send() end end)
 ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
-  local e = quick and quick.ids[quick.i]
-  if e and ns.Plain(itemID) == e.id then C_Timer.After(0.05, Next) end
+  local e = quick and quick.phase == "deep" and quick.deep[quick.i]
+  if e and ns.Plain(itemID) == e.id then
+    if not quick.got[e.id] then quick.got[e.id] = true; quick.priced = quick.priced + 1 end
+    quick.token = nil
+    C_Timer.After(0.05, Next)
+  end
 end)
 ns.Register("ITEM_SEARCH_RESULTS_UPDATED")
 ns.On("ITEM_SEARCH_RESULTS_UPDATED", function(key)
-  local e = quick and quick.ids[quick.i]
-  if e and type(key) == "table" and key.itemID == e.id then C_Timer.After(0.05, Next) end
+  local e = quick and quick.phase == "deep" and quick.deep[quick.i]
+  if e and type(key) == "table" and key.itemID == e.id then quick.token = nil; C_Timer.After(0.05, Next) end
 end)
 for _, ev in ipairs({ "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED" }) do
   ns.Register(ev)
