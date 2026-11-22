@@ -688,9 +688,10 @@ tlSkill:SetPoint("BOTTOMLEFT", tlRank, "BOTTOMRIGHT", 10, -1)
 local tlAction = ns.Button(tl, "", 120, 22)
 tlAction:SetPoint("TOPRIGHT", -12, -10)
 local tlCount = ns.Font(tl, false, 10, 0.55, 0.58, 0.64)
+-- between the skill number and the button: never on top of either (cut short with "..." if needed)
+tlCount:SetPoint("LEFT", tlSkill, "RIGHT", 12, 0)
 tlCount:SetPoint("RIGHT", tlAction, "LEFT", -12, 0)
 tlCount:SetJustifyH("RIGHT")
-tlCount:SetWidth(330)
 tlCount:SetWordWrap(false)
 
 -- opens the profession window (the panel then shows the step with Craft 1 / Craft all)
@@ -799,7 +800,8 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
   local train, rankName, where
   if skill then train, rankName, where = ns.TrainNow(id, rank, max) end
   if train then
-    tlCount:SetText("|cffffd24a" .. T("trainBar", rankName, where) .. "|r")
+    -- short here: the trainer and price stand right under the bar
+    tlCount:SetText("|cffffd24a" .. T("trainShort", rankName) .. "|r")
   else
     tlCount:SetText(T("steps", #guide.steps))
   end
