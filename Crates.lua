@@ -34,6 +34,16 @@ local ID = {
   ["Thorium Bar"] = 12359, ["Thorium Widget"] = 15994,
 }
 
+-- CraftETA learns these IDs at once, so icons and prices work before the game has loaded the items
+ns.Register("ADDON_LOADED")
+ns.On("ADDON_LOADED", function(name)
+  if name ~= "CraftETA" or not ns.db then return end
+  ns.db.ids = ns.db.ids or {}
+  for n, id in pairs(ID) do
+    if not ns.db.ids[n] then ns.LearnItem(n, id) end
+  end
+end)
+
 -- { tier, type, favor (nil: not known yet), level, { material, count }, ... }
 local LVL = { Apprentice = 10, Journeyman = 10, Expert = 20, Artisan = 35 }
 ns.CRATES = {
@@ -358,7 +368,7 @@ ns.HubBuilders.favor = function(data, state, Control)
       name = (n > 1 and ("|cffffd24a" .. n .. " x|r  ") or "") .. CrateName(s.crate) .. "  |cff8c8f96" .. where .. "  ·  " .. fill .. "|r",
       value = "+" .. (s.crate[3] * n) .. "  " .. ns.Money(g.gold), vr = 1, vg = 0.82, vb = 0.3,
       click = function()
-        if s.id and ns.AHSearch then ns.AHSearch(s.id, s.name) end
+        if s.id and ns.BuyCrate then ns.BuyCrate(s.id, s.name, n) end
       end,
       tip = function(tip)
         tip:SetText((n > 1 and (n .. " x ") or "") .. CrateName(s.crate), 1, 0.82, 0.3)
@@ -368,7 +378,7 @@ ns.HubBuilders.favor = function(data, state, Control)
         if s.cost > 0 then tip:AddDoubleLine(L("Crate", "Kasse"), ns.Money(s.cost), 0.85, 0.87, 0.9, 1, 1, 1) end
         if s.back > 0 then tip:AddDoubleLine(L("Silver back", "Sølv tilbage"), "-" .. ns.Money(s.back), 0.85, 0.87, 0.9, 0.35, 0.9, 0.4) end
         tip:AddDoubleLine(L("Per favor", "Pr. favor"), ns.Money(math.max(0, s.cost + b.spend - s.back) / s.crate[3]), 0.85, 0.87, 0.9, 1, 0.82, 0.3)
-        if s.id then tip:AddLine(L("Click: find it on the auction house", "Klik: find den på auktionshuset"), 0.55, 0.58, 0.64) end
+        if s.id then tip:AddLine(L("At the auction house, click: buy the cheapest one (click again for the next)", "Ved auktionshuset, klik: køb den billigste (klik igen for den næste)"), 0.55, 0.58, 0.64, true) end
       end,
     }
   end
@@ -422,3 +432,79 @@ ns.HubBuilders.favor = function(data, state, Control)
   state.footer = (fav and (L("You have %d Merchant's Favor.  ", "Du har %d Merchant's Favor.  "):format(fav)) or "")
     .. L("Hand in: ", "Aflever: ") .. TURN_IN[f]
 end
+
+---------------------------------------------------------------------------
+-- Buying crates on the auction house: a crate you click in the plan, the cheapest first.
+-- A stack (commodity) is bought in one go; single auctions one per click (the game wants a click each).
+---------------------------------------------------------------------------
+local buy
+local function AHOpen() return AuctionHouseFrame and AuctionHouseFrame:IsShown() end
+
+function ns.BuyCrate(id, name, n)
+  if not AHOpen() then
+    ns.Print(L("Open the auction house to buy crates.", "Åbn auktionshuset for at købe kasser."))
+    return
+  end
+  -- the cheapest auction is found: this click buys it
+  if buy and buy.id == id and buy.auction then
+    local a = buy.auction
+    if GetMoney() < a.price then ns.Print(L("Not enough gold.", "Ikke guld nok.")); return end
+    local ok = pcall(C_AuctionHouse.PlaceBid, a.auctionID, a.price)
+    if ok then
+      ns.Print(L("Bought %s for %s.", "Købte %s for %s."):format(name, ns.Money(a.price)))
+      buy.left = buy.left - 1
+      buy.auction = nil
+    end
+    if buy.left > 0 then
+      C_Timer.After(0.6, function()
+        if buy then pcall(C_AuctionHouse.SendSearchQuery, C_AuctionHouse.MakeItemKey(id), {}, false) end
+      end)
+    else
+      buy = nil
+    end
+    return
+  end
+  buy = { id = id, name = name, left = n or 1 }
+  ns.Print(L("Looking up %s...", "Slår %s op..."):format(name))
+  pcall(C_AuctionHouse.SendSearchQuery, C_AuctionHouse.MakeItemKey(id), {}, false)
+end
+
+-- a stack: buy as many as the plan wants, at today's price
+ns.Register("COMMODITY_SEARCH_RESULTS_UPDATED")
+ns.On("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
+  if not buy or itemID ~= buy.id or buy.commodity then return end
+  buy.commodity = true
+  pcall(C_AuctionHouse.StartCommoditiesPurchase, buy.id, buy.left)
+end)
+ns.Register("COMMODITY_PRICE_UPDATED")
+ns.On("COMMODITY_PRICE_UPDATED", function(unit, total)
+  if not buy or not buy.commodity then return end
+  if GetMoney() < (total or 0) then ns.Print(L("Not enough gold.", "Ikke guld nok.")); buy = nil; return end
+  pcall(C_AuctionHouse.ConfirmCommoditiesPurchase, buy.id, buy.left)
+  ns.Print(L("Bought %d %s for %s.", "Købte %d %s for %s."):format(buy.left, buy.name, ns.Money(total or 0)))
+  buy = nil
+end)
+
+-- single auctions: the cheapest buyout, ready for the next click
+ns.Register("ITEM_SEARCH_RESULTS_UPDATED")
+ns.On("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
+  if not buy or buy.commodity or not itemKey or itemKey.itemID ~= buy.id then return end
+  local okN, num = pcall(C_AuctionHouse.GetNumItemSearchResults, itemKey)
+  local best
+  for i = 1, (okN and tonumber(num) or 0) do
+    local ok, r = pcall(C_AuctionHouse.GetItemSearchResultInfo, itemKey, i)
+    local price = ok and r and Plain(r.buyoutAmount)
+    if price and price > 0 and not (r.containsOwnerItem) and (not best or price < best.price) then
+      best = { auctionID = r.auctionID, price = price }
+    end
+  end
+  if best then
+    buy.auction = best
+    ns.Print(L("%s: %s. Click it again to buy (%d to go).", "%s: %s. Klik igen for at købe (%d tilbage)."):format(buy.name, ns.Money(best.price), buy.left))
+  else
+    ns.Print(L("No %s for sale right now.", "Ingen %s til salg lige nu."):format(buy.name))
+    buy = nil
+  end
+end)
+ns.Register("AUCTION_HOUSE_CLOSED")
+ns.On("AUCTION_HOUSE_CLOSED", function() buy = nil end)
