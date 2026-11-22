@@ -237,6 +237,7 @@ function ns.ScanPrices()
   ScanNext()
 end
 scanButton:SetScript("OnClick", function() ns.ScanPrices() end)
+scanButton.tip = "Optional with aux: aux's Full scan already gives the estimate. A scan here reads the exact price for the amount you need."
 
 local function OnBrowse()
   if not scanning or not scanning.wantName then return end
@@ -277,21 +278,52 @@ local function OnItemResults(itemKey)
   ScanNext()
 end
 
+-- aux's price from your last Full scan (today's look first, else its usual price): no scan needed here
+local function AuxPrice(name)
+  local api, id = _G.AuxForeverAPI, ns.ItemID(name)
+  if not api or not id or not api.IsReady or not api.IsReady() then return nil end
+  local ok, price = pcall(api.GetLatestPrice, id)
+  if ok and type(price) == "number" and price > 0 then return price end
+  ok, price = pcall(api.GetUsualPrice, id)
+  if ok and type(price) == "number" and price > 0 then return price end
+  return nil
+end
+ns.AuxPrice = AuxPrice
+
+-- a stackable item the auction house sells by the unit (or not known yet)
+local function Commodity(id)
+  local status = C_AuctionHouse.GetItemCommodityStatus and C_AuctionHouse.GetItemCommodityStatus(id)
+  local item = Enum and Enum.ItemCommodityStatus and Enum.ItemCommodityStatus.Item
+  return not (item and status == item)
+end
+
+-- what buying `qty` costs: CraftETA's own scan when there is one, else aux's price
+local function Estimate(s, qty, name)
+  if s and s.est and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
+    return s.est * qty / s.qty
+  end
+  local unit = name and AuxPrice(name)
+  if unit then return unit * qty end
+  if s and s.est and s.qty and s.qty > 0 then return s.est * qty / s.qty end
+  return nil
+end
+
 -- buying: the item the guide is on
 local buying   -- { name, id, qty, quote }
 local function Current(items)
   for _, item in ipairs(items) do
     local s = ns.db.scanned[item.name]
-    if item.still > 0 and not AH.skip[item.name] and s and s.commodity and (s.avail or 0) > 0 then
-      return item, s
+    local id = ns.ItemID(item.name)
+    if item.still > 0 and not AH.skip[item.name] and id then
+      local fresh = s and s.t and time() - s.t < 900
+      if fresh and s.commodity and (s.avail or 0) > 0 then
+        return item, s
+      elseif not fresh and AuxPrice(item.name) and Commodity(id) then
+        return item, nil
+      end
     end
   end
   return nil
-end
-
-local function Estimate(s, qty)
-  if not s or not s.est or not s.qty or s.qty == 0 then return nil end
-  return s.est * qty / s.qty
 end
 
 buyButton:SetScript("OnClick", function()
@@ -307,7 +339,7 @@ buyButton:SetScript("OnClick", function()
   if not item then return end
   local id = ns.ItemID(item.name)
   if not id then return end
-  local qty = math.min(item.still, s.avail or item.still)
+  local qty = math.min(item.still, (s and s.avail) or item.still)
   buying = { name = item.name, id = id, qty = qty }
   -- asks for today's price; the answer is COMMODITY_PRICE_UPDATED
   C_AuctionHouse.StartCommoditiesPurchase(id, qty)
@@ -326,7 +358,7 @@ end)
 
 local function OnPrice(unitPrice, totalPrice)
   if not buying or buying.confirming then return end
-  local est = Estimate(ns.db.scanned[buying.name], buying.qty)
+  local est = Estimate(ns.db.scanned[buying.name], buying.qty, buying.name)
   local over = est and est > 0 and (totalPrice - est) / est * 100 or 0
   buying.total, buying.over = totalPrice, over
   if ns.db.autoBuy and est and over <= ns.db.guard then
@@ -347,7 +379,7 @@ local function OnBought()
   local session = ns.db.bought
   session.count = (session.count or 0) + 1
   session.cost = (session.cost or 0) + (b.total or 0)
-  session.est = (session.est or 0) + (Estimate(ns.db.scanned[b.name], b.qty) or b.total or 0)
+  session.est = (session.est or 0) + (Estimate(ns.db.scanned[b.name], b.qty, b.name) or b.total or 0)
   session.items = session.items or {}
   session.items[b.name] = (session.items[b.name] or 0) + b.qty
   ns.Print(T("boughtMsg", b.qty, b.name, ns.Money(b.total)))
@@ -357,7 +389,7 @@ end
 local function OnFailed()
   if not buying then return end
   buying = nil
-  ns.Print(T("failed"))
+  ns.Print(T("failed") .. " " .. T("scanHint"))
   ns.Refresh()
 end
 
@@ -471,15 +503,17 @@ function ns.RefreshList()
       local s = ns.db.scanned[item.name]
       local est
       if item.still > 0 then
-        if s and s.commodity and s.qty and s.qty > 0 then
+        if s and s.commodity and s.qty and s.qty > 0 and s.t and time() - s.t < 900 then
           est = Estimate(s, math.min(item.still, s.qty))
+        elseif AuxPrice(item.name) then
+          est = AuxPrice(item.name) * item.still
         elseif ns.Price(item.name) then
           est = ns.Price(item.name) * item.still
         end
       end
       if item.still == 0 then
         r.value:SetText("")
-      elseif s and s.none then
+      elseif s and s.none and not AuxPrice(item.name) then
         r.value:SetText("|cffe8574a" .. T("notListed") .. "|r")
       elseif s and s.commodity == false then
         r.value:SetText("|cffaaaaaa" .. T("vendor") .. "?|r")
@@ -526,8 +560,8 @@ function ns.RefreshList()
       buyButton:SetText("...")
       buyButton:Disable()
     elseif item then
-      local qty = math.min(item.still, s.avail or item.still)
-      local est = Estimate(s, qty)
+      local qty = math.min(item.still, (s and s.avail) or item.still)
+      local est = Estimate(s, qty, item.name)
       buyButton:SetText(T("buy", qty, item.name) .. (est and ("  ≈ " .. ns.Money(est)) or ""))
       buyButton:Enable()
     else
