@@ -693,6 +693,17 @@ tlCount:SetPoint("LEFT", tlSkill, "RIGHT", 12, 0)
 tlCount:SetPoint("RIGHT", tlAction, "LEFT", -12, 0)
 tlCount:SetJustifyH("RIGHT")
 tlCount:SetWordWrap(false)
+-- "Learn Expert now" can be clicked: an arrow to the trainer (Places.lua)
+local tlTrain = CreateFrame("Button", nil, tl)
+tlTrain:SetAllPoints(tlCount)
+tlTrain:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOP")
+  GameTooltip:SetText(self.where or "", 1, 0.82, 0.3, 1, true)
+  GameTooltip:AddLine((ns.db and ns.db.lang == "da") and "Klik: vis på kortet" or "Click: show on the map", 0.55, 0.58, 0.64)
+  GameTooltip:Show()
+end)
+tlTrain:SetScript("OnLeave", function() GameTooltip:Hide() end)
+tlTrain:Hide()
 
 -- opens the profession window (the panel then shows the step with Craft 1 / Craft all)
 function ns.OpenProfessionWindow(id)
@@ -809,9 +820,13 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
   if skill then train, rankName, where = ns.TrainNow(id, rank, max) end
   if train then
     -- short here: the trainer and price stand right under the bar
-    tlCount:SetText("|cffffd24a" .. T("trainShort", rankName) .. "|r")
+    tlCount:SetText("|cffffd24a" .. T("trainShort", rankName) .. "  |TInterface\\Icons\\INV_Misc_Map_01:12|t|r")
+    tlTrain.where = where
+    tlTrain:SetScript("OnClick", function() ns.ShowTrainer(id) end)
+    tlTrain:Show()
   else
     tlCount:SetText(T("steps", #guide.steps))
+    tlTrain:Hide()
   end
   -- the button on the bar: craft for a crafting profession, start farming for a gathering one
   if skill and rank < 300 and ns.GUIDES[id] then
