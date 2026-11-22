@@ -21,7 +21,7 @@ local function Toggle(i)
   local tx = ns.Font(r, false, 11); tx:SetPoint("LEFT", box, "RIGHT", 8, 0); tx:SetPoint("RIGHT", r, "RIGHT", 0, 0)
   local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.04)
   r.box, r.fill, r.tx = box, fill, tx
-  r:SetScript("OnClick", function(self) self.set(); W.Build(); ns.Refresh() end)
+  r:SetScript("OnClick", function(self) self.set(); W.Build(); ns.Refresh(); if ns.RefreshHub then ns.RefreshHub() end end)
   rowPool[i] = r
   return r
 end
@@ -50,6 +50,9 @@ function W.Build()
   add(T("panelOpt"), db.panel, function() db.panel = not db.panel end)
   add(T("nextOpt"), db.showNext, function() db.showNext = not db.showNext end)
   add(T("minimapOpt"), db.minimap, function() db.minimap = not db.minimap; ns.UpdateMinimapButton() end)
+  add(T("tooltipOpt"), db.tooltip, function() db.tooltip = not db.tooltip end)
+  add(T("guildAskOpt"), db.guildAsk, function() db.guildAsk = not db.guildAsk end)
+  add(T("guildShareOpt"), db.guildShare, function() db.guildShare = not db.guildShare end)
   add(T("ahOpt"), db.ah, function() db.ah = not db.ah end)
   add(T("autoScanOpt"), db.autoScan, function() db.autoScan = not db.autoScan end)
   add(T("autoOpt"), db.autoBuy, function() db.autoBuy = not db.autoBuy end)
@@ -82,12 +85,13 @@ SLASH_CRAFTETA2 = "/crafteta"
 SlashCmdList.CRAFTETA = function(msg)
   msg = string.lower(string.match(msg or "", "^%s*(.-)%s*$") or "")
   if not ns.db then return end
-  if msg == "" or msg == "show" then ns.TogglePanel()
+  if msg == "" or msg == "hub" then ns.ToggleHub()
+  elseif msg == "panel" or msg == "show" then ns.TogglePanel()
   elseif msg == "list" then ns.ToggleList()
   elseif msg == "config" or msg == "settings" then ns.ToggleSettings()
   elseif msg == "reset" then
     ns.db.point_CraftETAPanel, ns.db.point_CraftETAList = nil, nil
     ns.PlacePanel(); ns.PlaceList()
-  elseif msg == "da" or msg == "en" then ns.db.lang = msg; ns.Refresh()
+  elseif msg == "da" or msg == "en" then ns.db.lang = msg; ns.Refresh(); if ns.RefreshHub then ns.RefreshHub() end
   else ns.Print(T("help")) end
 end

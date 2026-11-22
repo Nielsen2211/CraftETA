@@ -1,5 +1,5 @@
 -- CraftETA: minimap button and the addon compartment entry.
--- Click: the panel. Right-click: the shopping list. Shift-click: settings. Drag: move it.
+-- Click: the main window. Right-click: the shopping list. Shift-click: settings. Drag: move it.
 local _, ns = ...
 local T = ns.T
 local ICON = "Interface\\Icons\\Trade_BlackSmithing"
@@ -25,7 +25,7 @@ local function Click(which)
   if not ns.db then return end
   if IsShiftKeyDown() then ns.ToggleSettings()
   elseif which == "RightButton" then ns.ToggleList()
-  else ns.TogglePanel() end
+  else ns.ToggleHub() end
 end
 
 local function Tip(owner)

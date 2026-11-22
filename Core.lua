@@ -27,10 +27,25 @@ local LOC = {
     auctionatorDone = "Shopping list \"CraftETA\" made in Auctionator.", searchAux = "Click: search in aux",
     settings = "Settings", panelOpt = "Panel next to the profession window", ahOpt = "Buy guide at the auction house",
     autoOpt = "Buy right away when the price is close to the estimate", autoScanOpt = "Check today's prices when the auction house opens", guardOpt = "Ask first above the estimate by", nextOpt = "Show the next step", minimapOpt = "Minimap button",
-    mmLeft = "Click: the panel", mmRight = "Right-click: shopping list", mmShift = "Shift-click: settings", mmDrag = "Drag: move the button",
+    mmLeft = "Click: CraftETA (recipes, profit, crafters, characters, gathering)", mmRight = "Right-click: shopping list", mmShift = "Shift-click: settings", mmDrag = "Drag: move the button",
     lang = "Language", stepMode = "This step", rankMode = "To next rank", allMode = "To 300", addWhat = "Add to the list:",
     eta = "~%s", perHour = "%d skill/hour", unknownPrice = "no price", vendor = "vendor", source = "Route: %s",
-    help = "/ceta: panel  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
+    t_recipes = "Recipes", t_profit = "Profit", t_crafters = "Crafters", t_chars = "Characters", t_gather = "Gathering",
+    more = "+%d more (scroll)", f_all = "All", f_learned = "Learned", f_missing = "Not learned",
+    noBook = "Open your profession windows once so CraftETA can read your recipes.", notLearned = "Not learned yet",
+    ttMade = "Made by", ttCost = "Craft cost", ttUsed = "Used in", ttRecipes = "%s: %d recipes", recipeCount = "%d recipes",
+    p_craft = "Craft", p_farm = "Farm", youGather = "You can gather it (%s)", needProf = "Needs %s", fromMobs = "Drops from humanoids",
+    farmFoot = "Auction house price for one, highest first", noPrices = "No prices yet: scan with aux or Auctionator.",
+    sellsFor = "Sells for (%d)", ahCut = "Auction house cut (5%)", matsCost = "Materials", profit = "Profit",
+    profitFoot = "Recipes your characters know, best first. Prices from aux.", noProfit = "No prices yet, or no recipes read: open your profession windows and scan the auction house.",
+    search = "Search", searchHint = "Recipe name, e.g. Mithril", yours = "yours", clickWhisper = "Click: whisper",
+    craftersFoot = "Your characters answer right away, guild members with CraftETA in a moment.", asking = "Asking your guild...",
+    noneFound = "Nobody found.", guildAnswers = "Guild answers keep coming in for a few seconds.",
+    lvl = "level %d", rightRemove = "Right-click: remove this character", charsFoot = "%d characters · %s in all",
+    notKnown = "You don't have %s.", learnAt = "Learn the next rank at %d (level %d): %s", where = "Where:",
+    tooltipOpt = "CraftETA lines in item tooltips", guildShareOpt = "Answer when guild members search for crafters",
+    guildAskOpt = "Ask my guild when I search for crafters", hub = "CraftETA",
+    help = "/ceta: CraftETA  ·  /ceta panel  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
   },
   da = {
     toRank = "Til %d", to300 = "Til 300", crafts = "%d crafts", left = "%d tilbage", make = "Lav %d",
@@ -47,10 +62,25 @@ local LOC = {
     auctionatorDone = "Indkøbslisten \"CraftETA\" er lavet i Auctionator.", searchAux = "Klik: søg i aux",
     settings = "Indstillinger", panelOpt = "Panel ved siden af fagvinduet", ahOpt = "Købsguide i auktionshuset",
     autoOpt = "Køb med det samme, når prisen er tæt på overslaget", autoScanOpt = "Tjek dagens priser, når auktionshuset åbner", guardOpt = "Spørg først over overslaget med", nextOpt = "Vis næste trin", minimapOpt = "Knap ved minimappet",
-    mmLeft = "Klik: panelet", mmRight = "Højreklik: indkøbsliste", mmShift = "Shift-klik: indstillinger", mmDrag = "Træk: flyt knappen",
+    mmLeft = "Klik: CraftETA (opskrifter, profit, craftere, karakterer, samling)", mmRight = "Højreklik: indkøbsliste", mmShift = "Shift-klik: indstillinger", mmDrag = "Træk: flyt knappen",
     lang = "Sprog", stepMode = "Dette trin", rankMode = "Til næste rank", allMode = "Til 300", addWhat = "Læg på listen:",
     eta = "~%s", perHour = "%d skill/time", unknownPrice = "ingen pris", vendor = "vendor", source = "Rute: %s",
-    help = "/ceta: panel  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
+    t_recipes = "Opskrifter", t_profit = "Profit", t_crafters = "Craftere", t_chars = "Karakterer", t_gather = "Samling",
+    more = "+%d mere (scroll)", f_all = "Alle", f_learned = "Lært", f_missing = "Ikke lært",
+    noBook = "Åbn dine fagvinduer én gang, så CraftETA kan læse dine opskrifter.", notLearned = "Ikke lært endnu",
+    ttMade = "Laves af", ttCost = "Craft-pris", ttUsed = "Bruges i", ttRecipes = "%s: %d opskrifter", recipeCount = "%d opskrifter",
+    p_craft = "Craft", p_farm = "Farm", youGather = "Du kan samle det (%s)", needProf = "Kræver %s", fromMobs = "Dropper fra humanoider",
+    farmFoot = "Auktionspris for én, højeste først", noPrices = "Ingen priser endnu: scan med aux eller Auctionator.",
+    sellsFor = "Sælges for (%d)", ahCut = "Auktionshusets andel (5%)", matsCost = "Materialer", profit = "Profit",
+    profitFoot = "Opskrifter dine karakterer kan, bedste først. Priser fra aux.", noProfit = "Ingen priser endnu, eller ingen opskrifter læst: åbn dine fagvinduer og scan auktionshuset.",
+    search = "Søg", searchHint = "Opskrift, fx Mithril", yours = "din", clickWhisper = "Klik: whisper",
+    craftersFoot = "Dine karakterer svarer med det samme, guild-medlemmer med CraftETA om lidt.", asking = "Spørger din guild...",
+    noneFound = "Ingen fundet.", guildAnswers = "Svar fra guilden kommer de næste par sekunder.",
+    lvl = "level %d", rightRemove = "Højreklik: fjern denne karakter", charsFoot = "%d karakterer · %s i alt",
+    notKnown = "Du har ikke %s.", learnAt = "Lær næste rank ved %d (level %d): %s", where = "Hvor:",
+    tooltipOpt = "CraftETA-linjer i item-tooltips", guildShareOpt = "Svar når guild-medlemmer søger craftere",
+    guildAskOpt = "Spørg min guild når jeg søger craftere", hub = "CraftETA",
+    help = "/ceta: CraftETA  ·  /ceta panel  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
   },
 }
 function ns.T(key, ...)
@@ -155,9 +185,8 @@ end
 ---------------------------------------------------------------------------
 -- Prices: aux first, then Auctionator, then the last auction house scan of CraftETA
 ---------------------------------------------------------------------------
-function ns.Price(name)
-  local id = ns.ItemID(name)
-  local scanned = ns.db and ns.db.scanned and ns.db.scanned[name]
+-- a price by item ID: aux first, then Auctionator, then CraftETA's own scan (by name)
+function ns.PriceID(id, name)
   if id then
     local aux = _G.AuxForeverAPI
     if aux and aux.IsReady and aux.IsReady() then
@@ -170,7 +199,20 @@ function ns.Price(name)
       if ok and type(price) == "number" and price > 0 then return price end
     end
   end
+  local scanned = name and ns.db and ns.db.scanned and ns.db.scanned[name]
   if scanned and scanned.unit then return scanned.unit end
+  return nil
+end
+
+function ns.Price(name)
+  return ns.PriceID(ns.ItemID(name), name)
+end
+
+-- what a vendor pays for one
+function ns.VendorPrice(id)
+  if not id then return nil end
+  local ok, _, _, _, _, _, _, _, _, _, _, sell = pcall(GetItemInfo, id)
+  if ok and type(sell) == "number" and sell > 0 then return sell end
   return nil
 end
 
@@ -178,18 +220,22 @@ end
 -- Skills
 ---------------------------------------------------------------------------
 -- skill line ID -> { rank, max }, from the skills list (and the open profession window)
-function ns.Skills()
+-- all = true: gathering professions too
+function ns.Skills(all)
   local found = {}
+  local function known(id) return ns.GUIDES[id] or (all and ns.GATHER[id]) end
   local function add(id, rank, max)
     id, rank, max = ns.Plain(id), ns.Plain(rank), ns.Plain(max)
-    if type(id) == "number" and ns.GUIDES[id] and type(rank) == "number" then
+    if type(id) == "number" and known(id) and type(rank) == "number" then
       found[id] = { rank = rank, max = type(max) == "number" and max or 300 }
     end
   end
   if C_SkillInfo and C_SkillInfo.GetSkillLineInfoByID then
-    for id in pairs(ns.GUIDES) do
-      local ok, info = pcall(C_SkillInfo.GetSkillLineInfoByID, id)
-      if ok and type(info) == "table" then add(id, info.rank, info.maxRank) end
+    for _, list in ipairs({ ns.GUIDES, all and ns.GATHER or {} }) do
+      for id in pairs(list) do
+        local ok, info = pcall(C_SkillInfo.GetSkillLineInfoByID, id)
+        if ok and type(info) == "table" then add(id, info.rank, info.maxRank) end
+      end
     end
   end
   if GetProfessions and GetProfessionInfo then
@@ -204,7 +250,8 @@ function ns.Skills()
   if not next(found) and GetNumSkillLines and GetSkillLineInfo then
     for i = 1, GetNumSkillLines() do
       local name, header, _, rank, _, _, max = GetSkillLineInfo(i)
-      if not header and ns.SKILL_BY_NAME[name] then add(ns.SKILL_BY_NAME[name], rank, max) end
+      local id = not header and (ns.SKILL_BY_NAME[name] or (all and ns.GATHER_BY_NAME[name]))
+      if id then add(id, rank, max) end
     end
   end
   local open = ns.OpenProfession and ns.OpenProfession()

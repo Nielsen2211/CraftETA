@@ -50,6 +50,7 @@ function ns.ReadRecipes()
   if not ok or type(ids) ~= "table" then return end
   wipe(recipes)
   openID = open.id
+  local book = {}
   for _, id in ipairs(ids) do
     local okInfo, info = pcall(C_TradeSkillUI.GetRecipeInfo, id)
     local name = okInfo and type(info) == "table" and Plain(info.name)
@@ -76,7 +77,16 @@ function ns.ReadRecipes()
           local outName = NameByID(out)
           if outName then ns.LearnItem(outName, out) end
         end
+        local made = Plain(schematic.quantityMin)
+        entry.yield = type(made) == "number" and made > 0 and made or 1
       end
+      entry.icon = Plain(info.icon)
+      entry.diff = Plain(info.relativeDifficulty)
+      if not entry.learned and C_TradeSkillUI.GetRecipeSourceText then
+        local okSrc, text = pcall(C_TradeSkillUI.GetRecipeSourceText, id)
+        if okSrc and type(Plain(text)) == "string" then entry.source = text end
+      end
+      book[#book + 1] = { name = name, entry = entry }
       -- a learned recipe wins over an unlearned one of the same name
       if not recipes[name] or (entry.learned and not recipes[name].learned) then
         recipes[name] = entry
@@ -84,6 +94,7 @@ function ns.ReadRecipes()
     end
   end
   ns.NoteSkill(open.id, open.rank)
+  if ns.SaveBook then ns.SaveBook(open, book) end
 end
 
 function ns.Recipe(name)

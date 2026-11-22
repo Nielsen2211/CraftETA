@@ -18,8 +18,11 @@ profText:SetPoint("LEFT", profIcon, "RIGHT", 6, 0)
 local listButton = ns.IconButton(P, "Interface\\Icons\\INV_Misc_Note_05", 16, function() return T("list") end)
 listButton:SetPoint("TOPRIGHT", -34, -10)
 listButton:SetScript("OnClick", function() ns.ToggleList() end)
+local hubButton = ns.IconButton(P, "Interface\\Icons\\INV_Misc_Book_09", 16, function() return T("hub") end)
+hubButton:SetPoint("RIGHT", listButton, "LEFT", -6, 0)
+hubButton:SetScript("OnClick", function() ns.ToggleHub() end)
 local gearButton = ns.IconButton(P, "Interface\\Icons\\INV_Misc_Gear_01", 16, function() return T("settings") end)
-gearButton:SetPoint("RIGHT", listButton, "LEFT", -6, 0)
+gearButton:SetPoint("RIGHT", hubButton, "LEFT", -6, 0)
 gearButton:SetScript("OnClick", function() ns.ToggleSettings() end)
 
 local bar = ns.Bar(P, WIDTH - 28)
@@ -115,12 +118,13 @@ end
 prevChoice:SetScript("OnClick", function() SwitchChoice(-1) end)
 nextChoice:SetScript("OnClick", function() SwitchChoice(1) end)
 
-local PROF_ICON = {
+ns.PROF_ICON = {
   [171] = "Interface\\Icons\\Trade_Alchemy", [164] = "Interface\\Icons\\Trade_BlackSmithing",
   [333] = "Interface\\Icons\\Trade_Engraving", [202] = "Interface\\Icons\\Trade_Engineering",
   [165] = "Interface\\Icons\\Trade_LeatherWorking", [197] = "Interface\\Icons\\Trade_Tailoring",
   [129] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice", [185] = "Interface\\Icons\\INV_Misc_Food_15",
 }
+local PROF_ICON = ns.PROF_ICON
 
 local function RecipeIcon(name, entry)
   local recipe = ns.Recipe(name)
