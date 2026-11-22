@@ -71,7 +71,11 @@ function ns.ReadRecipes()
           local itemID = first and Plain(first.itemID)
           local count = Plain(slot.quantityRequired)
           if itemID and count and count > 0 then
+            -- by ID always (like Mastercraft): an item whose name isn't loaded yet still counts
+            entry.matList = entry.matList or {}
+            entry.matList[#entry.matList + 1] = { itemID, count }
             local itemName = NameByID(itemID)
+            if not itemName and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
             if itemName then
               ns.LearnItem(itemName, itemID)
               entry.mats[#entry.mats + 1] = itemName
@@ -113,6 +117,29 @@ function ns.Recipe(name)
   return entry
 end
 
+-- how many of an item are in your bags: the game's count, else counted slot by slot
+local function BagCount(id)
+  if ItemCount then
+    local ok, n = pcall(ItemCount, id)
+    n = ok and tonumber(Plain(n)) or nil
+    if n and n > 0 then return n end
+  end
+  local C = C_Container
+  if not (C and C.GetContainerNumSlots and C.GetContainerItemInfo) then return 0 end
+  local total = 0
+  for bag = 0, 5 do   -- backpack, 4 bags, reagent bag
+    local okN, slots = pcall(C.GetContainerNumSlots, bag)
+    for slot = 1, (okN and tonumber(Plain(slots)) or 0) do
+      local okI, info = pcall(C.GetContainerItemInfo, bag, slot)
+      if okI and type(info) == "table" and Plain(info.itemID) == id then
+        total = total + (tonumber(Plain(info.stackCount)) or 1)
+      end
+    end
+  end
+  return total
+end
+ns.BagCount = BagCount
+
 -- how many you can craft now with what is in your bags
 -- (the game's own number first; Forever often leaves it at 0, so then counted from your bags)
 function ns.CanMake(name)
@@ -121,6 +148,13 @@ function ns.CanMake(name)
   local ok, info = pcall(C_TradeSkillUI.GetRecipeInfo, entry.id)
   local n = tonumber(ok and type(info) == "table" and Plain(info.numAvailable)) or 0
   if n > 0 then return n end
+  if entry.matList and #entry.matList > 0 then
+    local can = math.huge
+    for _, m in ipairs(entry.matList) do
+      can = math.min(can, math.floor(BagCount(m[1]) / math.max(1, m[2])))
+    end
+    return can == math.huge and 0 or can
+  end
   local mats = entry.mats or {}
   if #mats == 0 then return 0 end
   if not ItemCount then return 0 end
