@@ -363,12 +363,21 @@ local TURN_IN = { h = "Dokimi, Crossroads (The Barrens), west gate", a = "Marcy 
 -- What the favor vendors sell: read when you open one (any vendor whose prices are in Merchant's Favor),
 -- kept per faction: { [itemID] = { n = name, i = icon, c = favor, v = vendor, u = you can use it, t = seen } }
 ---------------------------------------------------------------------------
-local FAVOR_NPCS = {
-  ["Apothecary Durelle"] = true, ["Nina Surefire"] = true, ["Gor'mak"] = true, ["Stondry Darkhammer"] = true,
-  ["Aza'bek"] = true, ["Kalsey Sanden"] = true, ["Beneris"] = true, ["Alynsia"] = true, ["Fizzlefuse"] = true,
-  ["Fritz Fizzle"] = true, ["Pawani"] = true, ["Daniel Stitchsong"] = true, ["Jim'bek"] = true,
-  ["Mivin Shadowweave"] = true, ["Okamache"] = true, ["Huey Sunnydale"] = true, ["Gishah"] = true, ["Tamelyn Aldridge"] = true,
+-- the favor vendors (who sells what, per faction): which you have opened shows with a check
+local FAVOR_VENDORS = {
+  { prof = 171, h = "Apothecary Durelle", a = "Nina Surefire" },
+  { prof = 164, h = "Gor'mak", a = "Stondry Darkhammer" },
+  { prof = 185, h = "Aza'bek", a = "Kalsey Sanden" },
+  { prof = 333, h = "Beneris", a = "Alynsia" },
+  { prof = 202, h = "Fizzlefuse", a = "Fritz Fizzle" },
+  { prof = 165, h = "Pawani", a = "Daniel Stitchsong" },
+  { prof = 197, h = "Jim'bek", a = "Mivin Shadowweave" },
+  { icon = "Interface\\Icons\\Ability_Mount_Kodo_01", what = { "Mount", "Mount" }, h = "Okamache", a = "Huey Sunnydale" },
+  { icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01", what = { "Tabard, pet treat and more", "Tabard, pet treat og mere" }, h = "Gishah", a = "Tamelyn Aldridge" },
 }
+-- vendor name -> its place in the list (1-9): the same on both factions
+local FAVOR_NPCS = {}
+for k, v in ipairs(FAVOR_VENDORS) do FAVOR_NPCS[v.h] = k; FAVOR_NPCS[v.a] = k end
 -- a price in Merchant's Favor: its currency link or name, or any currency at one of the favor vendors
 local function IsFavor(name, link, npc)
   if type(link) == "string" and link:find("currency:3402", 1, true) then return true end
@@ -409,12 +418,120 @@ local function ReadFavorShop()
     ns.db.favorShop[f] = ns.db.favorShop[f] or {}
     for id, e in pairs(found) do ns.db.favorShop[f][id] = e end
     if ns.RefreshHub then ns.RefreshHub() end
+    -- tell the guild (once per vendor visit)
+    if ns.ShareFavorVendor then ns.ShareFavorVendor(f, npc, found) end
   end
 end
 for _, e in ipairs({ "MERCHANT_SHOW", "MERCHANT_UPDATE" }) do
   ns.Register(e)
   ns.On(e, function() C_Timer.After(0.4, function() pcall(ReadFavorShop) end) end)
 end
+
+---------------------------------------------------------------------------
+-- Shared with the guild: one guild member who has opened the favor vendors is enough for everyone.
+-- "F?\th"                      who knows what the Horde favor vendors sell?
+-- "F\th\t3\t1234:45,1235:120"  vendor 3 of the list sells item 1234 for 45 favor and 1235 for 120
+-- What you saw at a vendor yourself always wins over what the guild told you.
+---------------------------------------------------------------------------
+local PREFIX = "CraftETA"
+local function CanSend() return C_ChatInfo and C_ChatInfo.SendAddonMessage and IsInGuild and IsInGuild() end
+
+-- one vendor's things, in messages short enough for the game
+local function SendVendor(f, k, items, delay)
+  local parts, line = {}, ""
+  for id, e in pairs(items) do
+    local bit = id .. ":" .. e.c
+    if #line + #bit + 1 > 200 then parts[#parts + 1] = line; line = "" end
+    line = line == "" and bit or (line .. "," .. bit)
+  end
+  if line ~= "" then parts[#parts + 1] = line end
+  for n, part in ipairs(parts) do
+    C_Timer.After((delay or 0) + n * 0.4, function()
+      pcall(C_ChatInfo.SendAddonMessage, PREFIX, "F\t" .. f .. "\t" .. k .. "\t" .. part, "GUILD")
+    end)
+  end
+  return #parts
+end
+
+-- everything you saw yourself for a faction, vendor by vendor
+local function SendAll(f)
+  if not (CanSend() and ns.db.guildShare and ns.db.favorShop and ns.db.favorShop[f]) then return end
+  local byVendor = {}
+  for id, e in pairs(ns.db.favorShop[f]) do
+    local k = e.v and FAVOR_NPCS[e.v]
+    if k and not e.shared then byVendor[k] = byVendor[k] or {}; byVendor[k][id] = e end
+  end
+  local delay = 0
+  for k, items in pairs(byVendor) do delay = delay + SendVendor(f, k, items, delay) * 0.4 end
+end
+ns.ShareFavorShop = SendAll
+-- after a visit: that vendor's things to the guild (once per visit, not on every update of the window)
+local lastShared
+function ns.ShareFavorVendor(f, npc, items)
+  local k = npc and FAVOR_NPCS[npc]
+  if not (k and ns.db.guildShare and CanSend()) or lastShared == npc then return end
+  lastShared = npc
+  SendVendor(f, k, items, 0)
+end
+ns.Register("MERCHANT_CLOSED")
+ns.On("MERCHANT_CLOSED", function() lastShared = nil end)
+
+-- a vendor's profession decides whether you can use what it sells (shared things have no "usable" of yours)
+local function Usable(k)
+  local v = FAVOR_VENDORS[k]
+  if not v or not v.prof then return true end
+  return ns.Skills(true)[v.prof] ~= nil
+end
+
+local lastHeard, asked = 0, {}
+ns.Register("CHAT_MSG_ADDON")
+ns.On("CHAT_MSG_ADDON", function(prefix, msg, channel, sender)
+  prefix, msg, sender = Plain(prefix), Plain(msg), Plain(sender)
+  if prefix ~= PREFIX or type(msg) ~= "string" or not ns.db then return end
+  local kind, f, k, list = strsplit("\t", msg)
+  local me = Plain(UnitName("player"))
+  local short = type(sender) == "string" and string.match(sender, "^[^-]+")
+  if short == me then return end
+  if kind == "F?" and (f == "h" or f == "a") then
+    -- answer after a little while, unless someone else in the guild already did
+    if asked[f] and GetTime() - asked[f] < 30 then return end
+    asked[f] = GetTime()
+    C_Timer.After(1 + math.random() * 5, function()
+      if GetTime() - lastHeard > 4 then SendAll(f) end
+    end)
+  elseif kind == "F" and (f == "h" or f == "a") and tonumber(k) and list then
+    lastHeard = GetTime()
+    local v = FAVOR_VENDORS[tonumber(k)]
+    if not v then return end
+    ns.db.favorShop = ns.db.favorShop or {}
+    ns.db.favorShop[f] = ns.db.favorShop[f] or {}
+    local shop = ns.db.favorShop[f]
+    for id, cost in string.gmatch(list, "(%d+):(%d+)") do
+      id, cost = tonumber(id), tonumber(cost)
+      local mine = shop[id]
+      if not mine or mine.shared then
+        local name = C_Item and C_Item.GetItemNameByID and Plain(C_Item.GetItemNameByID(id))
+        if not name and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+        local icon = C_Item and C_Item.GetItemIconByID and Plain(C_Item.GetItemIconByID(id))
+        shop[id] = { n = name, i = icon, c = cost, v = v[f], u = Usable(tonumber(k)), t = time(), shared = short or true }
+      end
+    end
+    if ns.RefreshFavorShop then C_Timer.After(0.3, ns.RefreshFavorShop) end
+  end
+end)
+
+-- after login: ask the guild when you don't know all the vendors yet
+ns.On("PLAYER_LOGIN", function()
+  C_Timer.After(20, function()
+    if not (ns.db and ns.db.guildAsk and CanSend()) then return end
+    local f = ns.Faction()
+    local known = {}
+    for _, e in pairs(ns.db.favorShop and ns.db.favorShop[f] or {}) do if e.v then known[e.v] = true end end
+    local n = 0
+    for _ in pairs(known) do n = n + 1 end
+    if n < #FAVOR_VENDORS then pcall(C_ChatInfo.SendAddonMessage, PREFIX, "F?\t" .. f, "GUILD") end
+  end)
+end)
 
 ---------------------------------------------------------------------------
 -- The Favor page: your favor and goal on top, the plan as numbered steps (buy crates, buy materials,
@@ -902,18 +1019,6 @@ local wCount = ns.Font(win, false, 10, 0.5, 0.52, 0.57); wCount:SetPoint("TOPLEF
 local wEmpty = ns.Font(win, false, 11, 0.6, 0.62, 0.67); wEmpty:SetPoint("TOPLEFT", 16, -104); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
 wEmpty:SetWordWrap(true); wEmpty:SetJustifyH("LEFT")
 
--- the favor vendors (who sells what, per faction): which you have opened shows with a check
-local FAVOR_VENDORS = {
-  { prof = 171, h = "Apothecary Durelle", a = "Nina Surefire" },
-  { prof = 164, h = "Gor'mak", a = "Stondry Darkhammer" },
-  { prof = 185, h = "Aza'bek", a = "Kalsey Sanden" },
-  { prof = 333, h = "Beneris", a = "Alynsia" },
-  { prof = 202, h = "Fizzlefuse", a = "Fritz Fizzle" },
-  { prof = 165, h = "Pawani", a = "Daniel Stitchsong" },
-  { prof = 197, h = "Jim'bek", a = "Mivin Shadowweave" },
-  { icon = "Interface\\Icons\\Ability_Mount_Kodo_01", what = { "Mount", "Mount" }, h = "Okamache", a = "Huey Sunnydale" },
-  { icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01", what = { "Tabard, pet treat and more", "Tabard, pet treat og mere" }, h = "Gishah", a = "Tamelyn Aldridge" },
-}
 local wVend = {}
 for k, v in ipairs(FAVOR_VENDORS) do
   local b = CreateFrame("Frame", nil, win)
@@ -943,8 +1048,14 @@ local FAVOR_REWARDS = {
 local function FavorItems(f)
   local all, byName = {}, {}
   for id, e in pairs(ns.db.favorShop and ns.db.favorShop[f] or {}) do
-    all[id] = e
-    byName[e.n] = true
+    if not e.n and type(id) == "number" then
+      -- told by the guild: the name and icon come from the game once it has loaded the item
+      e.n = C_Item and C_Item.GetItemNameByID and Plain(C_Item.GetItemNameByID(id)) or nil
+      e.i = e.i or (C_Item and C_Item.GetItemIconByID and Plain(C_Item.GetItemIconByID(id))) or nil
+    end
+    local shown = e.n and e or setmetatable({ n = "...", }, { __index = e })
+    all[id] = shown
+    if e.n then byName[e.n] = true end
   end
   for _, r in ipairs(FAVOR_REWARDS) do
     local name = type(r.n) == "table" and (r.n[f] or (ns.db.lang == "da" and r.n[2] or r.n[1])) or r.n
@@ -1076,6 +1187,7 @@ function win:Refresh()
     t:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       if type(id) == "number" then GameTooltip:SetItemByID(id) else GameTooltip:SetText(e.n, 1, 1, 1) end
+      if e.shared then GameTooltip:AddLine(L("From your guild (%s)", "Fra din guild (%s)"):format(type(e.shared) == "string" and e.shared or "?"), 0.55, 0.58, 0.64) end
       if e.wiki then GameTooltip:AddLine(L("Price from Warcraft Wiki; the vendor's own price replaces it once you open the vendor.", "Pris fra Warcraft Wiki; handlerens egen pris erstatter den, når du åbner handleren."), 0.55, 0.58, 0.64, true) end
       GameTooltip:AddLine(" ")
       GameTooltip:AddDoubleLine(L("Costs", "Koster"), e.c .. " Merchant's Favor", 0.85, 0.87, 0.9, 1, 0.82, 0.3)
@@ -1129,6 +1241,15 @@ function win:Refresh()
   bClear:SetScript("OnClick", function() wipe(cart); win:Refresh() end)
 end
 win:SetScript("OnShow", function(self) ns.PlaceSaved(self, "CraftETAFavorShop", "CENTER", UIParent, "CENTER", 0, 0); self:Refresh() end)
+function ns.RefreshFavorShop() if win:IsShown() then win:Refresh() end end
+local infoPending = false
+ns.Register("GET_ITEM_INFO_RECEIVED")
+ns.On("GET_ITEM_INFO_RECEIVED", function()
+  if win:IsShown() and not infoPending then
+    infoPending = true
+    C_Timer.After(0.5, function() infoPending = false; win:Refresh() end)
+  end
+end)
 function ns.ToggleFavorShop()
   if win:IsShown() then win:Hide() else win:Show() end
 end
