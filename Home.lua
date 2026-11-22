@@ -697,11 +697,19 @@ tlCount:SetWordWrap(false)
 -- opens the profession window (the panel then shows the step with Craft 1 / Craft all)
 function ns.OpenProfessionWindow(id)
   local ui = C_TradeSkillUI
-  if ui and ui.OpenTradeSkill then
-    local ok = pcall(ui.OpenTradeSkill, id)
-    if ok then return end
-  end
-  ns.Print(T("openFromBook"))
+  if not (ui and ui.OpenTradeSkill) then ns.Print(T("openFromBook")); return end
+  -- the game's profession window is its own addon: load it first, or OpenTradeSkill opens nothing you can see
+  local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+  local load = (C_AddOns and C_AddOns.LoadAddOn) or LoadAddOn
+  if loaded and load and not loaded("Blizzard_Professions") then pcall(load, "Blizzard_Professions") end
+  -- already open on another profession: close it first so the new one shows
+  if ns.ProfessionFrame() and ui.CloseTradeSkill then pcall(ui.CloseTradeSkill) end
+  local ok = pcall(ui.OpenTradeSkill, id)
+  -- check it really opened (Forever can accept the call and still show nothing)
+  C_Timer.After(0.5, function()
+    if not ns.ProfessionFrame() then ns.Print(T("openFromBook")) end
+  end)
+  if not ok then return end
 end
 
 local barBg = tl:CreateTexture(nil, "BACKGROUND")
@@ -808,7 +816,15 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
   -- the button on the bar: craft for a crafting profession, start farming for a gathering one
   if skill and rank < 300 and ns.GUIDES[id] then
     tlAction:SetText(T("craftNow"))
-    tlAction:SetScript("OnClick", function() ns.OpenProfessionWindow(id) end)
+    tlAction:SetScript("OnClick", function()
+      -- the window is already open on this profession: craft the step right away, like the panel's button
+      local st = ns.panelState or {}
+      if ns.ProfessionFrame() and st.prof == id and st.job then
+        ns.Craft(st.job.name, st.job.count)
+      else
+        ns.OpenProfessionWindow(id)
+      end
+    end)
     tlAction:Show()
   else
     tlAction:Hide()
