@@ -553,7 +553,7 @@ local function BuildGuide()
     local now, past = i == current, rank >= s[2]
     local text = crafting and CraftStepText(id, i, s) or s.what
     data[#data + 1] = {
-      icon = crafting and (ns.ItemIcon((ns.Chosen(id, i, s))[1][1])) or guide.icon or ProfIcon(id),
+      icon = crafting and ns.ItemIcon((ns.Chosen(id, i, s))[1][1], ProfIcon(id)) or guide.icon or ProfIcon(id),
       name = ("%d-%d  %s"):format(s[1], s[2], text),
       r = now and 1 or (past and 0.45 or 0.85), g = now and 0.82 or (past and 0.47 or 0.87), b = now and 0.3 or (past and 0.5 or 0.9),
       tip = function(tip)

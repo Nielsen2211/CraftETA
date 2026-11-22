@@ -203,13 +203,23 @@ function ns.ItemID(name)
   return nil
 end
 
-function ns.ItemIcon(name)
+-- an item's icon: from its ID, else from a recipe of that name in your recipe books, else the fallback
+function ns.ItemIcon(name, fallback)
   local id = ns.ItemID(name)
   if id and GetItemInfoInstant then
     local ok, _, _, _, _, icon = pcall(GetItemInfoInstant, id)
     if ok and icon then return icon end
   end
-  return 134400 -- the question mark icon
+  if ns.db and ns.db.chars and name then
+    for _, c in pairs(ns.db.chars) do
+      for _, book in pairs(c.book or {}) do
+        for _, r in pairs(book) do
+          if r.n == name and r.i then return r.i end
+        end
+      end
+    end
+  end
+  return fallback or 134400 -- the question mark icon
 end
 
 -- bags and bank

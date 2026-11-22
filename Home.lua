@@ -70,22 +70,23 @@ local function MiniBar(parent, width)
   return b
 end
 
+local PROF_ROW_H = 26
 local function ProfRow(parent, width)
   local r = CreateFrame("Frame", nil, parent)
-  r:SetSize(width, 20)
+  r:SetSize(width, PROF_ROW_H - 2)
   r.icon = r:CreateTexture(nil, "ARTWORK")
-  r.icon:SetSize(16, 16)
+  r.icon:SetSize(20, 20)
   r.icon:SetPoint("LEFT")
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  r.name = ns.Font(r, false, 11)
-  r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
   r.value = ns.Font(r, true, 10, 0.75, 0.77, 0.8)
-  r.value:SetPoint("RIGHT")
+  r.value:SetPoint("TOPRIGHT", 0, -2)
   r.value:SetJustifyH("RIGHT")
-  r.bar = MiniBar(r, math.floor(width * 0.32))
-  r.bar:SetPoint("RIGHT", r.value, "LEFT", -8, 0)
-  r.name:SetPoint("RIGHT", r.bar, "LEFT", -6, 0)
+  r.name = ns.Font(r, false, 11)
+  r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 7, 0)
+  r.name:SetPoint("RIGHT", r.value, "LEFT", -6, 0)
   r.name:SetWordWrap(false)
+  r.bar = MiniBar(r, width - 27)
+  r.bar:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 7, 1)
   return r
 end
 
@@ -123,7 +124,7 @@ function ns.NextSteps()
         if rank < step[2] then
           if ns.GUIDES[id] then
             local entry = (ns.Chosen(id, i, step))[1]
-            out[#out + 1] = { icon = ns.ItemIcon(entry[1]), title = T("levelWith", guide.name, entry[1]),
+            out[#out + 1] = { icon = ns.ItemIcon(entry[1], icon), title = T("levelWith", guide.name, entry[1]),
               sub = ("%d/%d · %d-%d · %s"):format(rank, max, step[1], step[2], T("crafts", entry[2])), r = 0.45, g = 0.75, b = 1, prof = id }
           else
             out[#out + 1] = { icon = icon, title = T("levelWith", guide.name, step.what), sub = ("%d/%d · %s"):format(rank, max, step[f]), r = 0.45, g = 0.75, b = 1, prof = id }
@@ -244,10 +245,10 @@ profCard:SetWidth(RW)
 local profLabel = Label(profCard, "")
 profLabel:SetPoint("TOPLEFT", 12, -10)
 local profRows = {}
-local PW = math.floor((RW - 36) / 2)
+local PW = math.floor((RW - 40) / 2)
 for i = 1, 8 do
   local r = ProfRow(profCard, PW)
-  r:SetPoint("TOPLEFT", 12 + ((i - 1) % 2) * (PW + 12), -28 - math.floor((i - 1) / 2) * 22)
+  r:SetPoint("TOPLEFT", 12 + ((i - 1) % 2) * (PW + 16), -28 - math.floor((i - 1) / 2) * PROF_ROW_H)
   profRows[i] = r
 end
 
@@ -266,10 +267,11 @@ local nextPage = ns.IconButton(stepCard, "Interface\\Buttons\\UI-SpellbookIcon-N
 nextPage.icon:SetTexCoord(0, 1, 0, 1)
 nextPage:SetPoint("LEFT", pageText, "RIGHT", 4, 0)
 local stepPage, STEPS_PER = 1, 4
+local MAX_STEPS = 7
 prevPage:SetScript("OnClick", function() stepPage = stepPage - 1; home:Refresh() end)
 nextPage:SetScript("OnClick", function() stepPage = stepPage + 1; home:Refresh() end)
 local stepRows = {}
-for i = 1, STEPS_PER do
+for i = 1, MAX_STEPS do
   local r = CreateFrame("Button", nil, stepCard)
   r:SetSize(RW - 24, 34)
   r:SetPoint("TOPLEFT", 12, -30 - (i - 1) * 36)
@@ -348,7 +350,12 @@ function home:Refresh()
   if #list == 0 then
     profRows[1]:Show(); profRows[1].icon:SetTexture(134400); profRows[1].name:SetText(T("noProfs")); profRows[1].value:SetText(""); profRows[1].bar:SetRank(0, 0)
   end
-  profCard:SetHeight(36 + math.ceil(math.max(1, #list) / 2) * 22)
+  local profH = 34 + math.ceil(math.max(1, #list) / 2) * PROF_ROW_H
+  profCard:SetHeight(profH)
+  -- next steps fill the rest of the column
+  local room = (home:GetHeight() or 562) - 212 - profH - 10
+  STEPS_PER = math.max(2, math.min(#stepRows, math.floor((room - 42) / 36)))
+  stepCard:SetHeight(42 + STEPS_PER * 36)
   -- next steps
   stepLabel:SetText(string.upper(T("nextSteps")))
   local steps = ns.NextSteps()
@@ -358,7 +365,7 @@ function home:Refresh()
   prevPage:SetEnabled(stepPage > 1); nextPage:SetEnabled(stepPage < pages)
   prevPage:SetAlpha(stepPage > 1 and 1 or 0.3); nextPage:SetAlpha(stepPage < pages and 1 or 0.3)
   for i, r in ipairs(stepRows) do
-    local s = steps[(stepPage - 1) * STEPS_PER + i]
+    local s = i <= STEPS_PER and steps[(stepPage - 1) * STEPS_PER + i]
     if s then
       r.icon:SetTexture(s.icon)
       r.title:SetText(s.title)
@@ -389,7 +396,7 @@ altsHead:SetPoint("TOPLEFT", 0, -4)
 local altsSub = ns.Font(alts, false, 11, 0.6, 0.62, 0.68)
 altsSub:SetPoint("TOPLEFT", altsHead, "BOTTOMLEFT", 0, -4)
 local AW = math.floor((CW - 12) / 2)
-local AH = 118
+local AH = 132
 local cards = {}
 local altOffset = 0
 local function AltCard(i)
@@ -412,10 +419,10 @@ local function AltCard(i)
   c.me = ns.Font(c, true, 9, 1, 0.82, 0.3)
   c.me:SetPoint("TOPRIGHT", c.gold, "BOTTOMRIGHT", 0, -4)
   c.profs = {}
-  local pw = math.floor((AW - 32) / 2)
+  local pw = math.floor((AW - 34) / 2)
   for j = 1, 4 do
     local r = ProfRow(c, pw)
-    r:SetPoint("TOPLEFT", 10 + ((j - 1) % 2) * (pw + 12), -54 - math.floor((j - 1) / 2) * 20)
+    r:SetPoint("TOPLEFT", 10 + ((j - 1) % 2) * (pw + 14), -54 - math.floor((j - 1) / 2) * PROF_ROW_H)
     c.profs[j] = r
   end
   c.foot = ns.Font(c, false, 9, 0.5, 0.52, 0.56)
@@ -467,7 +474,7 @@ function alts:Refresh()
   end)
   altsHead:SetText(T("account"))
   altsSub:SetText(T("accountLine", #keys, ns.Money(gold), ns.PlayedText(played)))
-  local perPage = 8
+  local perPage = 6
   altOffset = math.min(altOffset, math.max(0, #keys - perPage))
   altOffset = altOffset - altOffset % 2
   for i = 1, math.max(#cards, perPage) do
