@@ -521,7 +521,6 @@ local function BuildGuide()
   if not skill then
     lines[#lines + 1] = "|cffff9a59" .. T("notKnown", guide.name) .. "|r"
   else
-    lines[#lines + 1] = ("|cffffffff%s %d/%d|r"):format(guide.name, rank, skill.max or 300)
     local warn = RankLine(guide, skill, f)
     if warn then lines[#lines + 1] = warn end
   end
@@ -546,9 +545,13 @@ local function BuildGuide()
     end
     if step.note then lines[#lines + 1] = "|cffbfb899" .. step.note .. "|r" end
   end
+  -- the route as a bar on top (Home.lua draws it), the step text under it, then the steps
+  local tlH = ns.ShowTimeline and ns.ShowTimeline(id, guide, skill, current, data) or 0
+  detail:ClearAllPoints()
+  detail:SetPoint("TOPLEFT", X, TOP - tlH - 10)
   detail:SetText(table.concat(lines, "\n"))
   detail:Show()
-  listTop = TOP - detail:GetStringHeight() - 10
+  listTop = TOP - tlH - 10 - detail:GetStringHeight() - 10
   for i, s in ipairs(guide.steps) do
     local now, past = i == current, rank >= s[2]
     local text = crafting and CraftStepText(id, i, s) or s.what
@@ -587,6 +590,7 @@ function ns.RefreshHub()
   wipe(data)
   for _, b in ipairs(controls) do b:Hide() end
   search:Hide(); searchButton:Hide(); detail:Hide()
+  if ns.HideTimeline then ns.HideTimeline() end
   listTop = TOP
   state.footer = nil
   state.ctrlShift = 0

@@ -650,3 +650,188 @@ ns.HubBuilders.materials = function(data, state)
   end
   state.footer = T("matsFoot")
 end
+
+---------------------------------------------------------------------------
+-- The route as one bar, 1 to 300: a segment per step (done, now, to come), each step's icon,
+-- where you are, where your rank stops you, and where you learn the next ranks
+---------------------------------------------------------------------------
+local TL_H = 128
+local tl = Card(H)
+tl:SetPoint("TOPLEFT", X, -48)
+tl:SetSize(CW, TL_H)
+tl:Hide()
+local BX, BW = 16, CW - 32          -- the bar
+local BAR_Y = -78                   -- its top, from the card's top
+local function Pos(v) return BX + (math.max(1, math.min(300, v)) - 1) / 299 * BW end
+
+local tlName = ns.Font(tl, true, 16, 1, 1, 1)
+tlName:SetPoint("TOPLEFT", 14, -12)
+local tlRank = ns.Font(tl, false, 11, 0.6, 0.62, 0.68)
+tlRank:SetPoint("BOTTOMLEFT", tlName, "BOTTOMRIGHT", 10, 1)
+local tlSkill = ns.Font(tl, true, 14, 1, 0.82, 0.3)
+tlSkill:SetPoint("BOTTOMLEFT", tlRank, "BOTTOMRIGHT", 10, -1)
+local tlCount = ns.Font(tl, false, 10, 0.55, 0.58, 0.64)
+tlCount:SetPoint("TOPRIGHT", -14, -15)
+
+local barBg = tl:CreateTexture(nil, "BACKGROUND")
+barBg:SetPoint("TOPLEFT", BX, BAR_Y)
+barBg:SetSize(BW, 10)
+barBg:SetColorTexture(1, 1, 1, 0.05)
+
+local segs, icons, ticks = {}, {}, {}
+local function Seg(i)
+  local s = segs[i]
+  if s then return s end
+  s = CreateFrame("Frame", nil, tl)
+  s:SetHeight(10)
+  s.base = s:CreateTexture(nil, "ARTWORK")
+  s.base:SetAllPoints()
+  s.fill = s:CreateTexture(nil, "OVERLAY")
+  s.fill:SetPoint("TOPLEFT"); s.fill:SetPoint("BOTTOMLEFT")
+  s.fill:SetColorTexture(0.3, 0.72, 0.4, 1)
+  s:EnableMouse(true)
+  s:SetScript("OnEnter", function(self)
+    local d = self.data and self.data[self.index]
+    if d and d.tip then
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      d.tip(GameTooltip)
+      GameTooltip:Show()
+    end
+  end)
+  s:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  segs[i] = s
+  return s
+end
+local function Icon(i)
+  local t = icons[i]
+  if t then return t end
+  t = CreateFrame("Frame", nil, tl)
+  t:SetSize(20, 20)
+  t.tex = t:CreateTexture(nil, "ARTWORK")
+  t.tex:SetAllPoints()
+  t.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  t:EnableMouse(true)
+  t:SetScript("OnEnter", segs[1] and segs[1]:GetScript("OnEnter") or nil)
+  t:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  icons[i] = t
+  return t
+end
+local function Tick(i)
+  local k = ticks[i]
+  if k then return k end
+  k = {}
+  k.line = tl:CreateTexture(nil, "OVERLAY")
+  k.line:SetSize(1, 16)
+  k.text = ns.Font(tl, false, 9)
+  ticks[i] = k
+  return k
+end
+
+-- where you are: a line through the bar and the number over it
+local now = tl:CreateTexture(nil, "OVERLAY", nil, 2)
+now:SetSize(2, 18)
+now:SetColorTexture(1, 1, 1, 0.95)
+local badge = CreateFrame("Frame", nil, tl)
+badge:SetSize(34, 16)
+badge:SetFrameLevel(tl:GetFrameLevel() + 6)
+local badgeBg = badge:CreateTexture(nil, "BACKGROUND")
+badgeBg:SetAllPoints()
+badgeBg:SetColorTexture(1, 0.82, 0.3, 1)
+local badgeText = ns.Font(badge, true, 10, 0.08, 0.08, 0.1)
+badgeText:SetPoint("CENTER")
+badgeText:SetShadowOffset(0, 0)
+-- where your rank stops you
+local cap = tl:CreateTexture(nil, "OVERLAY", nil, 1)
+cap:SetSize(2, 18)
+cap:SetColorTexture(1, 0.42, 0.32, 1)
+local capText = ns.Font(tl, true, 9, 1, 0.42, 0.32)
+local axis = {}
+for i, v in ipairs({ 1, 75, 150, 225, 300 }) do
+  local a = ns.Font(tl, false, 9, 0.42, 0.44, 0.48)
+  a:SetPoint("TOP", tl, "TOPLEFT", Pos(v), BAR_Y - 30)
+  a:SetText(v)
+  axis[v] = a
+end
+
+local RANK_NAMES = { [75] = "Apprentice", [150] = "Journeyman", [225] = "Expert", [300] = "Artisan" }
+
+function ns.ShowTimeline(id, guide, skill, current, data)
+  local rank = skill and skill.rank or 0
+  local max = skill and skill.max or 0
+  tlName:SetText(guide.name)
+  tlRank:SetText(skill and (RANK_NAMES[max] or "") or T("notYours"))
+  local near = skill and max < 300 and max - rank <= 10
+  tlSkill:SetText(skill and ("%d / %d"):format(rank, max) or "")
+  tlSkill:SetTextColor(near and 1 or 1, near and 0.42 or 0.82, near and 0.32 or 0.3)
+  tlCount:SetText(T("steps", #guide.steps))
+  -- segments
+  local lastIconX, row = -100, 0
+  for i, s in ipairs(guide.steps) do
+    local seg = Seg(i)
+    local x1, x2 = Pos(s[1]), Pos(s[2])
+    seg:ClearAllPoints()
+    seg:SetPoint("TOPLEFT", tl, "TOPLEFT", x1, BAR_Y)
+    seg:SetWidth(math.max(2, x2 - x1 - 1))
+    seg.data, seg.index = data, i
+    if rank >= s[2] then
+      seg.base:SetColorTexture(0.3, 0.72, 0.4, 1); seg.fill:Hide()
+    elseif i == current then
+      seg.base:SetColorTexture(0.55, 0.42, 0.15, 1)
+      local w = (rank - s[1]) / math.max(1, s[2] - s[1]) * (x2 - x1 - 1)
+      seg.fill:SetShown(w > 0.5); seg.fill:SetWidth(math.max(1, w))
+    else
+      seg.base:SetColorTexture(0.27, 0.22, 0.11, 1); seg.fill:Hide()
+    end
+    seg:Show()
+    -- the step's icon over its start, a second row when two are close
+    local ic = Icon(i)
+    ic:SetScript("OnEnter", seg:GetScript("OnEnter"))
+    ic.data, ic.index = data, i
+    row = (x1 - lastIconX < 21) and (1 - row) or 0
+    lastIconX = x1
+    ic:ClearAllPoints()
+    ic:SetPoint("BOTTOMLEFT", tl, "TOPLEFT", x1, BAR_Y + 4 + row * 20)
+    local entry = ns.GUIDES[id] and (ns.Chosen(id, i, s))[1]
+    ic.tex:SetTexture(entry and ns.ItemIcon(entry[1], ns.ProfIcon(id)) or guide.icon or ns.ProfIcon(id))
+    ic.tex:SetDesaturated(rank >= s[2])
+    ic:SetAlpha(rank >= s[2] and 0.55 or 1)
+    ic:Show()
+  end
+  for i = #guide.steps + 1, #segs do segs[i]:Hide(); icons[i]:Hide() end
+  -- where you learn the next ranks
+  for i, r in ipairs(guide.ranks) do
+    local k = Tick(i)
+    local learned = max > r.at
+    local nextOne = not learned and max == r.at
+    local col = learned and { 0.42, 0.44, 0.48 } or (nextOne and { 1, 0.82, 0.3 } or { 0.65, 0.5, 0.3 })
+    k.line:ClearAllPoints()
+    k.line:SetPoint("TOP", tl, "TOPLEFT", Pos(r.need), BAR_Y + 3)
+    k.line:SetColorTexture(col[1], col[2], col[3], 0.9)
+    k.text:ClearAllPoints()
+    k.text:SetPoint("TOP", tl, "TOPLEFT", Pos(r.need), BAR_Y - 14)
+    k.text:SetText(RANK_NAMES[r.at + 75] or "")
+    k.text:SetTextColor(col[1], col[2], col[3])
+    k.line:Show(); k.text:Show()
+  end
+  for i = #guide.ranks + 1, #ticks do ticks[i].line:Hide(); ticks[i].text:Hide() end
+  -- you, and your cap
+  if skill then
+    now:ClearAllPoints(); now:SetPoint("TOP", tl, "TOPLEFT", Pos(rank), BAR_Y + 4); now:Show()
+    badge:ClearAllPoints(); badge:SetPoint("BOTTOM", tl, "TOPLEFT", Pos(rank), BAR_Y + 3); badge:Show()
+    badgeText:SetText(rank)
+    if max < 300 then
+      cap:ClearAllPoints(); cap:SetPoint("TOP", tl, "TOPLEFT", Pos(max), BAR_Y + 4); cap:Show()
+      capText:ClearAllPoints(); capText:SetPoint("TOP", tl, "TOPLEFT", Pos(max), BAR_Y - 30)
+      capText:SetText(T("yourCap", max)); capText:Show()
+    else
+      cap:Hide(); capText:Hide()
+    end
+  else
+    now:Hide(); badge:Hide(); cap:Hide(); capText:Hide()
+  end
+  for v, a in pairs(axis) do a:SetShown(not (skill and max < 300 and math.abs(v - max) < 30)) end
+  tl:Show()
+  return TL_H
+end
+
+function ns.HideTimeline() tl:Hide() end
