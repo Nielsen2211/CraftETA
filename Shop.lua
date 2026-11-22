@@ -480,8 +480,9 @@ local function ReadMail()
   local max = ATTACHMENTS_MAX_RECEIVE or 16
   for i = 1, GetInboxNumItems() do
     for a = 1, max do
-      local name, itemID, _, count = GetInboxItem(i, a)
-      if name and count then
+      local ok, name, itemID, _, count = pcall(GetInboxItem, i, a)
+      name, itemID, count = ns.Plain(name), ns.Plain(itemID), tonumber(ns.Plain(count))
+      if ok and type(name) == "string" and count and count > 0 then
         counts[name] = (counts[name] or 0) + count
         if itemID then ns.LearnItem(name, itemID) end
       end
@@ -491,10 +492,19 @@ local function ReadMail()
   ns.db.pending = {}   -- the mailbox itself tells now
   ns.Refresh()
 end
-for _, event in ipairs({ "MAIL_INBOX_UPDATE", "MAIL_SHOW" }) do
-  ns.Register(event)
-  ns.On(event, ReadMail)
+-- read when the mailbox changes, a moment later (taking items updates the inbox after the event),
+-- and once more when you close it: what is left there then is what the list counts
+local mailSoon
+local function ReadMailSoon()
+  if mailSoon then return end
+  mailSoon = true
+  C_Timer.After(0.4, function() mailSoon = false; ReadMail() end)
 end
+for _, event in ipairs({ "MAIL_INBOX_UPDATE", "MAIL_SHOW", "MAIL_CLOSED" }) do
+  ns.Register(event)
+  ns.On(event, event == "MAIL_CLOSED" and ReadMail or ReadMailSoon)
+end
+ns.On("BAG_UPDATE_DELAYED", function() if MailFrame and MailFrame:IsShown() then ReadMailSoon() end end)
 
 ---------------------------------------------------------------------------
 -- aux and Auctionator

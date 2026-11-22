@@ -110,12 +110,23 @@ function ns.Recipe(name)
 end
 
 -- how many you can craft now with what is in your bags
+-- (the game's own number first; Forever often leaves it at 0, so then counted from your bags)
 function ns.CanMake(name)
   local entry = recipes[name]
   if not entry or not entry.learned then return 0 end
   local ok, info = pcall(C_TradeSkillUI.GetRecipeInfo, entry.id)
-  local n = ok and type(info) == "table" and Plain(info.numAvailable)
-  return tonumber(n) or 0
+  local n = tonumber(ok and type(info) == "table" and Plain(info.numAvailable)) or 0
+  if n > 0 then return n end
+  local mats = entry.mats or {}
+  if #mats == 0 then return 0 end
+  local can = math.huge
+  for i = 1, #mats, 2 do
+    local id = ns.ItemID(mats[i])
+    local okC, have = pcall(GetItemCount, id or mats[i])   -- bags only: what crafting can use
+    have = okC and tonumber(Plain(have)) or 0
+    can = math.min(can, math.floor(have / math.max(1, mats[i + 1] or 1)))
+  end
+  return can == math.huge and 0 or can
 end
 
 -- the materials of a guide craft: the game's when its recipe is known, else the guide's (per craft)
@@ -136,7 +147,13 @@ function ns.Craft(name, count)
   local entry = recipes[name]
   if not entry or not entry.learned or count < 1 then return end
   if C_TradeSkillUI.CraftRecipe then
-    C_TradeSkillUI.CraftRecipe(entry.id, count)
+    local ok, err = pcall(C_TradeSkillUI.CraftRecipe, entry.id, count)
+    if not ok then
+      -- older form of the call: select the recipe, then craft
+      if C_TradeSkillUI.OpenRecipe then pcall(C_TradeSkillUI.OpenRecipe, entry.id) end
+      ok = pcall(C_TradeSkillUI.CraftRecipe, entry.id, count, {})
+      if not ok then ns.Print("CraftETA: " .. tostring(err)) end
+    end
   end
 end
 

@@ -194,6 +194,7 @@ local function Update()
   card.matHead:SetText(string.upper(T("rcMats")))
   local parts = {}
   local can = tonumber(Plain(info.numAvailable)) or 0
+  if can == 0 and ns.CanMake then can = ns.CanMake(name) end
   parts[#parts + 1] = can > 0 and ("|cff73d973" .. T("rcCanMake", can) .. "|r") or ("|cff8c8f96" .. T("rcCantMake") .. "|r")
   local me = ns.Me and ns.Me()
   local entry = me and me.book and me.book[open.id] and me.book[open.id][id]
