@@ -158,7 +158,12 @@ ns.hubDetail = detail
 detail:SetPoint("TOPLEFT", X, -48)
 detail:SetWidth(CW)
 detail:SetWordWrap(true)
-detail:SetSpacing(2)
+detail:SetSpacing(3)
+local detailBg = H:CreateTexture(nil, "BACKGROUND", nil, 1)
+detailBg:SetPoint("TOPLEFT", detail, "TOPLEFT", -10, 8)
+detailBg:SetPoint("BOTTOMRIGHT", detail, "BOTTOMRIGHT", 10, -8)
+detailBg:SetColorTexture(0, 0, 0, 0.26)
+detailBg:Hide()
 
 ---------------------------------------------------------------------------
 -- The list
@@ -167,6 +172,19 @@ local rows = {}
 for i = 1, ROWS do
   local r = ns.Row(H, ROW_H - 2)
   r:SetWidth(CW)
+  r.bg = r:CreateTexture(nil, "BACKGROUND")
+  r.bg:SetPoint("TOPLEFT", -4, 1); r.bg:SetPoint("BOTTOMRIGHT", 4, -1)
+  r.bar = r:CreateTexture(nil, "BORDER")
+  r.bar:SetPoint("TOPLEFT", -4, 1); r.bar:SetPoint("BOTTOMLEFT", -4, -1); r.bar:SetWidth(2)
+  r.bar:SetColorTexture(1, 0.82, 0.3, 1)
+  r.check = r:CreateTexture(nil, "ARTWORK")
+  r.check:SetSize(12, 12)
+  r.check:SetPoint("LEFT", 2, 0)
+  r.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+  r.range = ns.Font(r, true, 10)
+  r.range:SetPoint("LEFT", 18, 0)
+  r.range:SetWidth(54)
+  r.range:SetJustifyH("LEFT")
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   r:SetScript("OnEnter", function(self)
     local d = self.data
@@ -211,6 +229,21 @@ function ns.DrawHub()
       r.data = d
       r.icon:SetTexture(d.icon)
       r.icon:SetShown(d.icon ~= nil)
+      r.icon:ClearAllPoints()
+      r.icon:SetPoint("LEFT", d.range and 76 or 0, 0)
+      r.icon:SetDesaturated(d.done and true or false)
+      r.icon:SetAlpha(d.done and 0.6 or 1)
+      r.range:SetText(d.range or "")
+      r.range:SetTextColor(d.current and 1 or 0.5, d.current and 0.82 or 0.52, d.current and 0.3 or 0.56)
+      r.check:SetShown(d.done and true or false)
+      r.bar:SetShown(d.current and true or false)
+      if d.current then
+        r.bg:SetColorTexture(1, 0.82, 0.3, 0.09); r.bg:Show()
+      elseif d.zebra then
+        r.bg:SetColorTexture(1, 1, 1, 0.025); r.bg:Show()
+      else
+        r.bg:Hide()
+      end
       if d.head then
         r.name:SetFont(ns.F_BOLD, 10, "")
         r.name:SetTextColor(0.55, 0.58, 0.64)
@@ -564,9 +597,7 @@ local function BuildGuide()
         lines[#lines + 1] = "|cff8c8f96" .. T("toRank", target) .. ":|r " .. T("crafts", crafts)
           .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.Money(cost)) or "") .. (eta and ("  ·  " .. T("eta", eta)) or "")
       end
-      if skill then
-        lines[#lines + 1] = "|cff8c8f96" .. T("openWindow") .. "|r"
-      else
+      if not skill then
         -- a profession you don't have: what the whole route takes
         local crafts, mats = ns.Plan(id, 1, 300)
         local cost, unknown = ns.Cost(mats)
@@ -582,16 +613,24 @@ local function BuildGuide()
   -- the route as a bar on top (Home.lua draws it), the step text under it, then the steps
   local tlH = (ns.ShowTimeline and ns.ShowTimeline(id, guide, skill, current, data, extra) or 0) + extra
   detail:ClearAllPoints()
-  detail:SetPoint("TOPLEFT", X, TOP - tlH - 10)
+  detail:SetPoint("TOPLEFT", X + 10, TOP - tlH - 20)
+  detail:SetWidth(CW - 20)
   detail:SetText(table.concat(lines, "\n"))
-  detail:Show()
-  listTop = TOP - tlH - 10 - detail:GetStringHeight() - 10
+  detail:Show(); detailBg:Show()
+  listTop = TOP - tlH - 20 - detail:GetStringHeight() - 20
   for i, s in ipairs(guide.steps) do
     local now, past = i == current, rank >= s[2]
-    local text = crafting and CraftStepText(id, i, s) or s.what
+    local chosen = crafting and (ns.Chosen(id, i, s)) or nil
+    local name, count = s.what, nil
+    if chosen then
+      name, count = chosen[1][1], chosen[1][2]
+      if #chosen > 1 then name = name .. " |cff8c8f96+" .. (#chosen - 1) .. "|r" end
+    end
     data[#data + 1] = {
-      icon = crafting and ns.ItemIcon((ns.Chosen(id, i, s))[1][1], ProfIcon(id)) or guide.icon or ProfIcon(id),
-      name = ("%d-%d  %s"):format(s[1], s[2], text),
+      icon = chosen and ns.ItemIcon(chosen[1][1], ProfIcon(id)) or guide.icon or ProfIcon(id),
+      range = ("%d-%d"):format(s[1], s[2]), name = name, current = now, done = past, zebra = i % 2 == 0,
+      value = count and ("x" .. count) or "",
+      vr = past and 0.45 or (now and 1 or 0.75), vg = past and 0.47 or (now and 0.82 or 0.77), vb = past and 0.5 or (now and 0.3 or 0.8),
       r = now and 1 or (past and 0.45 or 0.85), g = now and 0.82 or (past and 0.47 or 0.87), b = now and 0.3 or (past and 0.5 or 0.9),
       tip = function(tip)
         tip:SetText(("%d-%d"):format(s[1], s[2]), 1, 0.82, 0.3)
@@ -623,7 +662,7 @@ function ns.RefreshHub()
   if not H:IsShown() or not ns.db then return end
   wipe(data)
   for _, b in ipairs(controls) do b:Hide() end
-  search:Hide(); searchButton:Hide(); detail:Hide()
+  search:Hide(); searchButton:Hide(); detail:Hide(); detailBg:Hide()
   if ns.HideTimeline then ns.HideTimeline() end
   listTop = TOP
   state.footer = nil
