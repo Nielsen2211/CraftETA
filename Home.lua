@@ -30,8 +30,8 @@ end
 
 local function Page()
   local p = CreateFrame("Frame", nil, H)
-  p:SetPoint("TOPLEFT", X, -14)
-  p:SetPoint("BOTTOMRIGHT", -18, 14)
+  p:SetPoint("TOPLEFT", X, -20)
+  p:SetPoint("BOTTOMRIGHT", -18, 16)
   p:Hide()
   return p
 end
@@ -657,7 +657,7 @@ end
 ---------------------------------------------------------------------------
 local TL_H = 128
 local tl = Card(H)
-tl:SetPoint("TOPLEFT", X, -48)
+tl:SetPoint("TOPLEFT", X, -58)
 tl:SetSize(CW, TL_H)
 tl:Hide()
 local BX, BW = 16, CW - 32          -- the bar
@@ -769,7 +769,7 @@ local RANK_NAMES = { [75] = "Apprentice", [150] = "Journeyman", [225] = "Expert"
 
 function ns.ShowTimeline(id, guide, skill, current, data, below)
   tl:ClearAllPoints()
-  tl:SetPoint("TOPLEFT", X, -48 - (below or 0))
+  tl:SetPoint("TOPLEFT", X, -58 - (below or 0))
   local rank = skill and skill.rank or 0
   local max = skill and skill.max or 0
   tlName:SetText(guide.name)

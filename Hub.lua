@@ -11,6 +11,9 @@ local H = ns.Window("CraftETAHub", WIDTH)
 ns.Hub = H
 H:SetHeight(HEIGHT)
 H.title:Hide()
+H.close:ClearAllPoints()
+H.close:SetPoint("TOPRIGHT", -14, -18)
+H.close:SetSize(24, 24)
 ns.HUB_X, ns.HUB_CW = X, CW
 
 local state = { tab = "home", codex = "recipes", filter = "all", profitMode = "craft", offset = 0 }
@@ -122,12 +125,13 @@ local function Control(i)
     controls[i] = b
   end
   b:ClearAllPoints() -- each page places its own
+  b:SetWidth(86)
   return b
 end
 
 local search = CreateFrame("EditBox", nil, H)
 search:SetSize(CW - 96, 20)
-search:SetPoint("TOPLEFT", X, -18)
+search:SetPoint("TOPLEFT", X, -22)
 search:SetAutoFocus(false)
 search:SetFont(ns.F_SEMI, 11, "")
 search:SetTextInsets(6, 6, 0, 0)
@@ -216,13 +220,13 @@ H:SetScript("OnMouseWheel", function(_, delta)
   ns.DrawHub()
 end)
 
-local TOP = -48
+local TOP = -58
 local listTop = TOP
 function ns.DrawHub()
   for i = 1, ROWS do
     local r, d = rows[i], data[i + state.offset]
     local y = listTop - (i - 1) * ROW_H
-    if d and y > -(H:GetHeight() - 38) then
+    if d and y > -(H:GetHeight() - 46) then
       r:ClearAllPoints()
       r:SetPoint("TOPLEFT", X + (d.indent or 0), y)
       r:SetWidth(CW - (d.indent or 0))
@@ -296,14 +300,14 @@ local function BuildRecipes(first)
     if i > 3 then break end
     local b = Control(first + i)
     b:SetText(ns.ProfName(id))
-    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -18)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -22)
     b.label:SetTextColor(id == state.prof and 1 or 0.6, id == state.prof and 0.82 or 0.62, id == state.prof and 0.3 or 0.68)
     b:SetScript("OnClick", function() state.prof, state.offset = id, 0; ns.RefreshHub() end)
     b:Show()
     n = i
   end
   local f = Control(first + n + 1)
-  f:SetPoint("TOPLEFT", X + (state.ctrlShift or 0) + n * 90 + 10, -18)
+  f:SetPoint("TOPLEFT", X + (state.ctrlShift or 0) + n * 90 + 10, -22)
   f:SetText(T("f_" .. state.filter))
   f:SetScript("OnClick", function()
     state.filter = ({ all = "learned", learned = "missing", missing = "all" })[state.filter]
@@ -362,7 +366,7 @@ local function BuildProfit()
   local modes = { "craft", "farm" }
   for i, mode in ipairs(modes) do
     local b = Control(i)
-    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -18)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -22)
     b:SetText(T("p_" .. mode))
     local on = state.profitMode == mode
     b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
@@ -542,11 +546,11 @@ local function BuildGuide()
   local found = false
   for _, id in ipairs(list) do if id == state.guide then found = true end end
   if not found then state.guide = list[1] end
-  local PER_ROW = 6
+  local PER_ROW = 5
   for i, id in ipairs(list) do
     local b = Control(i)
     b:ClearAllPoints()
-    b:SetPoint("TOPLEFT", X + ((i - 1) % PER_ROW) * 90, -18 - math.floor((i - 1) / PER_ROW) * 24)
+    b:SetPoint("TOPLEFT", X + ((i - 1) % PER_ROW) * 90, -22 - math.floor((i - 1) / PER_ROW) * 26)
     b:SetText(ns.ProfName(id))
     local on = id == state.guide
     local have = skills[id] ~= nil
@@ -556,7 +560,8 @@ local function BuildGuide()
   end
   local toggle = Control(#list + 1)
   toggle:ClearAllPoints()
-  toggle:SetPoint("TOPRIGHT", H, "TOPRIGHT", -18, -18)
+  toggle:SetPoint("TOPRIGHT", H, "TOPRIGHT", -48, -22)
+  toggle:SetWidth(124)
   toggle:SetText(state.allProfs and T("myProfs") or T("allProfs"))
   toggle.label:SetTextColor(1, 0.82, 0.3)
   toggle:SetScript("OnClick", function()
@@ -565,7 +570,7 @@ local function BuildGuide()
     ns.RefreshHub()
   end)
   toggle:SetShown(#mine > 0)
-  local extra = (math.ceil(#list / PER_ROW) - 1) * 24
+  local extra = (math.ceil(#list / PER_ROW) - 1) * 26
   local id = state.guide
   local guide = Guide(id)
   local crafting = ns.GUIDES[id] ~= nil
@@ -694,7 +699,7 @@ function ns.RefreshHub()
       -- Codex: recipes or materials
       for i, mode in ipairs({ "recipes", "materials" }) do
         local b = Control(i)
-        b:SetPoint("TOPLEFT", X + (i - 1) * 90, -18)
+        b:SetPoint("TOPLEFT", X + (i - 1) * 90, -22)
         b:SetText(T("c_" .. mode))
         local on = state.codex == mode
         b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
