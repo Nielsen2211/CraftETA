@@ -26,7 +26,8 @@ local LOC = {
     boughtMsg = "Bought %d %s for %s.", failed = "The purchase failed; try again.", scanHint = "Maybe fewer are listed: Scan prices shows how many.", auctionator = "To Auctionator",
     auctionatorDone = "Shopping list \"CraftETA\" made in Auctionator.", searchAux = "Click: search in aux",
     settings = "Settings", panelOpt = "Panel next to the profession window", ahOpt = "Buy guide at the auction house",
-    autoOpt = "Buy right away when the price is close to the estimate", autoScanOpt = "Check today's prices when the auction house opens", guardOpt = "Ask first above the estimate by", nextOpt = "Show the next step",
+    autoOpt = "Buy right away when the price is close to the estimate", autoScanOpt = "Check today's prices when the auction house opens", guardOpt = "Ask first above the estimate by", nextOpt = "Show the next step", minimapOpt = "Minimap button",
+    mmLeft = "Click: the panel", mmRight = "Right-click: shopping list", mmShift = "Shift-click: settings", mmDrag = "Drag: move the button",
     lang = "Language", stepMode = "This step", rankMode = "To next rank", allMode = "To 300", addWhat = "Add to the list:",
     eta = "~%s", perHour = "%d skill/hour", unknownPrice = "no price", vendor = "vendor", source = "Route: %s",
     help = "/ceta: panel  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
@@ -45,7 +46,8 @@ local LOC = {
     boughtMsg = "Købte %d %s for %s.", failed = "Købet fejlede, prøv igen.", scanHint = "Måske er der færre til salg: Scan priser viser hvor mange.", auctionator = "Til Auctionator",
     auctionatorDone = "Indkøbslisten \"CraftETA\" er lavet i Auctionator.", searchAux = "Klik: søg i aux",
     settings = "Indstillinger", panelOpt = "Panel ved siden af fagvinduet", ahOpt = "Købsguide i auktionshuset",
-    autoOpt = "Køb med det samme, når prisen er tæt på overslaget", autoScanOpt = "Tjek dagens priser, når auktionshuset åbner", guardOpt = "Spørg først over overslaget med", nextOpt = "Vis næste trin",
+    autoOpt = "Køb med det samme, når prisen er tæt på overslaget", autoScanOpt = "Tjek dagens priser, når auktionshuset åbner", guardOpt = "Spørg først over overslaget med", nextOpt = "Vis næste trin", minimapOpt = "Knap ved minimappet",
+    mmLeft = "Klik: panelet", mmRight = "Højreklik: indkøbsliste", mmShift = "Shift-klik: indstillinger", mmDrag = "Træk: flyt knappen",
     lang = "Sprog", stepMode = "Dette trin", rankMode = "Til næste rank", allMode = "Til 300", addWhat = "Læg på listen:",
     eta = "~%s", perHour = "%d skill/time", unknownPrice = "ingen pris", vendor = "vendor", source = "Rute: %s",
     help = "/ceta: panel  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
@@ -65,7 +67,7 @@ function ns.Print(text)
 end
 
 local DEFAULTS = {
-  lang = "en", panel = true, ah = true, autoScan = true, autoBuy = true, guard = 20, showNext = true,
+  lang = "en", panel = true, ah = true, autoScan = true, autoBuy = true, guard = 20, showNext = true, minimap = true, minimapAngle = 220,
   list = {}, ids = {}, mail = {}, bought = {}, choice = {}, points = {},
 }
 
