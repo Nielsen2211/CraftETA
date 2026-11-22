@@ -651,7 +651,7 @@ local function BuildGuide()
       end,
     }
   end
-  state.footer = T("source", ns.SOURCE)
+  state.footer = nil
 end
 
 ---------------------------------------------------------------------------
