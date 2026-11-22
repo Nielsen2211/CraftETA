@@ -357,147 +357,352 @@ end
 ---------------------------------------------------------------------------
 -- The Favor page of the main window
 ---------------------------------------------------------------------------
-local function Head(data, text, click) data[#data + 1] = { head = true, name = text, click = click } end
 local TURN_IN = { h = "Dokimi, Crossroads (The Barrens), west gate", a = "Marcy Baker, Three Corners (Redridge Mountains)" }
 
-local favorLabel = ns.Font(ns.Hub, true, 11, 0.85, 0.87, 0.9)
-local favorUnit = ns.Font(ns.Hub, false, 11, 0.6, 0.62, 0.67)
-local favorBox = ns.NumberBox(ns.Hub, 60, 20, 12, function(n)
+---------------------------------------------------------------------------
+-- The Favor page: your favor and goal on top, the plan as numbered steps (buy crates, buy materials,
+-- fill, hand in), and the crates that give favor cheapest at the bottom
+---------------------------------------------------------------------------
+local H, X, CW = ns.Hub, ns.HUB_X, ns.HUB_CW
+local page = CreateFrame("Frame", nil, H)
+page:SetPoint("TOPLEFT", X, -20)
+page:SetPoint("BOTTOMRIGHT", -18, 16)
+page:Hide()
+ns.HubCustom.favor = page
+
+local GOLD = { 1, 0.82, 0.29 }
+local function Fill(parent, r, g, b, a, layer, sub)
+  local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub or 1)
+  t:SetColorTexture(r, g, b, a or 1)
+  return t
+end
+local function Card(parent, edge)
+  local f = CreateFrame("Frame", nil, parent)
+  Fill(f, 0.086, 0.094, 0.122):SetAllPoints()
+  local e = edge or { 0.2, 0.21, 0.25, 1 }
+  for _, p in ipairs({ { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
+    local t = f:CreateTexture(nil, "BORDER")
+    t:SetPoint(p[1]); t:SetPoint(p[2])
+    if p[3] then t:SetHeight(1) else t:SetWidth(1) end
+    t:SetColorTexture(e[1], e[2], e[3], e[4] or 1)
+  end
+  return f
+end
+local function Icon(parent, size)
+  local t = parent:CreateTexture(nil, "ARTWORK")
+  t:SetSize(size, size)
+  t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  return t
+end
+local function Tip(frame, fn)
+  frame:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    fn(GameTooltip)
+    GameTooltip:Show()
+  end)
+  frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+-- top: your favor, the bar to your goal, the goal box and presets
+local top = Card(page, { 0.47, 0.38, 0.16, 1 })
+top:SetPoint("TOPLEFT"); top:SetPoint("RIGHT"); top:SetHeight(92)
+local topIcon = Icon(top, 44); topIcon:SetPoint("TOPLEFT", 16, -16); topIcon:SetTexture("Interface\\Icons\\INV_Crate_01")
+local topHead = ns.Font(top, true, 9, 0.62, 0.55, 0.36); topHead:SetPoint("TOPLEFT", topIcon, "TOPRIGHT", 12, 0)
+local topBig = ns.Font(top, true, 20, GOLD[1], GOLD[2], GOLD[3]); topBig:SetPoint("TOPLEFT", topHead, "BOTTOMLEFT", 0, -4)
+local topSub = ns.Font(top, false, 10, 0.6, 0.62, 0.67); topSub:SetPoint("LEFT", topBig, "RIGHT", 8, -2)
+local barBg = Fill(top, 0.05, 0.055, 0.07, 1, "ARTWORK")
+barBg:SetPoint("TOPLEFT", topIcon, "BOTTOMLEFT", 0, -10); barBg:SetPoint("RIGHT", top, "RIGHT", -230, 0); barBg:SetHeight(6)
+local bar = Fill(top, GOLD[1], GOLD[2], GOLD[3], 1, "ARTWORK", 2)
+bar:SetPoint("TOPLEFT", barBg); bar:SetPoint("BOTTOMLEFT", barBg); bar:SetWidth(1)
+
+local goalHead = ns.Font(top, true, 9, 0.36, 0.38, 0.42); goalHead:SetPoint("TOPRIGHT", -16, -14); goalHead:SetJustifyH("RIGHT")
+local goalBox = ns.NumberBox(top, 70, 24, 15, function(n)
   ns.db.favorGoal = math.max(1, n)
   ns.RefreshHub()
 end)
-local function HideFavorGoal() favorLabel:Hide(); favorBox:Hide(); favorUnit:Hide() end
-HideFavorGoal()
--- every page draw hides it first; the Favor page shows it again
-local drawHub = ns.RefreshHub
-ns.RefreshHub = function(...)
-  HideFavorGoal()
-  return drawHub(...)
+goalBox:SetPoint("TOPRIGHT", -16, -28)
+local goalUnit = ns.Font(top, false, 10, 0.6, 0.62, 0.67); goalUnit:SetPoint("RIGHT", goalBox, "LEFT", -6, 0)
+local presets = {}
+for i, v in ipairs({ 50, 100, 200, 500 }) do
+  local b = ns.Button(top, tostring(v), 44, 18)
+  b:SetPoint("TOPRIGHT", -16 - (4 - i) * 48, -60)
+  b.label:SetFont(ns.F_BOLD, 10, "")
+  b:SetScript("OnClick", function() ns.db.favorGoal = v; ns.RefreshHub() end)
+  b.value = v
+  presets[i] = b
 end
 
-ns.HubBuilders.favor = function(data, state, Control)
+-- the plan
+local plan = Card(page)
+plan:SetPoint("TOPLEFT", top, "BOTTOMLEFT", 0, -8); plan:SetPoint("RIGHT")
+local planHead = ns.Font(plan, true, 9, 0.36, 0.38, 0.42); planHead:SetPoint("TOPLEFT", 16, -12)
+local planTotal = ns.Font(plan, true, 17, GOLD[1], GOLD[2], GOLD[3]); planTotal:SetPoint("TOPRIGHT", -16, -10); planTotal:SetJustifyH("RIGHT")
+local planPer = ns.Font(plan, false, 10, 0.6, 0.62, 0.67); planPer:SetPoint("TOPRIGHT", planTotal, "BOTTOMRIGHT", 0, -2); planPer:SetJustifyH("RIGHT")
+local planEmpty = ns.Font(plan, false, 11, 0.6, 0.62, 0.67); planEmpty:SetPoint("TOPLEFT", 16, -40)
+planEmpty:SetPoint("RIGHT", plan, "RIGHT", -16, 0); planEmpty:SetWordWrap(true)
+local listBtn = ns.Primary(ns.Button(plan, "", 190, 26), 12)
+listBtn:SetPoint("BOTTOMRIGHT", -16, 12)
+local scanBtn = ns.Button(plan, "", 150, 26)
+scanBtn:SetPoint("RIGHT", listBtn, "LEFT", -8, 0)
+scanBtn.label:SetTextColor(0.85, 0.87, 0.9)
+scanBtn:SetScript("OnClick", function() ns.ScanCrates() end)
+local scanAge = ns.Font(plan, false, 9, 0.45, 0.47, 0.52); scanAge:SetPoint("BOTTOMLEFT", 16, 20)
+
+-- a numbered step: a badge, its title, and up to 3 lines under it
+local STEP_LINES = 3
+local steps = {}
+local function Step(i)
+  if steps[i] then return steps[i] end
+  local s = CreateFrame("Frame", nil, plan)
+  s:SetWidth(CW - 32)
+  s.badge = CreateFrame("Frame", nil, s); s.badge:SetSize(18, 18); s.badge:SetPoint("TOPLEFT")
+  Fill(s.badge, GOLD[1], GOLD[2], GOLD[3]):SetAllPoints()
+  s.num = ns.Font(s.badge, true, 10, 0.08, 0.06, 0.02); s.num:SetPoint("CENTER"); s.num:SetShadowOffset(0, 0)
+  s.title = ns.Font(s, true, 11, 0.9, 0.91, 0.94); s.title:SetPoint("LEFT", s.badge, "RIGHT", 8, 0)
+  s.right = ns.Font(s, true, 11, 1, 1, 1); s.right:SetPoint("TOPRIGHT", 0, -3); s.right:SetJustifyH("RIGHT")
+  s.lines = {}
+  for l = 1, STEP_LINES do
+    local r = CreateFrame("Frame", nil, s); r:SetSize(CW - 58, 18)
+    r:SetPoint("TOPLEFT", 26, -22 - (l - 1) * 19)
+    r.icon = Icon(r, 16); r.icon:SetPoint("LEFT")
+    r.value = ns.Font(r, false, 10, 0.85, 0.87, 0.9); r.value:SetPoint("RIGHT"); r.value:SetJustifyH("RIGHT")
+    r.text = ns.Font(r, false, 10, 0.78, 0.8, 0.84); r.text:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+    r.text:SetPoint("RIGHT", r.value, "LEFT", -8, 0); r.text:SetWordWrap(false)
+    r:EnableMouse(true)
+    s.lines[l] = r
+  end
+  steps[i] = s
+  return s
+end
+
+-- the cheapest crates
+local cheap = Card(page)
+cheap:SetPoint("TOPLEFT", plan, "BOTTOMLEFT", 0, -8); cheap:SetPoint("BOTTOMRIGHT")
+local cheapHead = ns.Font(cheap, true, 9, 0.36, 0.38, 0.42); cheapHead:SetPoint("TOPLEFT", 16, -12)
+local cheapNote = ns.Font(cheap, false, 9, 0.45, 0.47, 0.52); cheapNote:SetPoint("TOPRIGHT", -16, -12); cheapNote:SetJustifyH("RIGHT")
+local COLS, CHEAP_H = 2, 34
+local CHEAP_W = math.floor((CW - 32 - 8) / COLS)
+local tiles = {}
+local function Tile(i)
+  if tiles[i] then return tiles[i] end
+  local t = CreateFrame("Frame", nil, cheap)
+  t:SetSize(CHEAP_W, CHEAP_H - 4)
+  Fill(t, 0.11, 0.122, 0.157):SetAllPoints()
+  t.icon = Icon(t, 22); t.icon:SetPoint("LEFT", 8, 0)
+  t.name = ns.Font(t, true, 10, 0.9, 0.91, 0.94); t.name:SetPoint("TOPLEFT", t.icon, "TOPRIGHT", 8, 1)
+  t.sub = ns.Font(t, false, 9, 0.5, 0.52, 0.57); t.sub:SetPoint("BOTTOMLEFT", t.icon, "BOTTOMRIGHT", 8, -1)
+  t.per = ns.Font(t, true, 10, GOLD[1], GOLD[2], GOLD[3]); t.per:SetPoint("TOPRIGHT", -8, -5); t.per:SetJustifyH("RIGHT")
+  t.fav = ns.Font(t, false, 9, 0.5, 0.52, 0.57); t.fav:SetPoint("BOTTOMRIGHT", -8, 5); t.fav:SetJustifyH("RIGHT")
+  t.name:SetPoint("RIGHT", t.per, "LEFT", -6, 0); t.name:SetWordWrap(false)
+  t.sub:SetPoint("RIGHT", t.fav, "LEFT", -6, 0); t.sub:SetWordWrap(false)
+  t:EnableMouse(true)
+  tiles[i] = t
+  return t
+end
+
+local function Ago(t)
+  if not t then return nil end
+  local m = math.floor((time() - t) / 60)
+  if m < 1 then return L("just now", "lige nu") end
+  if m < 60 then return L("%d min ago", "for %d min siden"):format(m) end
+  return L("%d h ago", "for %d t siden"):format(math.floor(m / 60))
+end
+
+function page:Refresh()
   ns.db.favorGoal = ns.db.favorGoal or 200
-  local X = ns.HUB_X
-  local function Btn(i, x, w, text, fn, tip)
-    local b = Control(i)
-    b:SetPoint("TOPLEFT", X + x, -22); b:SetWidth(w)
-    b:SetText(text); b.tip = tip
-    b.label:SetTextColor(0.85, 0.87, 0.9)
-    b:SetScript("OnClick", fn); b:Show()
-  end
   local goal = ns.db.favorGoal
-  -- the goal: type it (Enter sets it)
-  favorLabel:ClearAllPoints(); favorLabel:SetPoint("TOPLEFT", ns.Hub, "TOPLEFT", X, -26)
-  favorLabel:SetText(L("Goal:", "Mål:")); favorLabel:Show()
-  favorBox:ClearAllPoints(); favorBox:SetPoint("LEFT", favorLabel, "RIGHT", 6, 0)
-  favorBox:SetNumberValue(goal); favorBox:Show()
-  favorUnit:ClearAllPoints(); favorUnit:SetPoint("LEFT", favorBox, "RIGHT", 6, 0)
-  favorUnit:SetText("favor"); favorUnit:Show()
-  -- scanning only makes sense at the auction house: away from it the button is gone
-  local atAH = ns.AH and ns.AH.open
-  if atAH then
-    Btn(4, 190, 130, L("Scan AH crates", "Scan kasser på AH"), function() ns.ScanCrates() end,
-      L("Finds every Waylaid Crate for sale and its price.", "Finder alle Waylaid Crates til salg og deres pris."))
-  end
-  local have = ns.FavorNow() or 0
-  local steps, got, gold = ns.FavorPlan(math.max(0, goal - have))
-  Btn(5, atAH and 324 or 190, 150, L("Plan to shopping list", "Planen på indkøbslisten"), function()
-    -- a plan on the list, like a profession's: it works itself out again as you buy, fill and hand in
-    if ns.SetFavorPlan then ns.SetFavorPlan(goal) end
-    ns.Print(L("Favor plan on the shopping list: %d favor. The crates are bought with the buy button at the auction house.",
-      "Favor-planen er på indkøbslisten: %d favor. Kasserne købes med køb-knappen ved auktionshuset."):format(goal))
-  end, L("The crates to buy and the materials for them, the cheapest way to your goal. Stays up to date as you buy and hand in.",
-    "Kasserne du skal købe og materialerne til dem, den billigste vej til dit mål. Holder sig opdateret, mens du køber og afleverer."))
-
+  local have = ns.FavorNow()
   local f = ns.Faction()
-  Head(data, L("Plan: %d + %d of %d favor  ·  %s", "Plan: %d + %d af %d favor  ·  %s"):format(have, got, goal, ns.Money(gold)))
-  if #steps == 0 then
-    data[#data + 1] = { indent = 8, name = L("No crates to plan with yet: scan the auction house, or loot some crates.",
-      "Ingen kasser at planlægge med endnu: scan auktionshuset, eller find nogle kasser."), r = 0.6, g = 0.62, b = 0.67 }
-  end
-  -- the same crate from the same place, filled the same way, is one row with a count
-  local groups, order = {}, {}
-  for _, s in ipairs(steps) do
-    local key = CrateName(s.crate) .. "|" .. s.from .. "|" .. (s.id or "") .. "|" .. s.cost .. "|" .. s.bundle.mat .. "|" .. s.bundle.have
-    local g = groups[key]
-    if not g then g = { s = s, n = 0, gold = 0 }; groups[key] = g; order[#order + 1] = g end
-    g.n = g.n + 1
-    g.gold = g.gold + math.max(0, s.cost + s.bundle.spend - s.back)
-  end
-  for _, g in ipairs(order) do
-    local s, n = g.s, g.n
-    local b = s.bundle
-    local where = s.from == "bag" and L("in your bags", "i dine tasker") or (L("AH ", "AH ") .. ns.Money(s.cost))
-    local fill = b.count .. " " .. b.mat .. (b.have > 0 and L(" (have %d)", " (har %d)"):format(b.have) or "")
-    data[#data + 1] = {
-      indent = 8, icon = s.id and IconOf(s.name, s.id) or IconOf(b.mat),
-      name = (n > 1 and ("|cffffd24a" .. n .. " x|r  ") or "") .. CrateName(s.crate) .. "  |cff8c8f96" .. where .. "  ·  " .. fill .. "|r",
-      value = "+" .. (s.crate[3] * n) .. "  " .. ns.Money(g.gold), vr = 1, vg = 0.82, vb = 0.3,
-      click = function()
-        if s.id and ns.BuyCrate then ns.BuyCrate(s.id, s.name, n) end
-      end,
-      tip = function(tip)
-        tip:SetText((n > 1 and (n .. " x ") or "") .. CrateName(s.crate), 1, 0.82, 0.3)
-        tip:AddLine(L("Fill each with: ", "Fyld hver med: ") .. b.count .. " " .. b.mat, 0.85, 0.87, 0.9, true)
-        if s.from == "ah" then tip:AddLine(L("AH price is the cheapest listing: more crates can cost a bit more.", "AH-prisen er den billigste: flere kasser kan koste lidt mere."), 0.55, 0.58, 0.64, true) end
-        if b.buy > 0 then tip:AddDoubleLine(L("Buy", "Køb"), b.buy .. " x " .. (b.unit and ns.Money(b.unit) or "?"), 0.85, 0.87, 0.9, 1, 1, 1) end
-        if s.cost > 0 then tip:AddDoubleLine(L("Crate", "Kasse"), ns.Money(s.cost), 0.85, 0.87, 0.9, 1, 1, 1) end
-        if s.back > 0 then tip:AddDoubleLine(L("Silver back", "Sølv tilbage"), "-" .. ns.Money(s.back), 0.85, 0.87, 0.9, 0.35, 0.9, 0.4) end
-        tip:AddDoubleLine(L("Per favor", "Pr. favor"), ns.Money(math.max(0, s.cost + b.spend - s.back) / s.crate[3]), 0.85, 0.87, 0.9, 1, 0.82, 0.3)
-        if s.id then tip:AddLine(L("At the auction house, click: buy the cheapest one (click again for the next)", "Ved auktionshuset, klik: køb den billigste (klik igen for den næste)"), 0.55, 0.58, 0.64, true) end
-      end,
-    }
+
+  -- top
+  topHead:SetText(L("MERCHANT'S FAVOR", "MERCHANT'S FAVOR"))
+  topBig:SetText((have or 0) .. " / " .. goal)
+  local left = math.max(0, goal - (have or 0))
+  topSub:SetText(have and (left > 0 and L("%d to go", "%d mangler"):format(left) or L("goal reached", "mål nået"))
+    or L("(open the currency tab once to read it)", "(åbn currency-fanen én gang, så kan den læses)"))
+  local w = math.max(1, barBg:GetWidth() or 1)
+  bar:SetWidth(math.max(1, w * math.min(1, (have or 0) / math.max(1, goal))))
+  goalHead:SetText(L("YOUR GOAL", "DIT MÅL"))
+  goalUnit:SetText(L("favor", "favor"))
+  goalBox:SetNumberValue(goal)
+  for _, b in ipairs(presets) do
+    local on = b.value == goal
+    b.label:SetTextColor(on and GOLD[1] or 0.85, on and GOLD[2] or 0.87, on and GOLD[3] or 0.9)
   end
 
-  -- every crate type, cheapest favor first (with the materials you have now)
-  Head(data, L("Every crate, cheapest favor first (bundle only)", "Alle kasser, billigste favor først (kun bundtet)"))
-  local stock, rows = StockNow(), {}
-  for _, c in ipairs(ns.CRATES) do
-    local b = BestBundle(c, stock, {})
-    rows[#rows + 1] = { c = c, b = b, per = (b and c[3]) and b.spend / c[3] or math.huge }
+  -- the plan, grouped into steps
+  local list, got, gold = ns.FavorPlan(left)
+  local buyCrates, bagCrates, mats, fills, back = {}, {}, {}, {}, 0
+  local cOrder, mOrder, fOrder = {}, {}, {}
+  for _, st in ipairs(list) do
+    local name = CrateName(st.crate)
+    if st.from == "ah" then
+      local k = name .. "|" .. st.cost
+      if not buyCrates[k] then buyCrates[k] = { name = name, item = st.name, id = st.id, n = 0, each = st.cost }; cOrder[#cOrder + 1] = buyCrates[k] end
+      buyCrates[k].n = buyCrates[k].n + 1
+    else
+      bagCrates[name] = (bagCrates[name] or 0) + 1
+    end
+    local b = st.bundle
+    if not mats[b.mat] then mats[b.mat] = { mat = b.mat, buy = 0, have = 0, spend = 0 }; mOrder[#mOrder + 1] = mats[b.mat] end
+    mats[b.mat].buy = mats[b.mat].buy + b.buy
+    mats[b.mat].have = mats[b.mat].have + b.have
+    mats[b.mat].spend = mats[b.mat].spend + b.spend
+    local fk = name .. "|" .. b.mat
+    if not fills[fk] then fills[fk] = { name = name, mat = b.mat, count = b.count, n = 0, crate = st.crate }; fOrder[#fOrder + 1] = fills[fk] end
+    fills[fk].n = fills[fk].n + 1
+    back = back + (st.back or 0)
   end
-  table.sort(rows, function(x, y) return x.per < y.per end)
-  local level = UnitLevel("player") or 1
-  for _, r in ipairs(rows) do
-    local c, b = r.c, r.b
-    local locked = level < LVL[c[1]]
-    data[#data + 1] = {
-      indent = 8, icon = b and IconOf(b.mat) or "Interface\\Icons\\INV_Crate_01",
-      name = CrateName(c) .. "  |cff8c8f96" .. (b and (b.count .. " " .. b.mat) or "?") .. (locked and L("  ·  level %d", "  ·  level %d"):format(LVL[c[1]]) or "") .. "|r",
-      r = locked and 0.5 or 0.85, g = locked and 0.52 or 0.87, b = locked and 0.57 or 0.9,
-      value = (c[3] and ("+" .. c[3] .. "  ") or "?  ") .. (b and ns.Money(b.spend) or "?"),
-      vr = 0.85, vg = 0.87, vb = 0.9,
-      tip = function(tip)
-        tip:SetText(CrateName(c), 1, 0.82, 0.3)
-        tip:AddLine(L("Any ONE of:", "En af disse:"), 0.55, 0.58, 0.64)
-        for i = 4, #c do
-          local p = Price(c[i][1])
-          tip:AddDoubleLine(c[i][2] .. " " .. c[i][1], p and ns.Money(p * c[i][2]) or "?", 0.85, 0.87, 0.9, 1, 1, 1)
+
+  planHead:SetText(L("YOUR PLAN  ·  THE CHEAPEST WAY TO %d FAVOR", "DIN PLAN  ·  BILLIGSTE VEJ TIL %d FAVOR"):format(goal))
+  local atAH = ns.AH and ns.AH.open
+  scanBtn:SetShown(atAH)
+  scanBtn:SetText(L("Scan AH crates", "Scan kasser på AH"))
+  Tip(scanBtn, function(tip) tip:SetText(L("Finds every Waylaid Crate for sale and its price.", "Finder alle Waylaid Crates til salg og deres pris."), 1, 1, 1, 1, true) end)
+  local scanned = ns.db.crateAH and ns.db.crateAH.t
+  scanAge:SetText(scanned and L("Crates scanned %s", "Kasser scannet %s"):format(Ago(scanned)) or L("Crates not scanned yet", "Kasser ikke scannet endnu"))
+
+  for _, s in ipairs(steps) do s:Hide() end
+  local y = -40
+  if left == 0 then
+    planTotal:SetText(""); planPer:SetText("")
+    planEmpty:SetText(L("Goal reached. Set a higher goal to plan more.", "Mål nået. Sæt et højere mål for at planlægge mere."))
+    planEmpty:Show(); y = -64
+    listBtn:Hide()
+  elseif #list == 0 then
+    planTotal:SetText(""); planPer:SetText("")
+    planEmpty:SetText(L("No crates to plan with yet. Go to the auction house and press Scan AH crates, or loot some crates.",
+      "Ingen kasser at planlægge med endnu. Gå til auktionshuset og tryk Scan kasser på AH, eller find nogle kasser."))
+    planEmpty:Show(); y = -72
+    listBtn:Hide()
+  else
+    planEmpty:Hide()
+    planTotal:SetText(ns.Money(math.max(0, gold)))
+    planPer:SetText(L("+%d favor  ·  %s per favor", "+%d favor  ·  %s pr. favor"):format(got, ns.Money(math.max(0, gold) / math.max(1, got))))
+    listBtn:Show()
+    listBtn:SetText(L("Plan to shopping list", "Planen på indkøbslisten"))
+    listBtn:SetScript("OnClick", function()
+      if ns.SetFavorPlan then ns.SetFavorPlan(goal) end
+      ns.Print(L("Favor plan on the shopping list: %d favor. The crates are bought with the buy button at the auction house.",
+        "Favor-planen er på indkøbslisten: %d favor. Kasserne købes med køb-knappen ved auktionshuset."):format(goal))
+    end)
+    Tip(listBtn, function(tip)
+      tip:SetText(L("Plan to shopping list", "Planen på indkøbslisten"), 1, 0.82, 0.3)
+      tip:AddLine(L("The crates and materials go on the list and stay up to date as you buy and hand in. At the auction house the buy button buys them.",
+        "Kasser og mats kommer på listen og holder sig opdateret, mens du køber og afleverer. Ved auktionshuset køber køb-knappen dem."), 0.85, 0.87, 0.9, true)
+    end)
+
+    local n = 0
+    local function AddStep(title, right, lines)
+      n = n + 1
+      local s = Step(n)
+      s:ClearAllPoints(); s:SetPoint("TOPLEFT", 16, y)
+      s.num:SetText(n); s.title:SetText(title); s.right:SetText(right or "")
+      local shown = math.min(#lines, STEP_LINES)
+      for l = 1, STEP_LINES do
+        local r, d = s.lines[l], lines[l]
+        if d and l <= shown then
+          if l == STEP_LINES and #lines > STEP_LINES then
+            d = { icon = d.icon, text = d.text .. L("  ·  +%d more", "  ·  +%d mere"):format(#lines - STEP_LINES), value = d.value, tip = d.tip }
+          end
+          r.icon:SetTexture(d.icon or 134400)
+          r.text:SetText(d.text); r.value:SetText(d.value or "")
+          if d.tip then Tip(r, d.tip) else r:SetScript("OnEnter", nil); r:SetScript("OnLeave", nil) end
+          r:Show()
+        else
+          r:Hide()
         end
-        if not c[3] then tip:AddLine(L("Favor for Artisan crates isn't known yet.", "Favor for Artisan-kasser kendes ikke endnu."), 0.6, 0.62, 0.67, true) end
-      end,
-    }
-  end
-  -- how the system works, from the guide: favor comes from crates, reputation from writs and receipts
-  Head(data, L("Good to know", "Godt at vide"))
-  local tips = {
-    { "Interface\\Icons\\INV_Letter_15", L("First crate or writ: a Shipping Label. Its quest gives +50 favor and 2,000 reputation.",
-      "Første kasse eller writ: et Shipping Label. Questen giver +50 favor og 2.000 reputation.") },
-    { "Interface\\Icons\\INV_Crate_01", L("Sealed crates give favor and silver, but no reputation.",
-      "Sealed-kasser giver favor og sølv, men ingen reputation.") },
-    { "Interface\\Icons\\INV_Scroll_03", L("Reputation: Craftsman's Writs (75 / 125 / 200, each writ once a day). You don't need the profession.",
-      "Reputation: Craftsman's Writs (75 / 125 / 200, hver writ én gang om dagen). Du behøver ikke faget.") },
-    { "Interface\\Icons\\INV_Scroll_05", L("From Friendly: a Forged Delivery Receipt (15 favor) turns the cheapest empty crate into 50 reputation.",
-      "Fra Friendly: en Forged Delivery Receipt (15 favor) gør den billigste tomme kasse til 50 reputation.") },
-  }
-  for _, t in ipairs(tips) do
-    data[#data + 1] = { indent = 8, icon = t[1], name = t[2], r = 0.7, g = 0.72, b = 0.77 }
-  end
+      end
+      s:SetHeight(22 + shown * 19)
+      s:Show()
+      y = y - (22 + shown * 19) - 8
+    end
 
-  local fav = ns.FavorNow()
-  state.footer = (fav and (L("You have %d Merchant's Favor.  ", "Du har %d Merchant's Favor.  "):format(fav)) or "")
-    .. L("Hand in: ", "Aflever: ") .. TURN_IN[f]
+    -- 1: crates
+    local lines, cost = {}, 0
+    for name, c in pairs(bagCrates) do
+      lines[#lines + 1] = { icon = "Interface\\Icons\\INV_Crate_01", text = c .. " x " .. name, value = "|cff73d973" .. L("in your bags", "i dine tasker") .. "|r" }
+    end
+    for _, c in ipairs(cOrder) do
+      cost = cost + c.n * c.each
+      lines[#lines + 1] = { icon = IconOf(c.item, c.id), text = c.n .. " x " .. c.name .. "  |cff8c8f96" .. L("AH, %s each", "AH, %s stk"):format(ns.Money(c.each)) .. "|r",
+        value = ns.Money(c.n * c.each),
+        tip = function(tip)
+          tip:SetText(c.item or c.name, 1, 0.82, 0.3)
+          tip:AddLine(L("The price is the cheapest listing from your last scan. At the auction house the shopping list's buy button buys the cheapest one.",
+            "Prisen er den billigste fra din seneste scan. Ved auktionshuset køber indkøbslistens køb-knap den billigste."), 0.85, 0.87, 0.9, true)
+        end }
+    end
+    AddStep(#cOrder > 0 and L("Buy the crates", "Køb kasserne") or L("Your crates", "Dine kasser"), cost > 0 and ns.Money(cost) or "", lines)
+
+    -- 2: materials
+    lines, cost = {}, 0
+    for _, m in ipairs(mOrder) do
+      cost = cost + m.spend
+      local unit = m.buy > 0 and m.spend / m.buy or nil
+      lines[#lines + 1] = { icon = IconOf(m.mat),
+        text = (m.buy > 0 and (m.buy .. " x " .. m.mat) or m.mat) .. "  |cff8c8f96" .. (m.have > 0 and L("you have %d", "du har %d"):format(m.have) or "") .. "|r",
+        value = m.buy > 0 and ns.Money(m.spend) or ("|cff73d973" .. L("have them", "har dem") .. "|r"),
+        tip = function(tip)
+          tip:SetText(m.mat, 1, 0.82, 0.3)
+          if m.buy > 0 then tip:AddDoubleLine(L("Buy", "Køb"), m.buy .. " x " .. (unit and ns.Money(unit) or "?"), 0.85, 0.87, 0.9, 1, 1, 1) end
+          if m.have > 0 then tip:AddDoubleLine(L("From your bags", "Fra dine tasker"), m.have, 0.85, 0.87, 0.9, 1, 1, 1) end
+        end }
+    end
+    AddStep(L("Get the materials", "Skaf materialerne"), cost > 0 and ns.Money(cost) or "", lines)
+
+    -- 3: fill and seal
+    lines = {}
+    for _, fl in ipairs(fOrder) do
+      lines[#lines + 1] = { icon = IconOf(fl.mat), text = L("%s: %d %s in each", "%s: %d %s i hver"):format(fl.name, fl.count, fl.mat),
+        value = fl.n .. (fl.n == 1 and L(" crate", " kasse") or L(" crates", " kasser")) }
+    end
+    AddStep(L("Fill and seal them", "Fyld og forsegl dem"), "", lines)
+
+    -- 4: hand in
+    AddStep(L("Hand them in", "Aflever dem"), "|cffffd24a+" .. got .. " favor|r", {
+      { icon = "Interface\\Icons\\INV_Misc_Note_01", text = TURN_IN[f], value = back > 0 and ("|cff73d973+" .. ns.Money(back) .. L(" back", " tilbage") .. "|r") or "" },
+    })
+  end
+  plan:SetHeight(-y + 46)
+
+  -- the cheapest crates per favor
+  cheapHead:SetText(L("CHEAPEST FAVOR PER CRATE", "BILLIGSTE FAVOR PR. KASSE"))
+  cheapNote:SetText(L("the bundle only, with what you have", "kun bundtet, med det du har"))
+  local stock, rows = StockNow(), {}
+  local level = UnitLevel("player") or 1
+  for _, c in ipairs(ns.CRATES) do
+    if c[3] and level >= LVL[c[1]] then
+      local b = BestBundle(c, stock, {})
+      if b then rows[#rows + 1] = { c = c, b = b, per = b.spend / c[3] } end
+    end
+  end
+  table.sort(rows, function(a, b) return a.per < b.per end)
+  for _, t in ipairs(tiles) do t:Hide() end
+  local room = math.floor(((cheap:GetHeight() or 200) - 34) / CHEAP_H)
+  local fit = math.max(0, room) * COLS
+  for i = 1, math.min(#rows, fit) do
+    local r, t = rows[i], Tile(i)
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", 16 + ((i - 1) % COLS) * (CHEAP_W + 8), -30 - math.floor((i - 1) / COLS) * CHEAP_H)
+    t.icon:SetTexture(IconOf(r.b.mat))
+    t.name:SetText(CrateName(r.c))
+    t.sub:SetText(r.b.count .. " " .. r.b.mat)
+    t.per:SetText(ns.Money(r.per) .. L("/favor", "/favor"))
+    t.fav:SetText("+" .. r.c[3] .. "  ·  " .. ns.Money(r.b.spend))
+    local c = r.c
+    Tip(t, function(tip)
+      tip:SetText(CrateName(c), 1, 0.82, 0.3)
+      tip:AddLine(L("Any ONE of:", "En af disse:"), 0.55, 0.58, 0.64)
+      for k = 4, #c do
+        local p = Price(c[k][1])
+        tip:AddDoubleLine(c[k][2] .. " " .. c[k][1], p and ns.Money(p * c[k][2]) or "?", 0.85, 0.87, 0.9, 1, 1, 1)
+      end
+    end)
+    t:Show()
+  end
 end
+page:SetScript("OnShow", function(self) C_Timer.After(0, function() if self:IsShown() then self:Refresh() end end) end)
 
 ---------------------------------------------------------------------------
 -- Buying crates on the auction house: a crate you click in the plan, the cheapest first.
