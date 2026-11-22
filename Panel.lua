@@ -109,14 +109,14 @@ craftBtn:SetScript("OnClick", function()
   local job = state.job
   if job then ns.Craft(job.name, job.count) end
 end)
-addList.tip = "Click: to next rank\nShift-click: this step\nRight-click: to 300"
+
 addList:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 addList:SetScript("OnClick", function(_, button)
   if not state.prof then return end
   local target = state.target
   if button == "RightButton" then
     target = 300
-  elseif IsShiftKeyDown() and state.step then
+  elseif not IsShiftKeyDown() and state.step then
     target = math.min(state.step[2], state.target)
   end
   ns.AddToList(nil, nil, state.prof, target)
@@ -307,6 +307,7 @@ function ns.RefreshPanel()
   craftBtn:ClearAllPoints(); craftBtn:SetPoint("TOPLEFT", 14, y)
   addList:ClearAllPoints(); addList:SetPoint("LEFT", craftBtn, "RIGHT", 6, 0)
   craftBtn:Show(); addList:Show()
+  addList.tip = T("addListTip")
   local recipe = ns.Recipe(entry[1])
   state.canMake = ns.CanMake(entry[1])
   local text
