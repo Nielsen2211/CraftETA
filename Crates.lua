@@ -1323,9 +1323,9 @@ function win:Refresh()
   local fit = WROWS * WCOLS
   favorScroll = math.min(favorScroll, math.max(0, #list - fit))
   favorScroll = favorScroll - favorScroll % WCOLS
-  wEmpty:SetShown(shopN == 0 or #list == 0)
-  wEmpty:SetText(shopN == 0 and L("The recipes come in once you have opened the vendors (%s): open each of them once and CraftETA remembers what they sell and what it costs.",
-      "Opskrifterne kommer med, når du har åbnet handlerne (%s): åbn hver af dem én gang, så husker CraftETA, hvad de sælger, og hvad det koster."):format(f == "h" and "Crossroads, The Barrens" or "Three Corners, Redridge Mountains")
+  -- the recipe list is a file of its own: a new file is read only when the game starts
+  wEmpty:SetShown(not ns.FAVOR_RECIPES or #list == 0)
+  wEmpty:SetText(not ns.FAVOR_RECIPES and L("Restart WoW (not just /reload) to load the recipe list.", "Genstart WoW helt (ikke kun /reload) for at få opskriftslisten med.")
     or L("Nothing you can use. Switch off \"Only what I can use\" to see everything.", "Intet du kan bruge. Slå \"Kun det jeg kan bruge\" fra for at se alt."))
   local cart = Cart()
   for _, t in ipairs(wTiles) do t:Hide() end
