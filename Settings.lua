@@ -3,6 +3,22 @@ local _, ns = ...
 local T = ns.T
 
 local W = ns.Window("CraftETASettings", 330)
+-- on top of every other CraftETA window, and fully solid so nothing behind it shows through
+W:SetFrameStrata("DIALOG")
+W:SetToplevel(true)
+local solid = W:CreateTexture(nil, "BACKGROUND", nil, -8)
+solid:SetPoint("TOPLEFT", 4, -4)
+solid:SetPoint("BOTTOMRIGHT", -4, 4)
+solid:SetColorTexture(0.043, 0.047, 0.063, 1)
+-- a shade over the main window while settings are open, click it to close settings
+local shade = CreateFrame("Button", nil, UIParent)
+shade:SetFrameStrata("DIALOG")
+shade:Hide()
+local shadeTex = shade:CreateTexture(nil, "BACKGROUND")
+shadeTex:SetAllPoints()
+shadeTex:SetColorTexture(0, 0, 0, 0.55)
+shade:SetScript("OnClick", function() W:Hide() end)
+W:HookScript("OnHide", function() shade:Hide() end)
 local rowPool, heads = {}, {}
 local info
 
@@ -85,7 +101,19 @@ function W.Build()
   W:SetHeight(-y + 24)
 end
 W:SetScript("OnShow", function()
-  W:ClearAllPoints(); W:SetPoint("CENTER")
+  W:ClearAllPoints()
+  local hub = _G.CraftETAHub
+  if hub and hub:IsShown() then
+    W:SetPoint("CENTER", hub, "CENTER")
+    shade:ClearAllPoints()
+    shade:SetAllPoints(hub)
+    shade:SetFrameLevel(10)
+    shade:Show()
+    W:SetFrameLevel(20)
+  else
+    W:SetPoint("CENTER")
+  end
+  W:Raise()
   W.Build()
 end)
 
