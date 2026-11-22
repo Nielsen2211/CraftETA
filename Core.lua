@@ -283,7 +283,7 @@ end
 -- what a vendor pays for one
 function ns.VendorPrice(id)
   if not id then return nil end
-  local ok, _, _, _, _, _, _, _, _, _, _, sell = pcall(GetItemInfo, id)
+  local ok, _, _, _, _, _, _, _, _, _, _, sell = pcall((C_Item and C_Item.GetItemInfo) or GetItemInfo, id)
   if ok and type(sell) == "number" and sell > 0 then return sell end
   return nil
 end
