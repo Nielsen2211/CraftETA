@@ -1,17 +1,19 @@
--- CraftETA: the main window. A menu on the left (Professions, Recipes, Profit, Crafters, Characters,
--- Shopping list, Settings) and the page on the right.
+-- CraftETA: the main window. A menu on the left (Home, Alts, Professions, Specializations, Crafters,
+-- Gold, Codex, Camping, Cooldowns, Settings) and the page on the right.
 local _, ns = ...
 local T = ns.T
 local GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 
-local WIDTH, SIDE, ROWS, ROW_H = 620, 132, 15, 20
-local X = SIDE + 12           -- where the page starts
-local CW = WIDTH - X - 14     -- page width
+local WIDTH, HEIGHT, SIDE, ROWS, ROW_H = 860, 590, 196, 23, 20
+local X = SIDE + 16           -- where the page starts
+local CW = WIDTH - X - 18     -- page width
 local H = ns.Window("CraftETAHub", WIDTH)
 ns.Hub = H
-H:SetHeight(104 + ROWS * ROW_H)
+H:SetHeight(HEIGHT)
+H.title:Hide()
+ns.HUB_X, ns.HUB_CW = X, CW
 
-local state = { tab = "guide", filter = "all", profitMode = "craft", offset = 0 }
+local state = { tab = "home", codex = "recipes", filter = "all", profitMode = "craft", offset = 0 }
 local data = {}
 ns.hubState = state
 
@@ -25,61 +27,85 @@ ns.ProfIcon = ProfIcon
 -- Tabs and the control row
 ---------------------------------------------------------------------------
 local MENU = {
+  { "home", "Interface\\Icons\\INV_Misc_Note_01" },
+  { "alts", "Interface\\Icons\\INV_Misc_GroupLooking" },
   { "guide", "Interface\\Icons\\INV_Misc_Book_11" },
-  { "recipes", "Interface\\Icons\\INV_Scroll_03" },
-  { "profit", "Interface\\Icons\\INV_Misc_Coin_02" },
+  { "specs", "Interface\\Icons\\INV_Misc_Note_06" },
   { "crafters", "Interface\\Icons\\INV_Letter_15" },
-  { "chars", "Interface\\Icons\\INV_Misc_Head_Human_01" },
-  false,
-  { "list", "Interface\\Icons\\INV_Misc_Note_05", function() ns.ToggleList() end },
+  { "gold", "Interface\\Icons\\INV_Misc_Coin_02" },
+  { "codex", "Interface\\Icons\\INV_Scroll_03" },
+  { "camping", "Interface\\Icons\\Spell_Fire_Fire" },
+  { "cooldowns", "Interface\\Icons\\INV_Misc_PocketWatch_01" },
   { "settings", "Interface\\Icons\\INV_Misc_Gear_01", function() ns.ToggleSettings() end },
 }
-local sideBg = H:CreateTexture(nil, "BORDER")
-sideBg:SetPoint("TOPLEFT", 6, -34)
-sideBg:SetPoint("BOTTOMLEFT", 6, 8)
-sideBg:SetWidth(SIDE - 6)
-sideBg:SetColorTexture(0, 0, 0, 0.22)
+-- the menu column: its own darker card, like the rest of the ETA family
+local side = CreateFrame("Frame", nil, H)
+side:SetPoint("TOPLEFT", 10, -10)
+side:SetPoint("BOTTOMLEFT", 10, 10)
+side:SetWidth(SIDE - 10)
+local sideBg = side:CreateTexture(nil, "BORDER")
+sideBg:SetAllPoints()
+sideBg:SetColorTexture(0, 0, 0, 0.28)
+local logo = side:CreateTexture(nil, "ARTWORK")
+logo:SetSize(26, 26)
+logo:SetPoint("TOPLEFT", 12, -14)
+logo:SetTexture("Interface\\Icons\\Trade_BlackSmithing")
+logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+local logoText = ns.Font(side, true, 15)
+logoText:SetPoint("TOPLEFT", logo, "TOPRIGHT", 9, 1)
+logoText:SetText("|cffffffffCraft|r|cffffd24aETA|r")
+local logoSub = ns.Font(side, false, 10, 0.55, 0.58, 0.64)
+logoSub:SetPoint("TOPLEFT", logoText, "BOTTOMLEFT", 0, -2)
+logoSub:SetText("by Nielsen2211")
+
 local menuButtons = {}
-local my = -40
+local my = -62
 for _, item in ipairs(MENU) do
-  if not item then
-    local line = H:CreateTexture(nil, "ARTWORK")
-    line:SetColorTexture(1, 1, 1, 0.07)
-    line:SetHeight(1)
-    line:SetPoint("TOPLEFT", 14, my - 4)
-    line:SetWidth(SIDE - 22)
-    my = my - 10
-  else
-    local key, icon, action = item[1], item[2], item[3]
-    local b = CreateFrame("Button", nil, H)
-    b:SetSize(SIDE - 10, 24)
-    b:SetPoint("TOPLEFT", 8, my)
-    b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetSize(16, 16)
-    b.icon:SetPoint("LEFT", 8, 0)
-    b.icon:SetTexture(icon)
-    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    b.text = ns.Font(b, true, 11)
-    b.text:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
-    b.sel = b:CreateTexture(nil, "BACKGROUND")
-    b.sel:SetAllPoints()
-    b.sel:SetColorTexture(1, 0.82, 0.3, 0.10)
-    b.bar = b:CreateTexture(nil, "ARTWORK")
-    b.bar:SetPoint("TOPLEFT"); b.bar:SetPoint("BOTTOMLEFT"); b.bar:SetWidth(2)
-    b.bar:SetColorTexture(1, 0.82, 0.3, 1)
-    local hl = b:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(1, 1, 1, 0.04)
-    b.key, b.action = key, action
-    b:SetScript("OnClick", function()
-      if action then action() return end
-      state.tab, state.offset = key, 0
-      ns.RefreshHub()
-    end)
-    menuButtons[#menuButtons + 1] = b
-    my = my - 26
-  end
+  local key, icon, action = item[1], item[2], item[3]
+  local b = CreateFrame("Button", nil, side)
+  b:SetSize(SIDE - 26, 28)
+  b:SetPoint("TOPLEFT", 8, my)
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetSize(18, 18)
+  b.icon:SetPoint("LEFT", 10, 0)
+  b.icon:SetTexture(icon)
+  b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  b.text = ns.Font(b, true, 12)
+  b.text:SetPoint("LEFT", b.icon, "RIGHT", 10, 0)
+  b.sel = b:CreateTexture(nil, "BACKGROUND")
+  b.sel:SetAllPoints()
+  b.sel:SetColorTexture(1, 0.82, 0.3, 0.11)
+  b.bar = b:CreateTexture(nil, "ARTWORK")
+  b.bar:SetPoint("TOPLEFT"); b.bar:SetPoint("BOTTOMLEFT"); b.bar:SetWidth(3)
+  b.bar:SetColorTexture(1, 0.82, 0.3, 1)
+  local hl = b:CreateTexture(nil, "HIGHLIGHT")
+  hl:SetAllPoints()
+  hl:SetColorTexture(1, 1, 1, 0.04)
+  b.key, b.action = key, action
+  b:SetScript("OnClick", function()
+    if action then action() return end
+    state.tab, state.offset = key, 0
+    ns.RefreshHub()
+  end)
+  menuButtons[#menuButtons + 1] = b
+  my = my - 30
 end
+
+-- the bottom of the menu: item tracker, shopping list, and who you are
+local trackerButton = ns.Button(side, "", SIDE - 62, 22)
+trackerButton:SetPoint("BOTTOMLEFT", 12, 52)
+trackerButton:SetScript("OnClick", function() ns.ToggleTracker() end)
+local listButton = ns.IconButton(side, "Interface\\Icons\\INV_Misc_Note_05", 22, function() return T("list") end)
+listButton:SetPoint("LEFT", trackerButton, "RIGHT", 8, 0)
+listButton:SetScript("OnClick", function() ns.ToggleList() end)
+local meName = ns.Font(side, true, 12)
+meName:SetPoint("BOTTOMLEFT", 14, 28)
+local meSub = ns.Font(side, false, 10, 0.55, 0.58, 0.64)
+meSub:SetPoint("BOTTOMLEFT", 14, 14)
+local version = ns.Font(side, false, 9, 0.42, 0.44, 0.48)
+version:SetPoint("BOTTOMRIGHT", -10, 14)
+version:SetJustifyH("RIGHT")
+version:SetText("v" .. ((C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)("CraftETA", "Version") or ""))
 
 -- up to 5 small buttons under the tabs (professions, filters, modes)
 local controls = {}
@@ -94,7 +120,7 @@ end
 
 local search = CreateFrame("EditBox", nil, H)
 search:SetSize(CW - 96, 20)
-search:SetPoint("TOPLEFT", X, -38)
+search:SetPoint("TOPLEFT", X, -18)
 search:SetAutoFocus(false)
 search:SetFont(ns.F_SEMI, 11, "")
 search:SetTextInsets(6, 6, 0, 0)
@@ -122,7 +148,7 @@ end)
 -- the gathering tab's step text
 local detail = ns.Font(H, false, 11)
 ns.hubDetail = detail
-detail:SetPoint("TOPLEFT", X, -68)
+detail:SetPoint("TOPLEFT", X, -48)
 detail:SetWidth(CW)
 detail:SetWordWrap(true)
 detail:SetSpacing(2)
@@ -155,7 +181,7 @@ for i = 1, ROWS do
 end
 ns.hubRows = rows
 local footer = ns.Font(H, false, 10, 0.55, 0.58, 0.64)
-footer:SetPoint("BOTTOMLEFT", X, 14)
+footer:SetPoint("BOTTOMLEFT", X, 16)
 footer:SetPoint("RIGHT", H, "RIGHT", -14, 0)
 
 H:EnableMouseWheel(true)
@@ -165,21 +191,27 @@ H:SetScript("OnMouseWheel", function(_, delta)
   ns.DrawHub()
 end)
 
-local TOP = -68
+local TOP = -48
 local listTop = TOP
 function ns.DrawHub()
   for i = 1, ROWS do
     local r, d = rows[i], data[i + state.offset]
     local y = listTop - (i - 1) * ROW_H
-    if d and y > -(H:GetHeight() - 34) then
+    if d and y > -(H:GetHeight() - 38) then
       r:ClearAllPoints()
       r:SetPoint("TOPLEFT", X + (d.indent or 0), y)
       r:SetWidth(CW - (d.indent or 0))
       r.data = d
       r.icon:SetTexture(d.icon)
       r.icon:SetShown(d.icon ~= nil)
-      r.name:SetText(d.name or "")
-      r.name:SetTextColor(d.r or 0.85, d.g or 0.87, d.b or 0.9)
+      if d.head then
+        r.name:SetFont(ns.F_BOLD, 10, "")
+        r.name:SetTextColor(0.55, 0.58, 0.64)
+      else
+        r.name:SetFont(ns.F_SEMI, 11, "")
+      end
+      r.name:SetText(d.head and string.upper(d.name or "") or (d.name or ""))
+      if not d.head then r.name:SetTextColor(d.r or 0.85, d.g or 0.87, d.b or 0.9) end
       r.value:SetText(d.value or "")
       r.value:SetTextColor(d.vr or 1, d.vg or 1, d.vb or 1)
       r:Show()
@@ -212,7 +244,8 @@ local function MatsTip(tip, r)
   end
 end
 
-local function BuildRecipes()
+local function BuildRecipes(first)
+  first = first or 0
   local me = ns.Me()
   local profs = {}
   for id in pairs(me and me.book or {}) do profs[#profs + 1] = id end
@@ -221,16 +254,16 @@ local function BuildRecipes()
   local n = 0
   for i, id in ipairs(profs) do
     if i > 3 then break end
-    local b = Control(i)
+    local b = Control(first + i)
     b:SetText(ns.ProfName(id))
-    b:SetPoint("TOPLEFT", X + (i - 1) * 90, -38)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -18)
     b.label:SetTextColor(id == state.prof and 1 or 0.6, id == state.prof and 0.82 or 0.62, id == state.prof and 0.3 or 0.68)
     b:SetScript("OnClick", function() state.prof, state.offset = id, 0; ns.RefreshHub() end)
     b:Show()
     n = i
   end
-  local f = Control(n + 1)
-  f:SetPoint("TOPLEFT", X + n * 90 + 10, -38)
+  local f = Control(first + n + 1)
+  f:SetPoint("TOPLEFT", X + (state.ctrlShift or 0) + n * 90 + 10, -18)
   f:SetText(T("f_" .. state.filter))
   f:SetScript("OnClick", function()
     state.filter = ({ all = "learned", learned = "missing", missing = "all" })[state.filter]
@@ -289,7 +322,7 @@ local function BuildProfit()
   local modes = { "craft", "farm" }
   for i, mode in ipairs(modes) do
     local b = Control(i)
-    b:SetPoint("TOPLEFT", X + (i - 1) * 90, -38)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -18)
     b:SetText(T("p_" .. mode))
     local on = state.profitMode == mode
     b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
@@ -311,7 +344,8 @@ local function BuildProfit()
         icon = select(5, GetItemInfoInstant(m[2])) or 134400, name = m[1],
         r = mine and 0.85 or 0.5, g = mine and 0.87 or 0.52, b = mine and 0.9 or 0.56,
         value = ns.Money(e.price), item = m[2],
-        hint = m[3] and (mine and T("youGather", ns.ProfName(m[3])) or T("needProf", ns.ProfName(m[3]))) or T("fromMobs"),
+        hint = (m[3] and (mine and T("youGather", ns.ProfName(m[3])) or T("needProf", ns.ProfName(m[3]))) or T("fromMobs")) .. "\n" .. T("rightTrack"),
+        click = function(which) if which == "RightButton" then ns.TrackItem(m[1]) end end,
       }
     end
     state.footer = #list > 0 and T("farmFoot") or T("noPrices")
@@ -466,7 +500,7 @@ local function BuildGuide()
   for i, id in ipairs(mine) do
     if i > 5 then break end
     local b = Control(i)
-    b:SetPoint("TOPLEFT", X + (i - 1) * 90, -38)
+    b:SetPoint("TOPLEFT", X + (i - 1) * 90 + (state.ctrlShift or 0), -18)
     b:SetText(ns.ProfName(id))
     local on = id == state.guide
     b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
@@ -545,6 +579,9 @@ local function BuildGuide()
 end
 
 ---------------------------------------------------------------------------
+ns.HubCustom = {}      -- pages with their own layout (Home, Alts): key -> frame with :Refresh()
+ns.HubBuilders = {}    -- list pages from other files
+
 function ns.RefreshHub()
   if not H:IsShown() or not ns.db then return end
   wipe(data)
@@ -552,6 +589,7 @@ function ns.RefreshHub()
   search:Hide(); searchButton:Hide(); detail:Hide()
   listTop = TOP
   state.footer = nil
+  state.ctrlShift = 0
   for _, b in ipairs(menuButtons) do
     b.text:SetText(T("t_" .. b.key))
     local on = b.key == state.tab
@@ -559,14 +597,47 @@ function ns.RefreshHub()
     b.text:SetTextColor(on and 1 or 0.78, on and 0.82 or 0.8, on and 0.3 or 0.84)
   end
   ns.UpdateMe()
-  local build = ({ guide = BuildGuide, recipes = BuildRecipes, profit = BuildProfit, crafters = BuildCrafters, chars = BuildChars })[state.tab]
-  build()
+  local me = ns.Me()
+  local color = me and me.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[me.class]
+  meName:SetText(me and me.name or "")
+  if color then meName:SetTextColor(color.r, color.g, color.b) end
+  meSub:SetText(me and T("lvlClass", me.level or 0, UnitClass("player") or "") or "")
+  trackerButton:SetText(T("tracker"))
+  for key, frame in pairs(ns.HubCustom) do frame:SetShown(key == state.tab) end
+  local custom = ns.HubCustom[state.tab]
+  if custom then
+    for _, r in ipairs(rows) do r:Hide() end
+    footer:SetText("")
+    custom:Refresh()
+    return
+  end
+  local build = ({ guide = BuildGuide, crafters = BuildCrafters, gold = BuildProfit,
+    codex = function()
+      -- Codex: recipes or materials
+      for i, mode in ipairs({ "recipes", "materials" }) do
+        local b = Control(i)
+        b:SetPoint("TOPLEFT", X + (i - 1) * 90, -18)
+        b:SetText(T("c_" .. mode))
+        local on = state.codex == mode
+        b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)
+        b:SetScript("OnClick", function() state.codex, state.offset = mode, 0; ns.RefreshHub() end)
+        b:Show()
+      end
+      state.ctrlShift = 2 * 90 + 14
+      if state.codex == "materials" then
+        ns.HubBuilders.materials(data, state, Control)
+      else
+        BuildRecipes(2)
+      end
+    end })[state.tab] or ns.HubBuilders[state.tab]
+  if build then build(data, state, Control) end
   state.offset = math.min(state.offset, math.max(0, #data - ROWS))
   ns.DrawHub()
 end
 
 H:SetScript("OnShow", function()
   ns.PlaceSaved(H, "CraftETAHub", "CENTER")
+  if ns.AskPlayed then ns.AskPlayed() end
   ns.RefreshHub()
 end)
 
