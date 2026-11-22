@@ -305,7 +305,15 @@ ns.AuxPrice = AuxOrAtrPrice
 
 -- a stackable item the auction house sells by the unit (or not known yet)
 local function Commodity(id)
-  local status = C_AuctionHouse.GetItemCommodityStatus and C_AuctionHouse.GetItemCommodityStatus(id)
+  -- Forever's version wants an item link, and errors outside the auction house: ask safely, and if it
+  -- can't say, treat it as sold by the unit (what every crafting material is)
+  local status
+  local get = C_AuctionHouse and C_AuctionHouse.GetItemCommodityStatus
+  if get and id then
+    local ok, st = pcall(get, id)
+    if not ok then ok, st = pcall(get, "item:" .. id) end
+    if ok then status = ns.Plain(st) end
+  end
   local item = Enum and Enum.ItemCommodityStatus and Enum.ItemCommodityStatus.Item
   return not (item and status == item)
 end
