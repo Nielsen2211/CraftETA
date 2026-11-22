@@ -335,7 +335,11 @@ function ns.RefreshPanel()
       end
       if not state.job and state.canMake > 0 then state.job = { name = entry[1], count = state.canMake } end
     end
+    -- like Mastercraft: the recipe is learned and the window is open, so the button always works.
+    -- If our count of your bags is off, the game itself crafts what your materials allow.
+    if not state.job then state.job = { name = entry[1], count = left, unsure = true } end
   end
+  state.why = text or (left <= 0 and "step done") or nil
   local job = state.job
   if job then
     craftBtn:Enable()
