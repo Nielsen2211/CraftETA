@@ -11,16 +11,27 @@ function ns.Font(parent, bold, size, r, g, b)
   return t
 end
 
+-- the ETA panel, cut in nine: the rounded corners keep their shape at any window size
 function ns.Skin(frame)
-  local function part(name)
-    local t = frame:CreateTexture(nil, "BACKGROUND")
+  local TW, TH = 1024, 64         -- texture size
+  local PW, PH, R = 520, 40, 16   -- the panel in the texture, and its corner
+  local S = 0.5                   -- drawn at half size: 20 px top and bottom, 8 px corners
+  local function part(name, l, r, layer)
+    local t = frame:CreateTexture(nil, layer or "BACKGROUND")
     t:SetTexture(ns.TEX .. name)
-    t:SetTexCoord(0, 520 / 1024, 0, 40 / 64)
+    t:SetTexCoord(l / TW, r / TW, 0, PH / TH)
     return t
   end
-  local top = part("PanelTop"); top:SetPoint("TOPLEFT"); top:SetPoint("TOPRIGHT"); top:SetHeight(20)
-  local bot = part("PanelBottom"); bot:SetPoint("BOTTOMLEFT"); bot:SetPoint("BOTTOMRIGHT"); bot:SetHeight(20)
-  local mid = part("PanelMid"); mid:SetPoint("TOPLEFT", top, "BOTTOMLEFT"); mid:SetPoint("BOTTOMRIGHT", bot, "TOPRIGHT")
+  local h, c = PH * S, R * S
+  local tl = part("PanelTop", 0, R); tl:SetSize(c, h); tl:SetPoint("TOPLEFT")
+  local tr = part("PanelTop", PW - R, PW); tr:SetSize(c, h); tr:SetPoint("TOPRIGHT")
+  local tm = part("PanelTop", R, PW - R); tm:SetPoint("TOPLEFT", tl, "TOPRIGHT"); tm:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
+  local bl = part("PanelBottom", 0, R); bl:SetSize(c, h); bl:SetPoint("BOTTOMLEFT")
+  local br = part("PanelBottom", PW - R, PW); br:SetSize(c, h); br:SetPoint("BOTTOMRIGHT")
+  local bm = part("PanelBottom", R, PW - R); bm:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bm:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
+  local mid = part("PanelMid", 0, PW)
+  mid:SetPoint("TOPLEFT", tl, "BOTTOMLEFT")
+  mid:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
 end
 
 -- a window in the ETA look: title, close (×), drag to move, remembered position
