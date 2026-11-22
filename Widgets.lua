@@ -130,6 +130,27 @@ function ns.Button(parent, text, width, height)
   end)
   hooksecurefunc(b, "Disable", function() label:SetTextColor(0.42, 0.43, 0.47) end)
   hooksecurefunc(b, "Enable", function() label:SetTextColor(1, 0.82, 0.3) end)
+  -- text too long for the button (Leatherworking): a smaller font until it fits (not below 8).
+  -- b.grow = true: the button grows instead (the main window's page buttons)
+  local function Fit()
+    if b.grow then return end
+    local font, size, flags = label:GetFont()
+    if not font then return end
+    if size ~= b.fitSize then b.baseSize = size end          -- the caller set a font: that is the size to aim for
+    local want = b.baseSize or size
+    local room = b:GetWidth() - 10
+    local s = want
+    label:SetFont(font, s, flags)
+    while s > 8 and label:GetStringWidth() > room do
+      s = s - 1
+      label:SetFont(font, s, flags)
+    end
+    b.fitSize = s
+  end
+  hooksecurefunc(b, "SetText", Fit)
+  hooksecurefunc(b, "SetWidth", Fit)
+  hooksecurefunc(b, "SetSize", Fit)
+  Fit()
   return b
 end
 

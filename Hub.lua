@@ -125,11 +125,40 @@ local function Control(i)
   local b = controls[i]
   if not b then
     b = ns.Button(H, "", 86, 20)
+    b.grow = true
     controls[i] = b
   end
   b:ClearAllPoints() -- each page places its own
   b:SetWidth(86)
   return b
+end
+
+-- every button wide enough for its text (Leatherworking, Blacksmithing); the ones after it on the same row
+-- move along so nothing overlaps
+local function FitControls()
+  local byRow = {}
+  for _, b in ipairs(controls) do
+    if b:IsShown() then
+      local point, rel, _, x, y = b:GetPoint(1)
+      if point == "TOPLEFT" and (rel == H or rel == nil) and x and y then
+        local w = b.label and b.label:GetStringWidth() or 0
+        if w + 20 > b:GetWidth() then b:SetWidth(math.ceil(w + 20)) end
+        local key = math.floor(y + 0.5)
+        byRow[key] = byRow[key] or {}
+        table.insert(byRow[key], { b = b, x = x, y = y })
+      end
+    end
+  end
+  for _, row in pairs(byRow) do
+    table.sort(row, function(a, b) return a.x < b.x end)
+    local shift, right = 0, nil
+    for _, e in ipairs(row) do
+      local x = e.x + shift
+      if right and x < right + 4 then shift = shift + (right + 4 - x); x = right + 4 end
+      if x ~= e.x then e.b:ClearAllPoints(); e.b:SetPoint("TOPLEFT", H, "TOPLEFT", x, e.y) end
+      right = x + e.b:GetWidth()
+    end
+  end
 end
 
 local search = CreateFrame("EditBox", nil, H)
@@ -778,6 +807,7 @@ function ns.RefreshHub()
       end
     end })[state.tab] or ns.HubBuilders[state.tab]
   if build then build(data, state, Control) end
+  FitControls()
   state.offset = math.min(state.offset, math.max(0, #data - ROWS))
   ns.DrawHub()
 end
