@@ -171,6 +171,12 @@ ns.SkipStep = Skip
 
 
 craftBtn:SetScript("OnClick", function()
+  -- Mining: smelt the best smelt right now (see RefreshGatherPanel)
+  if state.smelt and C_TradeSkillUI and C_TradeSkillUI.CraftRecipe then
+    local ok, err = pcall(C_TradeSkillUI.CraftRecipe, state.smelt.id, state.smelt.count)
+    if not ok then ns.Print(tostring(err)) end
+    return
+  end
   local job = state.job
   if job then ns.Craft(job.name, job.count) end
 end)
@@ -218,8 +224,22 @@ local function RecipeIcon(name, entry)
   return ns.ItemIcon(name) ~= 134400 and ns.ItemIcon(name) or (entry and ns.ItemIcon(entry[3][1])) or 134400
 end
 
+-- a gathering profession in the open window (Mining, with its smelting): its guide is a gathering route
+local function OpenGather()
+  if not ns.ProfessionFrame() or not (C_TradeSkillUI and C_TradeSkillUI.GetBaseProfessionInfo) then return nil end
+  local ok, base = pcall(C_TradeSkillUI.GetBaseProfessionInfo)
+  if not ok or type(base) ~= "table" then return nil end
+  local Plain = ns.Plain
+  local id = Plain(base.professionID)
+  if not (ns.GATHER and ns.GATHER[id]) then id = ns.GATHER_BY_NAME and ns.GATHER_BY_NAME[Plain(base.professionName) or ""] end
+  if not (id and ns.GATHER and ns.GATHER[id]) then return nil end
+  return { id = id, rank = Plain(base.skillLevel) or 0, max = Plain(base.maxSkillLevel) or 300, name = Plain(base.professionName), gather = true }
+end
+
 -- which profession the panel shows: the open window's, else the last one, else one you have
 local function PickProfession(skills)
+  local g = OpenGather()
+  if g then return g.id, g end
   local open = ns.OpenProfession()
   if open then
     ns.db.lastProf = open.id
@@ -243,6 +263,7 @@ function ns.RefreshPanel()
   for _, r in ipairs(matRows) do r:Hide() end
   prevChoice:Hide(); nextChoice:Hide()
   wipe(state)
+  if open and open.gather then return ns.RefreshGatherPanel(open) end
   if not guide then
     warnPin:Hide()
     profIcon:Hide()
@@ -381,6 +402,7 @@ function ns.RefreshPanel()
     local ok = have >= need
     r.value:SetText((ok and "|cff5cd67c" or "|cffe8574a") .. have .. " / " .. need .. "|r")
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", 26, y); r:Show()
+    r.track:Show(); r.fillBar:Show()
     local w = r.track:GetWidth()
     if not w or w < 10 then w = WIDTH - 52 - 28 end
     r.fillBar:SetWidth(math.max(1, w * math.min(1, need > 0 and have / need or 1)))
@@ -398,6 +420,7 @@ function ns.RefreshPanel()
   -- crafting
   y = y - 8
   craftBtn:ClearAllPoints(); craftBtn:SetPoint("TOPLEFT", 26, y)
+  craftBtn:SetWidth(WIDTH - 52 - 34)
   addList:ClearAllPoints(); addList:SetPoint("LEFT", craftBtn, "RIGHT", 6, 0)
   craftBtn:Show(); addList:Show()
   addList.tip = T("addListTip")
@@ -560,4 +583,158 @@ function ns.TogglePanel()
     P.byWindow = false
     P:Show()
   end
+end
+
+-- Mining (or another gathering profession) open in the window: the gathering route in the same look.
+-- The step card says what to gather and where (your faction's zones), and the guide's tip.
+function ns.RefreshGatherPanel(open)
+  local guide = ns.GATHER[open.id]
+  local rank, max = open.rank, open.max
+  state.prof, state.rank = open.id, rank
+  for _, w in ipairs({ diffDot, leftPill, craftBtn, addList, status, skipBack, skipNext, source }) do w:Hide() end
+  profIcon:SetTexture(guide.icon or 134400); profIcon:Show()
+  profText:SetText(open.name or guide.name)
+  local RANKS = { [75] = "Apprentice", [150] = "Journeyman", [225] = "Expert", [300] = "Artisan" }
+  local index = ns.StepIndex(guide, rank)
+  profSub:SetText((RANKS[max] or "") .. (index and ("  ·  " .. T("stepOf", index, #guide.steps)) or "")); profSub:Show()
+  bigRank:SetText(rank); bigRank:Show()
+  bigOf:SetText("/ " .. max); bigOf:Show()
+  bar:SetValue(rank); bar:Show()
+  local rate = ns.PerHour and ns.PerHour(open.id)
+  etaRank:SetText(rank >= 300 and ("|cff4dcc66" .. T("done") .. "|r") or ("|cffffffff" .. T("toRank", math.min(300, max)) .. "|r  ·  " .. math.max(0, math.min(300, max) - rank) .. " skill"))
+  etaAll:SetText(rate and T("perHour", rate) or "")
+  etaRank:Show(); etaAll:Show()
+  local y = -93 - 30
+
+  -- a rank to learn, with the map button
+  local nextRank = ns.NextRank(open.id, rank, max)
+  if nextRank and rank >= nextRank.need then
+    local names = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
+    warn:SetText(T("learnRank", names[nextRank.at] or "") .. ": " .. (nextRank[ns.Faction()] or ""))
+    warn:ClearAllPoints(); warn:SetPoint("TOPLEFT", 24, y - 14); warn:SetPoint("RIGHT", P, "RIGHT", -40, 0)
+    warn:Show()
+    local h = warn:GetStringHeight() + 14
+    warnBg:ClearAllPoints(); warnBg:SetPoint("TOPLEFT", 14, y - 7); warnBg:SetPoint("RIGHT", P, "RIGHT", -14, 0)
+    warnBg:SetHeight(h); warnBg:Show()
+    warnPin:ClearAllPoints(); warnPin:SetPoint("RIGHT", warnBg, "RIGHT", -8, 0); warnPin:Show()
+    y = y - 7 - h - 2
+  else
+    warn:Hide(); warnPin:Hide(); warnBg:Hide()
+  end
+
+  local step = index and guide.steps[index]
+  if not step then
+    for _, w in ipairs({ card, stepHead, recipeName, recipeCount, note, nextHead, nextLine }) do w:Hide() end
+    recipeIcon:Hide()
+    P:SetHeight(-y + 32)
+    return
+  end
+  y = y - 8
+  local cardTop = y
+  y = y - 12
+  stepHead:ClearAllPoints(); stepHead:SetPoint("TOPLEFT", 26, y)
+  stepHead:SetText(string.upper(step[1] .. " - " .. step[2] .. "  ·  " .. T("stepOf", index, #guide.steps))); stepHead:Show()
+  y = y - 20
+  recipeIcon:ClearAllPoints(); recipeIcon:SetPoint("TOPLEFT", 26, y)
+  local first = step.what and string.match(step.what, "^([^,(]+)")
+  first = first and string.gsub(first, "%s+$", "")
+  local icon = first and ns.ItemIcon(first)
+  recipeIcon:SetTexture((icon and icon ~= 134400) and icon or guide.icon or 134400); recipeIcon:Show()
+  recipeName:ClearAllPoints(); recipeName:SetPoint("TOPLEFT", recipeIcon, "TOPRIGHT", 10, -1)
+  recipeName:SetPoint("RIGHT", P, "RIGHT", -26, 0)
+  recipeName:SetText(step.what or ""); recipeName:Show()
+  recipeCount:ClearAllPoints(); recipeCount:SetPoint("BOTTOMLEFT", recipeIcon, "BOTTOMRIGHT", 10, 2)
+  recipeCount:SetPoint("RIGHT", P, "RIGHT", -26, 0)
+  recipeCount:SetWordWrap(false)
+  recipeCount:SetText(step[ns.Faction()] or step.h or ""); recipeCount:Show()
+  y = y - 46
+  if step.note then
+    note:ClearAllPoints(); note:SetPoint("TOPLEFT", 26, y); note:SetText(step.note); note:Show()
+    y = y - note:GetStringHeight() - 4
+  else
+    note:Hide()
+  end
+  -- smelting: the best smelt you can do now (orange first, then yellow, then green) with the ore in your bags
+  local smelt = ns.BestSmelt and ns.BestSmelt()
+  state.smelt = nil
+  if smelt then
+    local r = matRows[1]
+    r.itemID = smelt.out
+    r.icon:SetTexture(smelt.icon or 134400)
+    local c = DIFF_COLOR[smelt.diff] or DIFF_COLOR[3]
+    r.name:SetText(("|cff%02x%02x%02x%s|r"):format(math.floor(c[1] * 255), math.floor(c[2] * 255), math.floor(c[3] * 255), smelt.name))
+    r.value:SetText(smelt.can > 0 and ("|cff5cd67c" .. smelt.can .. "|r") or "|cffe8574a0|r")
+    r.fillBar:SetWidth(1); r.track:Hide(); r.fillBar:Hide()
+    r:ClearAllPoints(); r:SetPoint("TOPLEFT", 26, y - 4); r:Show()
+    y = y - 30
+    craftBtn:ClearAllPoints(); craftBtn:SetPoint("TOPLEFT", 26, y)
+    craftBtn:SetWidth(P:GetWidth() - 52)
+    if smelt.can > 0 then
+      state.smelt = { id = smelt.id, count = smelt.can }
+      craftBtn:SetText(((ns.db.lang == "da") and "Smelt %d" or "Smelt %d"):format(smelt.can))
+      craftBtn.tip = smelt.name
+      craftBtn:Enable()
+    else
+      craftBtn:SetText((ns.db.lang == "da") and "Ingen malm til at smelte" or "No ore to smelt")
+      craftBtn.tip = nil
+      craftBtn:Disable()
+    end
+    craftBtn:Show()
+    y = y - 36
+  end
+  y = y - 10
+  card:ClearAllPoints(); card:SetPoint("TOPLEFT", 14, cardTop); card:SetPoint("RIGHT", P, "RIGHT", -14, 0)
+  card:SetHeight(cardTop - y); card:Show()
+
+  local after = guide.steps[index + 1]
+  if ns.db.showNext and after then
+    nextHead:ClearAllPoints(); nextHead:SetPoint("TOPLEFT", 14, y - 12)
+    nextHead:SetText((ns.db.lang == "da") and "NÆSTE" or "NEXT"); nextHead:Show()
+    nextLine:ClearAllPoints(); nextLine:SetPoint("LEFT", nextHead, "RIGHT", 10, 0)
+    nextLine:SetText(after[1] .. " - " .. after[2] .. "   " .. (after.what or ""))
+    nextLine:Show()
+    y = y - 22
+  else
+    nextLine:Hide(); nextHead:Hide()
+  end
+  P:SetHeight(-y + 22)
+end
+
+-- the best smelt in the open Mining window: learned, gives skill (orange 0, yellow 1, green 2), most points
+-- first, and how many your ore makes now
+function ns.BestSmelt()
+  local ui = C_TradeSkillUI
+  if not (ui and ui.GetAllRecipeIDs and ui.GetRecipeInfo) then return nil end
+  local Plain = ns.Plain
+  local okI, ids = pcall(ui.GetAllRecipeIDs)
+  if not okI or type(ids) ~= "table" then return nil end
+  local best
+  for _, id in ipairs(ids) do
+    local ok, info = pcall(ui.GetRecipeInfo, id)
+    if ok and type(info) == "table" and Plain(info.learned) then
+      local diff = Plain(info.relativeDifficulty)
+      if type(diff) == "number" and diff <= 2 then
+        -- how many: the game's number, else counted from the ore in your bags
+        local can = tonumber(Plain(info.numAvailable)) or 0
+        local out
+        local okS, sch = pcall(ui.GetRecipeSchematic, id, false)
+        if okS and type(sch) == "table" then
+          out = Plain(sch.outputItemID)
+          if can == 0 then
+            local n = math.huge
+            for _, slot in ipairs(sch.reagentSlotSchematics or {}) do
+              local first = slot.reagents and slot.reagents[1]
+              local item, need = first and Plain(first.itemID), Plain(slot.quantityRequired)
+              if item and need and need > 0 then n = math.min(n, math.floor((ns.BagCount and ns.BagCount(item) or 0) / need)) end
+            end
+            can = n == math.huge and 0 or n
+          end
+        end
+        local cand = { id = id, name = Plain(info.name) or "?", icon = Plain(info.icon), diff = diff, can = can, out = out }
+        -- something you can smelt beats something you can't; then the better colour
+        if not best or (can > 0 and best.can == 0) or ((can > 0) == (best.can > 0) and diff < best.diff) then best = cand end
+      end
+    end
+  end
+  return best
 end
