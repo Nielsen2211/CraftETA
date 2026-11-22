@@ -39,6 +39,9 @@ function ns.Window(name, width, title)
   local f = CreateFrame("Frame", name, UIParent)
   f:SetSize(width, 200)
   f:SetFrameStrata("HIGH")
+  -- the window you click or open comes in front of the other CraftETA windows
+  f:SetToplevel(true)
+  f:HookScript("OnShow", function(self) self:Raise() end)
   f:SetClampedToScreen(true)
   f:SetMovable(true)
   f:EnableMouse(true)
@@ -53,6 +56,11 @@ function ns.Window(name, width, title)
       ns.db["point_" .. name] = { left, top }
     end
   end)
+  -- a solid fill under the (slightly see-through) skin, so nothing behind shows through the text
+  local solid = f:CreateTexture(nil, "BACKGROUND", nil, -8)
+  solid:SetPoint("TOPLEFT", 3, -3)
+  solid:SetPoint("BOTTOMRIGHT", -3, 3)
+  solid:SetColorTexture(0.043, 0.047, 0.063, 1)
   ns.Skin(f)
   f.title = ns.Font(f, true, 14)
   f.title:SetPoint("TOPLEFT", 14, -12)
