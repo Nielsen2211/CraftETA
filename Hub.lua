@@ -416,10 +416,11 @@ local function BuildProfit()
   table.sort(list, function(a, b) return a.gain > b.gain end)
   for _, e in ipairs(list) do
     local up = e.gain >= 0
+    local even = math.abs(e.gain) < 0.5   -- less than a copper either way: no "-0c"
     data[#data + 1] = {
       icon = e.r.i or 134400, name = e.r.n,
-      value = (up and "+" or "-") .. ns.Money(math.abs(e.gain)),
-      vr = up and 0.35 or 1, vg = up and 0.9 or 0.4, vb = up and 0.4 or 0.35,
+      value = even and "0c" or ((up and "+" or "-") .. ns.Money(math.abs(e.gain))),
+      vr = even and 0.6 or (up and 0.35 or 1), vg = even and 0.62 or (up and 0.9 or 0.4), vb = even and 0.67 or (up and 0.4 or 0.35),
       tip = function(tip)
         tip:SetText(e.r.n, 1, 0.82, 0.3)
         tip:AddLine(("%s · %s"):format(e.char, ns.ProfName(e.prof)), 0.7, 0.72, 0.76)
