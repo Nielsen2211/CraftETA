@@ -39,6 +39,7 @@ local MENU = {
   { "codex", "Interface\\Icons\\INV_Scroll_03" },
   { "camping", "Interface\\Icons\\Spell_Fire_Fire" },
   { "cooldowns", "Interface\\Icons\\INV_Misc_PocketWatch_01" },
+  { "favor", "Interface\\Icons\\INV_Crate_01" },
   { "settings", "Interface\\Icons\\INV_Misc_Gear_01", function() ns.ToggleSettings() end },
 }
 -- the menu column: its own darker card, like the rest of the ETA family
