@@ -15,7 +15,7 @@ local LOC = {
   en = {
     toRank = "To %d", to300 = "To 300", crafts = "%d crafts", left = "%d left", make = "Make %d",
     craft = "Craft", craftN = "Craft %d", craftSub = "Craft %d (material)", craftFirst = "First %d %s: the step needs them, and you can make them.", craftTip = "Crafts %d %s: what this step still needs, or as many as your bags allow.", addList = "+ Shopping list", addedList = "Added to the shopping list.",
-    learnRank = "Learn %s now", rankAt = "%s at %d (level %d)", needRecipe = "Learn this recipe first",
+    learnRank = "Learn %s now", sideOpt = "Panel side: %s", side_auto = "automatic", side_left = "left", side_right = "right", trainerOpt = "Button at trainers: learn what the guide needs", rankAt = "%s at %d (level %d)", needRecipe = "Learn this recipe first",
     openWindow = "Open your profession window to craft", done = "300: you're done!", noGuide = "No guide for this profession.",
     noProf = "Open a profession window, or learn a profession.", next = "Next: %s", note = "Note",
     other = "Other choice: click the arrows", have = "have", need = "need", stepOf = "Step %d of %d",
@@ -69,7 +69,7 @@ local LOC = {
   da = {
     toRank = "Til %d", to300 = "Til 300", crafts = "%d crafts", left = "%d tilbage", make = "Lav %d",
     craft = "Craft", craftN = "Craft %d", craftSub = "Craft %d (materiale)", craftFirst = "Først %d %s: trinnet skal bruge dem, og du kan lave dem.", craftTip = "Crafter %d %s: det trinnet mangler, eller så mange dine tasker rækker til.", addList = "+ Indkøbsliste", addedList = "Lagt på indkøbslisten.",
-    learnRank = "Lær %s nu", rankAt = "%s ved %d (level %d)", needRecipe = "Lær opskriften først",
+    learnRank = "Lær %s nu", sideOpt = "Panelets side: %s", side_auto = "automatisk", side_left = "venstre", side_right = "højre", trainerOpt = "Knap hos trænere: lær det guiden mangler", rankAt = "%s ved %d (level %d)", needRecipe = "Lær opskriften først",
     openWindow = "Åbn dit fagvindue for at crafte", done = "300: du er færdig!", noGuide = "Ingen guide til det fag.",
     noProf = "Åbn et fagvindue, eller lær et fag.", next = "Næste: %s", note = "Note",
     other = "Andet valg: klik på pilene", have = "har", need = "skal bruge", stepOf = "Trin %d af %d",
