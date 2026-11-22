@@ -55,7 +55,13 @@ function ns.ReadRecipes()
     local okInfo, info = pcall(C_TradeSkillUI.GetRecipeInfo, id)
     local name = okInfo and type(info) == "table" and Plain(info.name)
     if name and not info.isDummyRecipe then
-      local entry = { id = id, learned = info.learned and true or false, mats = {} }
+      -- the trainer can teach a recipe before the window's own data catches up: the spellbook knows it at once
+      local known = info.learned and true or false
+      if not known and IsPlayerSpell then
+        local okK, k = pcall(IsPlayerSpell, id)
+        known = okK and Plain(k) == true
+      end
+      local entry = { id = id, learned = known, mats = {} }
       local okS, schematic = pcall(C_TradeSkillUI.GetRecipeSchematic, id, false)
       if okS and type(schematic) == "table" then
         for _, slot in ipairs(schematic.reagentSlotSchematics or {}) do
@@ -138,6 +144,16 @@ local function Changed()
   ns.ReadRecipes()
   if ns.Refresh then ns.Refresh() end
 end
+-- read again a moment later too: right after a trainer or a reopen the game's recipe data lags behind
+local function Soon()
+  Changed()
+  C_Timer.After(0.5, Changed)
+  C_Timer.After(2, Changed)
+end
+for _, event in ipairs({ "NEW_RECIPE_LEARNED", "LEARNED_SPELL_IN_TAB", "TRAINER_UPDATE", "TRAINER_CLOSED" }) do
+  ns.Register(event)
+  ns.On(event, Soon)
+end
 for _, event in ipairs({ "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_DATA_SOURCE_CHANGED", "SKILL_LINES_CHANGED",
     "BAG_UPDATE_DELAYED", "TRADE_SKILL_CLOSE" }) do
   ns.Register(event)
@@ -146,6 +162,8 @@ for _, event in ipairs({ "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_S
       C_Timer.After(0, function() if ns.Refresh then ns.Refresh() end end)
     elseif event == "BAG_UPDATE_DELAYED" then
       if ns.Refresh then ns.Refresh() end
+    elseif event == "TRADE_SKILL_SHOW" then
+      Soon()
     else
       Changed()
     end
