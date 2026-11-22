@@ -97,6 +97,7 @@ SlashCmdList.CRAFTETA = function(msg)
   elseif msg == "panel" or msg == "show" then ns.TogglePanel()
   elseif msg == "list" then ns.ToggleList()
   elseif msg == "track" then ns.ToggleTracker()
+  elseif msg == "farm" then ns.ToggleFarmWindow()
   elseif msg == "config" or msg == "settings" then ns.ToggleSettings()
   elseif msg == "reset" then
     ns.db.point_CraftETAPanel, ns.db.point_CraftETAList = nil, nil

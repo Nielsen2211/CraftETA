@@ -92,6 +92,12 @@ for _, item in ipairs(MENU) do
 end
 
 -- the bottom of the menu: item tracker, shopping list, and who you are
+local farmButton = ns.Button(side, "", SIDE - 34, 22)
+farmButton:SetPoint("BOTTOMLEFT", 12, 80)
+farmButton:SetScript("OnClick", function()
+  ns.ToggleFarm()
+  ns.RefreshHub()
+end)
 local trackerButton = ns.Button(side, "", SIDE - 62, 22)
 trackerButton:SetPoint("BOTTOMLEFT", 12, 52)
 trackerButton:SetScript("OnClick", function() ns.ToggleTracker() end)
@@ -635,6 +641,7 @@ function ns.RefreshHub()
   if color then meName:SetTextColor(color.r, color.g, color.b) end
   meSub:SetText(me and T("lvlClass", me.level or 0, UnitClass("player") or "") or "")
   trackerButton:SetText(T("tracker"))
+  farmButton:SetText(ns.FarmActive and ns.FarmActive() and T("farmStop") or T("farmStart"))
   for key, frame in pairs(ns.HubCustom) do frame:SetShown(key == state.tab) end
   local custom = ns.HubCustom[state.tab]
   if custom then

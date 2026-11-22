@@ -670,8 +670,20 @@ local tlRank = ns.Font(tl, false, 11, 0.6, 0.62, 0.68)
 tlRank:SetPoint("BOTTOMLEFT", tlName, "BOTTOMRIGHT", 10, 1)
 local tlSkill = ns.Font(tl, true, 14, 1, 0.82, 0.3)
 tlSkill:SetPoint("BOTTOMLEFT", tlRank, "BOTTOMRIGHT", 10, -1)
+local tlAction = ns.Button(tl, "", 120, 22)
+tlAction:SetPoint("TOPRIGHT", -12, -10)
 local tlCount = ns.Font(tl, false, 10, 0.55, 0.58, 0.64)
-tlCount:SetPoint("TOPRIGHT", -14, -15)
+tlCount:SetPoint("RIGHT", tlAction, "LEFT", -12, 0)
+
+-- opens the profession window (the panel then shows the step with Craft 1 / Craft all)
+function ns.OpenProfessionWindow(id)
+  local ui = C_TradeSkillUI
+  if ui and ui.OpenTradeSkill then
+    local ok = pcall(ui.OpenTradeSkill, id)
+    if ok then return end
+  end
+  ns.Print(T("openFromBook"))
+end
 
 local barBg = tl:CreateTexture(nil, "BACKGROUND")
 barBg:SetPoint("TOPLEFT", BX, BAR_Y)
@@ -766,6 +778,19 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
   tlSkill:SetText(skill and ("%d / %d"):format(rank, max) or "")
   tlSkill:SetTextColor(near and 1 or 1, near and 0.42 or 0.82, near and 0.32 or 0.3)
   tlCount:SetText(T("steps", #guide.steps))
+  -- the button on the bar: craft for a crafting profession, start farming for a gathering one
+  if skill and rank < 300 then
+    if ns.GUIDES[id] then
+      tlAction:SetText(T("craftNow"))
+      tlAction:SetScript("OnClick", function() ns.OpenProfessionWindow(id) end)
+    else
+      tlAction:SetText(ns.FarmActive() and T("farmStop") or T("farmStart"))
+      tlAction:SetScript("OnClick", function() ns.ToggleFarm(); ns.RefreshHub() end)
+    end
+    tlAction:Show()
+  else
+    tlAction:Hide()
+  end
   -- segments
   local lastIconX, row = -100, 0
   for i, s in ipairs(guide.steps) do
