@@ -63,10 +63,10 @@ local function CharKey()
   return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
 end
 
+-- only what you just bought on the auction house (on its way by mail), so the buy guide doesn't buy it
+-- again; the mailbox itself isn't counted: the list says what is left to buy
 local function MailCount(name)
-  local mail = ns.db.mail[CharKey()]
-  local pending = ns.db.pending and ns.db.pending[name] or 0
-  return (mail and mail[name] or 0) + pending
+  return ns.db.pending and ns.db.pending[name] or 0
 end
 ns.MailCount = MailCount
 
@@ -111,7 +111,7 @@ end
 local head = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
 head:SetPoint("TOPLEFT", 14, -36)
 local headStill = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
-headStill:SetPoint("TOPRIGHT", -120, -36)
+headStill:SetPoint("TOPRIGHT", -80, -36)
 local headMail = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
 headMail:SetPoint("TOPRIGHT", -78, -36)
 local headEst = ns.Font(S, true, 10, 0.55, 0.58, 0.64)
@@ -124,9 +124,9 @@ for i = 1, ROWS do
   r:SetPoint("TOPLEFT", 14, -50 - (i - 1) * 19)
   r.name:ClearAllPoints()
   r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-  r.name:SetPoint("RIGHT", r, "RIGHT", -150, 0)
+  r.name:SetPoint("RIGHT", r, "RIGHT", -110, 0)
   r.still = ns.Font(r, true, 11)
-  r.still:SetPoint("RIGHT", r, "RIGHT", -106, 0)
+  r.still:SetPoint("RIGHT", r, "RIGHT", -66, 0)
   r.still:SetJustifyH("RIGHT")
   r.mail = ns.Font(r, false, 11, 0.55, 0.7, 1)
   r.mail:SetPoint("RIGHT", r, "RIGHT", -64, 0)
@@ -556,7 +556,7 @@ function ns.RefreshList()
   if not S:IsShown() or not ns.db then return end
   head:SetText(string.upper(T("item")))
   headStill:SetText(string.upper(T("still")))
-  headMail:SetText(string.upper(T("inMail")))
+  headMail:SetText("")
   headEst:SetText(string.upper(T("est")))
   local items = ns.ListItems()
   local total, unknown, shown = 0, false, 0
@@ -569,7 +569,7 @@ function ns.RefreshList()
       r.name:SetText(item.vendor and (item.name .. "  |cff8c8f96" .. T("vendTag") .. "|r") or item.name)
       r.vendor = item.vendor
       r.still:SetText(item.still > 0 and ("|cffffffff" .. item.still .. "|r") or "|cff4dcc66✓|r")
-      r.mail:SetText(item.mail > 0 and item.mail or "")
+      r.mail:SetText("")
       local s = ns.db.scanned[item.name]
       local est
       if item.still > 0 and item.vendor then
