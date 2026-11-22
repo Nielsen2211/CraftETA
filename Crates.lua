@@ -930,6 +930,31 @@ end
 local wVendNote = ns.Font(win, false, 10, 0.6, 0.62, 0.67)
 wVendNote:SetPoint("LEFT", wVend[#wVend], "RIGHT", 12, 0)
 
+-- the big rewards, known from the start (from Warcraft Wiki, "Merchant's Favor", CC BY-SA 4.0:
+-- https://warcraft.wiki.gg/wiki/Merchant's_Favor). Everything else is learned at the vendors themselves.
+local FAVOR_REWARDS = {
+  { key = "kodo", n = "Reins of the Pack Kodo", c = 6000, v = { h = "Okamache", a = "Huey Sunnydale" }, i = "Interface\\Icons\\Ability_Mount_Kodo_01" },
+  { key = "mule", n = "Packmule Treat", c = 1500, v = { h = "Gishah", a = "Tamelyn Aldridge" }, i = "Interface\\Icons\\INV_Misc_Food_19" },
+  { key = "license", n = "Advertising License Application", c = 1200, v = { h = "Gishah", a = "Tamelyn Aldridge" }, i = "Interface\\Icons\\INV_Scroll_03" },
+  { key = "title", n = { "A profession title", "En profession-titel" }, c = 1000, v = { h = "Gishah", a = "Tamelyn Aldridge" }, i = "Interface\\Icons\\INV_Misc_Note_02" },
+  { key = "tabard", n = { h = "Durotar Supply and Logistics Tabard", a = "Azeroth Commerce Authority Tabard" }, c = 200, v = { h = "Gishah", a = "Tamelyn Aldridge" }, i = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
+}
+-- everything you can buy: the rewards above, and what the vendors showed you (that wins, it is the live price)
+local function FavorItems(f)
+  local all, byName = {}, {}
+  for id, e in pairs(ns.db.favorShop and ns.db.favorShop[f] or {}) do
+    all[id] = e
+    byName[e.n] = true
+  end
+  for _, r in ipairs(FAVOR_REWARDS) do
+    local name = type(r.n) == "table" and (r.n[f] or (ns.db.lang == "da" and r.n[2] or r.n[1])) or r.n
+    if not byName[name] then
+      all[r.key] = { n = name, c = r.c, v = r.v[f], i = r.i, u = true, wiki = true }
+    end
+  end
+  return all
+end
+
 local WCOLS, WT_H = 2, 46
 local WT_W = math.floor((SW - 32 - 8) / WCOLS)
 local WROWS = 7
@@ -981,14 +1006,15 @@ function win:Refresh()
   if not self:IsShown() or not ns.db then return end
   local f = ns.Faction()
   local have = ns.FavorNow() or 0
-  local shopList = ns.db.favorShop and ns.db.favorShop[f] or {}
+  local learned = ns.db.favorShop and ns.db.favorShop[f] or {}
   local shopN = 0
-  for _ in pairs(shopList) do shopN = shopN + 1 end
+  for _ in pairs(learned) do shopN = shopN + 1 end
+  local shopList = FavorItems(f)
   self.title:SetText(L("|cffffffffBuy for|r |cffffd24afavor|r", "|cffffffffKøb for|r |cffffd24afavor|r"))
   wHave:SetText(L("You have %d favor", "Du har %d favor"):format(have))
   -- the vendors: opened (a check and how many things) or still to open
   local byVendor, opened = {}, 0
-  for _, e in pairs(shopList) do if e.v then byVendor[e.v] = (byVendor[e.v] or 0) + 1 end end
+  for _, e in pairs(learned) do if e.v then byVendor[e.v] = (byVendor[e.v] or 0) + 1 end end
   local camp = f == "h" and "Crossroads, The Barrens" or "Three Corners, Redridge Mountains"
   for _, b in ipairs(wVend) do
     local v = b.v
@@ -1019,13 +1045,15 @@ function win:Refresh()
     if ns.db.favorAll or e.u then list[#list + 1] = { id = id, e = e } end
   end
   table.sort(list, function(a, b) if a.e.c ~= b.e.c then return a.e.c < b.e.c end return a.e.n < b.e.n end)
+  wEmpty:ClearAllPoints()
+  wEmpty:SetPoint("TOPLEFT", 16, -100 - math.ceil(#list / WCOLS) * WT_H - 6); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
   wCount:SetText(L("%d things  ·  click: in the basket  ·  right-click: out", "%d ting  ·  klik: i kurven  ·  højreklik: ud"):format(#list))
   local fit = WROWS * WCOLS
   favorScroll = math.min(favorScroll, math.max(0, #list - fit))
   favorScroll = favorScroll - favorScroll % WCOLS
-  wEmpty:SetShown(#list == 0)
-  wEmpty:SetText(shopN == 0 and L("CraftETA doesn't know the favor vendors yet. Open each of them once (%s): it then remembers what they sell and what it costs, for good.",
-      "CraftETA kender ikke favor-handlerne endnu. Åbn hver af dem én gang (%s): så husker den, hvad de sælger, og hvad det koster, for altid."):format(f == "h" and "Crossroads, The Barrens" or "Three Corners, Redridge Mountains")
+  wEmpty:SetShown(shopN == 0 or #list == 0)
+  wEmpty:SetText(shopN == 0 and L("The recipes come in once you have opened the vendors (%s): open each of them once and CraftETA remembers what they sell and what it costs.",
+      "Opskrifterne kommer med, når du har åbnet handlerne (%s): åbn hver af dem én gang, så husker CraftETA, hvad de sælger, og hvad det koster."):format(f == "h" and "Crossroads, The Barrens" or "Three Corners, Redridge Mountains")
     or L("Nothing you can use. Switch off \"Only what I can use\" to see everything.", "Intet du kan bruge. Slå \"Kun det jeg kan bruge\" fra for at se alt."))
   local cart = Cart()
   for _, t in ipairs(wTiles) do t:Hide() end
@@ -1047,7 +1075,8 @@ function win:Refresh()
     t.bg:SetColorTexture(inCart and 0.13 or 0.086, inCart and 0.12 or 0.094, inCart and 0.1 or 0.122, 1)
     t:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:SetItemByID(id)
+      if type(id) == "number" then GameTooltip:SetItemByID(id) else GameTooltip:SetText(e.n, 1, 1, 1) end
+      if e.wiki then GameTooltip:AddLine(L("Price from Warcraft Wiki; the vendor's own price replaces it once you open the vendor.", "Pris fra Warcraft Wiki; handlerens egen pris erstatter den, når du åbner handleren."), 0.55, 0.58, 0.64, true) end
       GameTooltip:AddLine(" ")
       GameTooltip:AddDoubleLine(L("Costs", "Koster"), e.c .. " Merchant's Favor", 0.85, 0.87, 0.9, 1, 0.82, 0.3)
       if e.v then GameTooltip:AddDoubleLine(L("Sold by", "Sælges af"), e.v, 0.85, 0.87, 0.9, 1, 1, 1) end

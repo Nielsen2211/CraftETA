@@ -2,7 +2,7 @@
 ## Title: Craft|cffffd24aETA|r
 ## Notes: Profession leveling 1-300 for WoW Forever: your step next to the profession window, Craft 1 / Craft all, time and gold to your next rank and to 300, and a shopping list you buy at the auction house one click at a time. Routes from WoW-Professions.com, used with permission.
 ## Author: Xtreamcoder
-## Version: 1.7.21
+## Version: 1.7.22
 ## IconTexture: Interface\AddOns\CraftETA\Textures\Logo
 ## OptionalDeps: auxForever, Auctionator
 ## SavedVariables: CraftETADB
