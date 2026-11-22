@@ -8,12 +8,29 @@ local MAX_MATS = 7
 local P = ns.Window("CraftETAPanel", WIDTH)
 ns.Panel = P
 
+-- 2.0 look: the profession and your skill big at the top, the step in a card of its own
+local function Fill(parent, layer, r, g, b, a)
+  local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, 1)
+  t:SetColorTexture(r, g, b, a or 1)
+  return t
+end
+
 local profIcon = P:CreateTexture(nil, "ARTWORK")
-profIcon:SetSize(16, 16)
-profIcon:SetPoint("TOPLEFT", 14, -36)
+profIcon:SetSize(28, 28)
+profIcon:SetPoint("TOPLEFT", 14, -40)
 profIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-local profText = ns.Font(P, true, 12, 1, 1, 1)
-profText:SetPoint("LEFT", profIcon, "RIGHT", 6, 0)
+local profText = ns.Font(P, true, 14, 0.9, 0.91, 0.94)
+profText:SetPoint("TOPLEFT", profIcon, "TOPRIGHT", 9, 1)
+profText:SetPoint("RIGHT", P, "RIGHT", -70, 0)
+profText:SetWordWrap(false)
+local profSub = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
+profSub:SetPoint("BOTTOMLEFT", profIcon, "BOTTOMRIGHT", 9, 0)
+local bigRank = ns.Font(P, true, 20, 1, 0.82, 0.29)
+bigRank:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, -38)
+bigRank:SetJustifyH("RIGHT")
+local bigOf = ns.Font(P, false, 9, 0.36, 0.38, 0.42)
+bigOf:SetPoint("TOPRIGHT", bigRank, "BOTTOMRIGHT", 0, -1)
+bigOf:SetJustifyH("RIGHT")
 
 local listButton = ns.IconButton(P, "Interface\\Icons\\INV_Misc_Note_05", 16, function() return T("list") end)
 listButton:SetPoint("TOPRIGHT", -34, -10)
@@ -26,18 +43,19 @@ gearButton:SetPoint("RIGHT", hubButton, "LEFT", -6, 0)
 gearButton:SetScript("OnClick", function() ns.ToggleSettings() end)
 
 local bar = ns.Bar(P, WIDTH - 28)
-bar:SetPoint("TOPLEFT", 14, -58)
+bar:SetPoint("TOPLEFT", 14, -80)
 
-local etaRank = ns.Font(P, false, 11)
-etaRank:SetPoint("TOPLEFT", 14, -70)
+local etaRank = ns.Font(P, false, 10, 0.85, 0.87, 0.9)
+etaRank:SetPoint("TOPLEFT", 14, -93)
 etaRank:SetPoint("RIGHT", P, "RIGHT", -14, 0)
-local etaAll = ns.Font(P, false, 11, 0.65, 0.67, 0.72)
+local etaAll = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
 etaAll:SetPoint("TOPLEFT", etaRank, "BOTTOMLEFT", 0, -3)
 etaAll:SetPoint("RIGHT", P, "RIGHT", -14, 0)
 
-local warn = ns.Font(P, true, 11, 1, 0.6, 0.35)
-warn:SetPoint("TOPLEFT", etaAll, "BOTTOMLEFT", 0, -8)
-warn:SetPoint("RIGHT", P, "RIGHT", -34, 0)
+local warnBg = Fill(P, "BACKGROUND", 0.2, 0.149, 0.086)
+warnBg:Hide()
+local warn = ns.Font(P, true, 10, 1, 0.69, 0.38)
+warn:SetPoint("RIGHT", P, "RIGHT", -40, 0)
 warn:SetWordWrap(true)
 -- the map button beside it: an arrow to the trainer (Places.lua)
 local warnPin = ns.MapButton(P, function()
@@ -46,14 +64,26 @@ end, function() if ns.panelState and ns.panelState.prof then ns.ShowTrainer(ns.p
 warnPin:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, 0)
 warnPin:Hide()
 
--- the step
-local stepHead = ns.Font(P, true, 10, 0.55, 0.58, 0.64)
+-- the step, in its card
+local card = Fill(P, "BACKGROUND", 0.086, 0.094, 0.122)
+card:Hide()
+local stepHead = ns.Font(P, true, 9, 0.36, 0.38, 0.42)
 local recipeIcon = P:CreateTexture(nil, "ARTWORK")
-recipeIcon:SetSize(30, 30)
+recipeIcon:SetSize(36, 36)
 recipeIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-local recipeName = ns.Font(P, true, 13, 1, 0.82, 0.3)
+local recipeName = ns.Font(P, true, 14, 1, 0.82, 0.29)
 recipeName:SetWordWrap(false)
-local recipeCount = ns.Font(P, false, 11)
+local diffDot = P:CreateTexture(nil, "ARTWORK")
+diffDot:SetSize(7, 7)
+local recipeCount = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
+-- "2 left" as a small green pill
+local leftPill = CreateFrame("Frame", nil, P)
+leftPill:SetSize(52, 18)
+local leftBg = Fill(leftPill, "BACKGROUND", 0.118, 0.204, 0.141)
+leftBg:SetAllPoints()
+local leftText = ns.Font(leftPill, true, 10, 0.36, 0.84, 0.49)
+leftText:SetPoint("CENTER")
+local DIFF_COLOR = { [0] = { 1, 0.55, 0.25 }, [1] = { 1, 0.9, 0.3 }, [2] = { 0.35, 0.8, 0.4 }, [3] = { 0.5, 0.5, 0.5 } }
 local prevChoice = ns.IconButton(P, "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up", 18)
 local nextChoice = ns.IconButton(P, "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", 18)
 prevChoice.icon:SetTexCoord(0, 1, 0, 1)
@@ -61,8 +91,20 @@ nextChoice.icon:SetTexCoord(0, 1, 0, 1)
 
 local matRows = {}
 for i = 1, MAX_MATS do
-  local r = ns.Row(P, 18)
-  r:SetWidth(WIDTH - 28)
+  local r = ns.Row(P, 20)
+  r:SetWidth(WIDTH - 52)
+  r.name:ClearAllPoints()
+  r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, 1)
+  r.name:SetPoint("RIGHT", r.value, "LEFT", -6, 0)
+  r.value:ClearAllPoints()
+  r.value:SetPoint("TOPRIGHT", 0, 1)
+  r.track = Fill(r, "ARTWORK", 0.133, 0.145, 0.184)
+  r.track:SetHeight(3)
+  r.track:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, 0)
+  r.track:SetPoint("RIGHT", r, "RIGHT", 0, 0)
+  r.fillBar = Fill(r, "OVERLAY", 0.36, 0.84, 0.49)
+  r.fillBar:SetHeight(3)
+  r.fillBar:SetPoint("LEFT", r.track, "LEFT")
   r:SetScript("OnEnter", function(self)
     if self.itemID then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -74,20 +116,36 @@ for i = 1, MAX_MATS do
   matRows[i] = r
 end
 
-local note = ns.Font(P, false, 10, 0.75, 0.72, 0.6)
+local note = ns.Font(P, false, 10, 0.78, 0.72, 0.58)
 note:SetWordWrap(true)
-note:SetWidth(WIDTH - 28)
+note:SetWidth(WIDTH - 52)
 
 -- one Craft button that follows the guide: what the step still needs, and first any material for it
 -- that you can make yourself (a grinding stone, a bolt) but don't have enough of
-local craftBtn = ns.Button(P, T("craft"), 162, 22)
-local addList = ns.Button(P, T("addList"), 104, 22)
-local status = ns.Font(P, false, 10, 0.65, 0.67, 0.72)
+local craftBtn = ns.Button(P, T("craft"), WIDTH - 52 - 34, 28)
+local craftFill = craftBtn:CreateTexture(nil, "BACKGROUND", nil, 2)
+craftFill:SetAllPoints()
+craftFill:SetColorTexture(1, 0.82, 0.29, 1)
+craftBtn.label:SetFont(ns.F_BOLD, 13, "")
+craftBtn.label:SetShadowOffset(0, 0)
+local function CraftLook(on)
+  craftFill:SetColorTexture(on and 1 or 0.2, on and 0.82 or 0.19, on and 0.29 or 0.15, 1)
+  craftBtn.label:SetTextColor(on and 0.1 or 0.45, on and 0.08 or 0.45, on and 0.03 or 0.47)
+end
+hooksecurefunc(craftBtn, "Enable", function() CraftLook(true) end)
+hooksecurefunc(craftBtn, "Disable", function() CraftLook(false) end)
+CraftLook(true)
+local addList = ns.Button(P, "+", 28, 28)
+addList.label:SetFont(ns.F_BOLD, 16, "")
+addList.label:SetTextColor(0.85, 0.87, 0.9)
+hooksecurefunc(addList, "Enable", function() addList.label:SetTextColor(0.85, 0.87, 0.9) end)
+local status = ns.Font(P, false, 10, 0.6, 0.62, 0.67)
 status:SetWordWrap(true)
-status:SetWidth(WIDTH - 28)
-local nextLine = ns.Font(P, false, 10, 0.55, 0.58, 0.64)
+status:SetWidth(WIDTH - 52)
+local nextHead = ns.Font(P, true, 8, 0.36, 0.38, 0.42)
+local nextLine = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
 nextLine:SetWordWrap(false)
-nextLine:SetWidth(WIDTH - 28)
+nextLine:SetWidth(WIDTH - 66)
 local source = ns.Font(P, false, 9, 0.42, 0.43, 0.47)
 
 local state = {}
@@ -189,9 +247,9 @@ function ns.RefreshPanel()
     warnPin:Hide()
     profIcon:Hide()
     profText:SetText(T("noProf"))
-    for _, w in ipairs({ bar, etaRank, etaAll, warn, stepHead, recipeName, recipeCount, note, craftBtn, addList, status, nextLine, source }) do w:Hide() end
+    for _, w in ipairs({ bar, etaRank, etaAll, warn, warnBg, card, stepHead, recipeName, recipeCount, diffDot, leftPill, note, craftBtn, addList, status, nextHead, nextLine, source, profSub, bigRank, bigOf }) do w:Hide() end
     recipeIcon:Hide()
-    P:SetHeight(80)
+    P:SetHeight(90)
     return
   end
   local skill = skills[profID] or { rank = open and open.rank or 1, max = open and open.max or 75 }
@@ -200,7 +258,12 @@ function ns.RefreshPanel()
   state.prof, state.rank = profID, rank
   state.target = ns.Target(profID, rank, max)
   profIcon:SetTexture(PROF_ICON[profID]); profIcon:Show()
-  profText:SetText(("%s  |cffffd24a%d|r / %d"):format(open and open.name or guide.name, rank, max))
+  profText:SetText(open and open.name or guide.name)
+  local RANKS = { [75] = "Apprentice", [150] = "Journeyman", [225] = "Expert", [300] = "Artisan" }
+  local idx = ns.StepIndex(guide, rank)
+  profSub:SetText((RANKS[max] or "") .. (idx and ("  ·  " .. T("stepOf", idx, #guide.steps)) or "")); profSub:Show()
+  bigRank:SetText(rank); bigRank:Show()
+  bigOf:SetText("/ " .. max); bigOf:Show()
   bar:SetValue(rank); bar:Show()
 
   -- how far: to the rank cap and to 300
@@ -222,7 +285,7 @@ function ns.RefreshPanel()
     local rate = ns.PerHour(profID)
     etaAll:SetText(state.target < 300 and etaLine(300, T("to300")) or (rate and T("perHour", rate) or ""))
   end
-  y = -70 - 32
+  y = -93 - 30
 
   -- a rank to learn
   local nextRank = ns.NextRank(profID, rank, max)
@@ -230,11 +293,15 @@ function ns.RefreshPanel()
     local names = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
     warn:SetText(T("learnRank", names[nextRank.at] or "") .. ": " .. (nextRank[ns.Faction()] or "")
       .. ((UnitLevel("player") or 0) < nextRank.lvl and ("  (level " .. nextRank.lvl .. ")") or ""))
+    warn:ClearAllPoints(); warn:SetPoint("TOPLEFT", 24, y - 14); warn:SetPoint("RIGHT", P, "RIGHT", -40, 0)
     warn:Show()
-    warnPin:ClearAllPoints(); warnPin:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, y - 8); warnPin:Show()
-    y = y - 8 - warn:GetStringHeight() - 4
+    local h = warn:GetStringHeight() + 14
+    warnBg:ClearAllPoints(); warnBg:SetPoint("TOPLEFT", 14, y - 7); warnBg:SetPoint("RIGHT", P, "RIGHT", -14, 0)
+    warnBg:SetHeight(h); warnBg:Show()
+    warnPin:ClearAllPoints(); warnPin:SetPoint("RIGHT", warnBg, "RIGHT", -8, 0); warnPin:Show()
+    y = y - 7 - h - 2
   else
-    warn:SetText(""); warn:Hide(); warnPin:Hide()
+    warn:SetText(""); warn:Hide(); warnPin:Hide(); warnBg:Hide()
   end
 
   -- the step: the one your skill is on, or one you skipped ahead to
@@ -245,7 +312,7 @@ function ns.RefreshPanel()
     if view > index and guide.steps[view] then index = view else ns.db.view[profID] = nil end
   end
   if not index then
-    for _, w in ipairs({ stepHead, recipeName, recipeCount, note, craftBtn, addList, status, nextLine, skipBack, skipNext }) do w:Hide() end
+    for _, w in ipairs({ card, stepHead, recipeName, recipeCount, diffDot, leftPill, note, craftBtn, addList, status, nextHead, nextLine, skipBack, skipNext }) do w:Hide() end
     recipeIcon:Hide()
     source:Hide()
     P:SetHeight(-y + 32)
@@ -254,11 +321,13 @@ function ns.RefreshPanel()
   local step = guide.steps[index]
   local entries, pick = ns.Chosen(profID, index, step)
   state.step, state.index, state.pick = step, index, pick
-  y = y - 6
-  stepHead:ClearAllPoints(); stepHead:SetPoint("TOPLEFT", 14, y)
-  stepHead:SetText(string.upper(T("stepOf", index, #guide.steps) .. "  ·  " .. step[1] .. "-" .. step[2]
+  y = y - 8
+  local cardTop = y
+  y = y - 12
+  stepHead:ClearAllPoints(); stepHead:SetPoint("TOPLEFT", 26, y)
+  stepHead:SetText(string.upper(step[1] .. " - " .. step[2] .. "  ·  " .. T("stepOf", index, #guide.steps)
     .. (index > base and ("  ·  " .. T("skippedAhead")) or ""))); stepHead:Show()
-  skipNext:ClearAllPoints(); skipNext:SetPoint("TOPRIGHT", -14, y + 3)
+  skipNext:ClearAllPoints(); skipNext:SetPoint("TOPRIGHT", -24, y + 3)
   skipBack:ClearAllPoints(); skipBack:SetPoint("RIGHT", skipNext, "LEFT", -2, 0)
   skipNext:SetShown(index < #guide.steps)
   skipBack:SetShown(index > base)
@@ -274,18 +343,28 @@ function ns.RefreshPanel()
   local left = math.ceil(entry[2] * share)
   state.recipe, state.left = entry[1], left
 
-  recipeIcon:ClearAllPoints(); recipeIcon:SetPoint("TOPLEFT", 14, y)
+  y = y - 4
+  recipeIcon:ClearAllPoints(); recipeIcon:SetPoint("TOPLEFT", 26, y)
   recipeIcon:SetTexture(RecipeIcon(entry[1], entry)); recipeIcon:Show()
-  recipeName:ClearAllPoints(); recipeName:SetPoint("TOPLEFT", recipeIcon, "TOPRIGHT", 8, 0)
-  recipeName:SetPoint("RIGHT", P, "RIGHT", #all > 1 and -54 or -14, 0)
+  recipeName:ClearAllPoints(); recipeName:SetPoint("TOPLEFT", recipeIcon, "TOPRIGHT", 10, -1)
+  recipeName:SetPoint("RIGHT", P, "RIGHT", -86, 0)
   recipeName:SetText(entry[1]); recipeName:Show()
-  recipeCount:ClearAllPoints(); recipeCount:SetPoint("BOTTOMLEFT", recipeIcon, "BOTTOMRIGHT", 8, 0)
-  recipeCount:SetText(T("make", entry[2]) .. "  ·  |cffffffff" .. T("left", left) .. "|r"); recipeCount:Show()
+  -- the skill-up colour as a dot (orange, yellow, green, grey), when the game knows it
+  local rec = ns.Recipe(entry[1])
+  local c = rec and DIFF_COLOR[rec.diff or -1]
+  diffDot:ClearAllPoints(); diffDot:SetPoint("BOTTOMLEFT", recipeIcon, "BOTTOMRIGHT", 10, 4)
+  if c then diffDot:SetColorTexture(c[1], c[2], c[3], 1); diffDot:Show() else diffDot:Hide() end
+  recipeCount:ClearAllPoints()
+  recipeCount:SetPoint("LEFT", diffDot, c and "RIGHT" or "LEFT", c and 6 or 0, 0)
+  recipeCount:SetText(T("make", entry[2])); recipeCount:Show()
+  leftText:SetText(T("left", left))
+  leftPill:SetWidth(math.max(44, leftText:GetStringWidth() + 18))
+  leftPill:ClearAllPoints(); leftPill:SetPoint("TOPRIGHT", P, "TOPRIGHT", -26, y - 3); leftPill:Show()
   if #all > 1 then
-    nextChoice:ClearAllPoints(); nextChoice:SetPoint("TOPRIGHT", -14, y - 6); nextChoice:Show()
+    nextChoice:ClearAllPoints(); nextChoice:SetPoint("TOPRIGHT", P, "TOPRIGHT", -26, y - 22); nextChoice:Show()
     prevChoice:ClearAllPoints(); prevChoice:SetPoint("RIGHT", nextChoice, "LEFT", -2, 0); prevChoice:Show()
   end
-  y = y - 38
+  y = y - 46
 
   -- materials for what is left of the step
   local per, fromGame = ns.MatsPerCraft(entry)
@@ -299,13 +378,18 @@ function ns.RefreshPanel()
     r.itemID = ns.ItemID(name)
     r.icon:SetTexture(ns.ItemIcon(name))
     r.name:SetText(name)
-    r.value:SetText((have >= need and "|cff4dcc66" or "|cffe8574a") .. have .. "|r / " .. need)
-    r:ClearAllPoints(); r:SetPoint("TOPLEFT", 14, y); r:Show()
-    y = y - 19
+    local ok = have >= need
+    r.value:SetText((ok and "|cff5cd67c" or "|cffe8574a") .. have .. " / " .. need .. "|r")
+    r:ClearAllPoints(); r:SetPoint("TOPLEFT", 26, y); r:Show()
+    local w = r.track:GetWidth()
+    if not w or w < 10 then w = WIDTH - 52 - 28 end
+    r.fillBar:SetWidth(math.max(1, w * math.min(1, need > 0 and have / need or 1)))
+    if ok then r.fillBar:SetColorTexture(0.36, 0.84, 0.49, 1) else r.fillBar:SetColorTexture(0.91, 0.34, 0.29, 1) end
+    y = y - 26
   end
 
   if step.note then
-    note:ClearAllPoints(); note:SetPoint("TOPLEFT", 14, y - 4); note:SetText(step.note); note:Show()
+    note:ClearAllPoints(); note:SetPoint("TOPLEFT", 26, y - 4); note:SetText(step.note); note:Show()
     y = y - 4 - note:GetStringHeight() - 2
   else
     note:Hide()
@@ -313,7 +397,7 @@ function ns.RefreshPanel()
 
   -- crafting
   y = y - 8
-  craftBtn:ClearAllPoints(); craftBtn:SetPoint("TOPLEFT", 14, y)
+  craftBtn:ClearAllPoints(); craftBtn:SetPoint("TOPLEFT", 26, y)
   addList:ClearAllPoints(); addList:SetPoint("LEFT", craftBtn, "RIGHT", 6, 0)
   craftBtn:Show(); addList:Show()
   addList.tip = T("addListTip")
@@ -358,25 +442,31 @@ function ns.RefreshPanel()
     craftBtn:SetText(T("craft"))
     craftBtn.tip = nil
   end
-  y = y - 28
+  y = y - 34
   if text then
-    status:ClearAllPoints(); status:SetPoint("TOPLEFT", 14, y); status:SetText(text); status:Show()
+    status:ClearAllPoints(); status:SetPoint("TOPLEFT", 26, y); status:SetText(text); status:Show()
     y = y - status:GetStringHeight() - 4
   else
     status:Hide()
   end
+  -- the card around the step
+  y = y - 8
+  card:ClearAllPoints(); card:SetPoint("TOPLEFT", 14, cardTop); card:SetPoint("RIGHT", P, "RIGHT", -14, 0)
+  card:SetHeight(cardTop - y); card:Show()
 
   -- the next step
   local after = guide.steps[index + 1]
   if ns.db.showNext and after then
     local names = {}
     for _, e in ipairs(ns.Entries(after)) do names[#names + 1] = e[1] end
-    nextLine:ClearAllPoints(); nextLine:SetPoint("TOPLEFT", 14, y - 2)
-    nextLine:SetText(T("next", after[1] .. "-" .. after[2] .. "  " .. table.concat(names, after.any and " / " or " + ")))
+    nextHead:ClearAllPoints(); nextHead:SetPoint("TOPLEFT", 14, y - 12)
+    nextHead:SetText((ns.db.lang == "da") and "NÆSTE" or "NEXT"); nextHead:Show()
+    nextLine:ClearAllPoints(); nextLine:SetPoint("LEFT", nextHead, "RIGHT", 10, 0)
+    nextLine:SetText(after[1] .. " - " .. after[2] .. "   " .. table.concat(names, after.any and " / " or " + "))
     nextLine:Show()
-    y = y - 16
+    y = y - 22
   else
-    nextLine:Hide()
+    nextLine:Hide(); nextHead:Hide()
   end
   source:Hide()
   P:SetHeight(-y + 22)
