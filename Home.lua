@@ -9,15 +9,8 @@ local function Card(parent)
   local f = CreateFrame("Frame", nil, parent)
   local bg = f:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
-  bg:SetColorTexture(0, 0, 0, 0.26)
-  local function edge(p1, p2, horizontal)
-    local t = f:CreateTexture(nil, "BORDER")
-    t:SetPoint(p1); t:SetPoint(p2)
-    if horizontal then t:SetHeight(1) else t:SetWidth(1) end
-    t:SetColorTexture(1, 1, 1, 0.06)
-  end
-  edge("TOPLEFT", "TOPRIGHT", true); edge("BOTTOMLEFT", "BOTTOMRIGHT", true)
-  edge("TOPLEFT", "BOTTOMLEFT"); edge("TOPRIGHT", "BOTTOMRIGHT")
+  -- the same flat card as the step in the profession panel: no edges, a shade lighter than the window
+  bg:SetColorTexture(0.086, 0.094, 0.122, 1)
   return f
 end
 ns.Card = Card
@@ -207,7 +200,7 @@ end)
 local dragHint = ns.Font(modelCard, false, 9, 0.42, 0.44, 0.48)
 dragHint:SetPoint("BOTTOM", 0, 8)
 
-local nameText = ns.Font(home, true, 22)
+local nameText = ns.Font(home, true, 22, 0.9, 0.91, 0.94)
 nameText:SetPoint("TOPLEFT", RX, -4)
 local subText = ns.Font(home, false, 11, 0.7, 0.72, 0.76)
 subText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -4)
@@ -246,7 +239,7 @@ for i = 1, 4 do
   c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   c.label = Label(c, "")
   c.label:SetPoint("TOPLEFT", c.icon, "TOPRIGHT", 10, -2)
-  c.value = ns.Font(c, true, 14, 1, 1, 1)
+  c.value = ns.Font(c, true, 14, 0.9, 0.91, 0.94)
   c.value:SetPoint("BOTTOMLEFT", c.icon, "BOTTOMRIGHT", 10, 0)
   facts[i] = c
 end
@@ -292,11 +285,11 @@ for i = 1, MAX_STEPS do
   r.icon:SetSize(26, 26)
   r.icon:SetPoint("LEFT")
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  r.title = ns.Font(r, true, 12)
+  r.title = ns.Font(r, true, 12, 0.9, 0.91, 0.94)
   r.title:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, 1)
   r.title:SetPoint("RIGHT", r, "RIGHT")
   r.title:SetWordWrap(false)
-  r.sub = ns.Font(r, false, 10, 0.6, 0.62, 0.68)
+  r.sub = ns.Font(r, false, 10, 0.5, 0.52, 0.57)
   r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, 0)
   r.sub:SetPoint("RIGHT", r, "RIGHT")
   r.sub:SetWordWrap(false)
@@ -679,13 +672,13 @@ local BX, BW = 16, CW - 32          -- the bar
 local BAR_Y = -78                   -- its top, from the card's top
 local function Pos(v) return BX + (math.max(1, math.min(300, v)) - 1) / 299 * BW end
 
-local tlName = ns.Font(tl, true, 16, 1, 1, 1)
+local tlName = ns.Font(tl, true, 16, 0.9, 0.91, 0.94)
 tlName:SetPoint("TOPLEFT", 14, -12)
-local tlRank = ns.Font(tl, false, 11, 0.6, 0.62, 0.68)
+local tlRank = ns.Font(tl, false, 10, 0.5, 0.52, 0.57)
 tlRank:SetPoint("BOTTOMLEFT", tlName, "BOTTOMRIGHT", 10, 1)
-local tlSkill = ns.Font(tl, true, 14, 1, 0.82, 0.3)
-tlSkill:SetPoint("BOTTOMLEFT", tlRank, "BOTTOMRIGHT", 10, -1)
-local tlAction = ns.Button(tl, "", 120, 22)
+local tlSkill = ns.Font(tl, true, 18, 1, 0.82, 0.29)
+tlSkill:SetPoint("BOTTOMLEFT", tlRank, "BOTTOMRIGHT", 10, -2)
+local tlAction = ns.Primary(ns.Button(tl, "", 120, 26))
 tlAction:SetPoint("TOPRIGHT", -12, -10)
 local tlCount = ns.Font(tl, false, 10, 0.55, 0.58, 0.64)
 -- between the skill number and the button: never on top of either (cut short with "..." if needed)
