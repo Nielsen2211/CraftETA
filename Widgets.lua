@@ -133,6 +133,22 @@ function ns.Button(parent, text, width, height)
   return b
 end
 
+-- the main button of a view: gold fill, dark bold text (the CraftETA panel's Craft button)
+function ns.Primary(b, size)
+  local fill = b:CreateTexture(nil, "BACKGROUND", nil, 2)
+  fill:SetAllPoints()
+  b.label:SetFont(ns.F_BOLD, size or 12, "")
+  b.label:SetShadowOffset(0, 0)
+  local function Look(on)
+    fill:SetColorTexture(on and 1 or 0.2, on and 0.82 or 0.19, on and 0.29 or 0.15, 1)
+    b.label:SetTextColor(on and 0.1 or 0.45, on and 0.08 or 0.45, on and 0.03 or 0.47)
+  end
+  hooksecurefunc(b, "Enable", function() Look(true) end)
+  hooksecurefunc(b, "Disable", function() Look(false) end)
+  Look(b:IsEnabled())
+  return b
+end
+
 -- a small square button with a real game icon
 function ns.IconButton(parent, icon, size, tip)
   local b = CreateFrame("Button", nil, parent)
