@@ -187,6 +187,75 @@ end)
 local results, lastAsk = {}, 0
 ns.crafterResults = results
 
+-- the made item's name too, so "Copper Bar" finds "Smelt Copper"
+local GetItemNameByID = C_Item and C_Item.GetItemNameByID
+local function ItemNameHas(itemID, want)
+  if not itemID then return false end
+  local name
+  if GetItemNameByID then
+    local ok, n = pcall(GetItemNameByID, itemID)
+    if ok then name = Plain(n) end
+  end
+  if type(name) ~= "string" and GetItemInfo then
+    local ok, n = pcall(GetItemInfo, itemID)
+    if ok then name = Plain(n) end
+  end
+  return type(name) == "string" and string.find(string.lower(name), want, 1, true) ~= nil
+end
+
+---------------------------------------------------------------------------
+-- Trade chat: people advertising crafting ("LFW", "WTS", "can craft", "your mats"),
+-- so you find crafters even when nobody in your guild has CraftETA
+---------------------------------------------------------------------------
+local ads = {}
+local AD_WORDS = { "lfw", "wts", "craft", "can make", "can do", "your mats", "ur mats", "own mats", "tips", "enchant", "lf work", "pst", "/w me" }
+local AD_KEEP = 45 * 60
+local function IsAd(low)
+  for _, w in ipairs(AD_WORDS) do
+    if string.find(low, w, 1, true) then return true end
+  end
+  return false
+end
+local function OnChat(text, sender)
+  text, sender = Plain(text), Plain(sender)
+  if type(text) ~= "string" or type(sender) ~= "string" or ns.db and ns.db.chatAds == false then return end
+  local low = string.lower(text)
+  if not IsAd(low) then return end
+  local short = string.match(sender, "^[^-]+") or sender
+  if short == Plain(UnitName("player")) then return end
+  for i = #ads, 1, -1 do
+    if ads[i].sender == sender then table.remove(ads, i) end   -- newest ad per person
+  end
+  ads[#ads + 1] = { sender = sender, short = short, text = text, low = low, t = time() }
+  while #ads > 300 or (ads[1] and time() - ads[1].t > AD_KEEP) do table.remove(ads, 1) end
+end
+for _, event in ipairs({ "CHAT_MSG_CHANNEL", "CHAT_MSG_SAY", "CHAT_MSG_YELL" }) do
+  ns.Register(event)
+  ns.On(event, function(text, sender) pcall(OnChat, text, sender) end)
+end
+
+local function AdMatches(text, found)
+  local words = {}
+  for w in string.gmatch(string.lower(text), "%S+") do words[#words + 1] = w end
+  if #words == 0 then return end
+  local now = time()
+  for i = #ads, 1, -1 do
+    local a = ads[i]
+    if now - a.t <= AD_KEEP then
+      local all = true
+      for _, w in ipairs(words) do
+        if not string.find(a.low, w, 1, true) then all = false; break end
+      end
+      if all then
+        local line = a.text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H.-|h(.-)|h", "%1")
+        if #line > 70 then line = string.sub(line, 1, 67) .. "..." end
+        found[#found + 1] = { recipe = line, char = a.short, sender = a.sender, ad = true,
+          prof = T("adAgo", math.max(1, math.floor((now - a.t) / 60))) }
+      end
+    end
+  end
+end
+
 local function Matches(text)
   local found = {}
   if not ns.db or text == "" then return found end
@@ -194,7 +263,7 @@ local function Matches(text)
   for key, c in pairs(ns.db.chars) do
     for profID, book in pairs(c.book or {}) do
       for _, r in pairs(book) do
-        if r.l and r.n and string.find(string.lower(r.n), want, 1, true) then
+        if r.l and r.n and (string.find(string.lower(r.n), want, 1, true) or ItemNameHas(r.o, want)) then
           found[#found + 1] = { recipe = r.n, char = c.name or key, prof = ProfName(profID), mine = true, icon = r.i, item = r.o }
         end
       end
@@ -209,10 +278,19 @@ function ns.FindCrafters(text)
   wipe(results)
   results.query = text
   for _, r in ipairs(Matches(text)) do results[#results + 1] = r end
+  if #text >= 3 then AdMatches(text, results) end
+  results.waited = nil
   if #text >= 3 and ns.db.guildAsk and IsInGuild and IsInGuild() and C_ChatInfo and GetTime() - lastAsk > 2 then
     lastAsk = GetTime()
     pcall(C_ChatInfo.SendAddonMessage, PREFIX, "Q\t" .. string.sub(text, 1, 60), "GUILD")
     results.asked = true
+    local query = text
+    C_Timer.After(4, function()
+      if results.query == query then
+        results.waited = true
+        if ns.RefreshHub then ns.RefreshHub() end
+      end
+    end)
   end
   if ns.RefreshHub then ns.RefreshHub() end
 end
@@ -256,6 +334,7 @@ ns.On("ADDON_LOADED", function()
   if ns.db.tooltip == nil then ns.db.tooltip = true end
   if ns.db.guildShare == nil then ns.db.guildShare = true end
   if ns.db.guildAsk == nil then ns.db.guildAsk = true end
+  if ns.db.chatAds == nil then ns.db.chatAds = true end
   for _, m in ipairs(ns.MATERIALS) do
     if not ns.db.ids[m[1]] then ns.db.ids[m[1]] = m[2] end
   end

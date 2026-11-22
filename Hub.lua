@@ -446,8 +446,8 @@ local function BuildCrafters()
   local res = ns.crafterResults
   for _, r in ipairs(res) do
     data[#data + 1] = {
-      icon = r.icon or (r.mine and 134400) or "Interface\\Icons\\INV_Letter_15", name = r.recipe,
-      value = r.mine and (r.char .. " |cff8c8f96(" .. T("yours") .. ")|r") or r.char,
+      icon = r.icon or (r.mine and 134400) or (r.ad and "Interface\\Icons\\INV_Misc_Note_02") or "Interface\\Icons\\INV_Letter_15", name = r.recipe,
+      value = r.mine and (r.char .. " |cff8c8f96(" .. T("yours") .. ")|r") or (r.ad and (r.char .. " |cff8c8f96(" .. T("adTrade") .. ")|r")) or r.char,
       vr = r.mine and 1 or 0.35, vg = r.mine and 0.82 or 0.9, vb = r.mine and 0.3 or 0.4,
       hint = not r.mine and T("clickWhisper") or nil,
       tip = function(tip)
@@ -460,9 +460,9 @@ local function BuildCrafters()
   if not res.query or res.query == "" then
     state.footer = T("craftersFoot")
   elseif #res == 0 then
-    state.footer = res.asked and T("asking") or T("noneFound")
+    state.footer = (res.asked and not res.waited) and T("asking") or T("noneFoundHelp")
   else
-    state.footer = res.asked and T("guildAnswers") or ""
+    state.footer = (res.asked and not res.waited) and T("guildAnswers") or ""
   end
 end
 
