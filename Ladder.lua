@@ -183,7 +183,7 @@ local function Send()
     if quick.more then
       pcall(C_AuctionHouse.RequestMoreBrowseResults)
     else
-      local class = (Enum and Enum.ItemClass and Enum.ItemClass.Tradegoods) or 7
+      local class = quick.classes[quick.ci]
       pcall(C_AuctionHouse.SendBrowseQuery, { searchString = "", sorts = {}, filters = {}, itemClassFilters = { { classID = class } } })
     end
   else
@@ -223,7 +223,15 @@ local function OnBrowse()
   if okF and not full then
     quick.more = true
     Send()
+  elseif quick.ci < #quick.classes then
+    -- the next kind of item (what you craft: consumables, armor, weapons...)
+    quick.ci, quick.more = quick.ci + 1, false
+    Send()
   else
+    -- what you craft that nobody sells: noted, so the profit page can say "none on the AH"
+    for id in pairs(quick.outputs) do
+      if not quick.got[id] then ns.db.browse[id] = { q = 0, t = time() } end
+    end
     quick.token = nil
     C_Timer.After(0.05, Next)
   end
@@ -241,13 +249,28 @@ function ns.QuickScan()
   end
   local want = {}
   for _, e in ipairs(ns.QuickScanItems()) do want[e.id] = e.name end
+  -- what your characters craft, and its materials: the profit page's prices. Their kinds of item are
+  -- browsed after Trade Goods
+  local outputs, classes, seenClass = {}, { (Enum and Enum.ItemClass and Enum.ItemClass.Tradegoods) or 7 }, {}
+  seenClass[classes[1]] = true
+  for _, r in ipairs(ns.KnownRecipes and ns.KnownRecipes() or {}) do
+    outputs[r.o] = true
+    want[r.o] = want[r.o] or true
+    local mats = r.m or {}
+    for i = 1, #mats, 2 do
+      local id = ns.ItemID(mats[i])
+      if id then want[id] = mats[i] end
+    end
+    local ok, _, _, _, _, _, class = pcall(GetItemInfoInstant, r.o)
+    if ok and class and not seenClass[class] then seenClass[class] = true; classes[#classes + 1] = class end
+  end
   -- one by one: only what the shopping list still has to buy on the auction house
   local deep = {}
   for _, item in ipairs(ns.ListItems and ns.ListItems() or {}) do
     local id = ns.ItemID(item.name)
     if id and item.still > 0 and not item.vendor and not item.crate then deep[#deep + 1] = { id = id, name = item.name } end
   end
-  quick = { phase = "browse", want = want, got = {}, priced = 0, deep = deep, i = 0 }
+  quick = { phase = "browse", want = want, got = {}, priced = 0, deep = deep, i = 0, classes = classes, ci = 1, outputs = outputs }
   Send()
 end
 function ns.QuickScanState()
@@ -279,4 +302,41 @@ for _, ev in ipairs({ "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED" }) do
     if ev == "AUCTION_HOUSE_CLOSED" and quick then quick = nil end
     C_Timer.After(0.1, function() if ns.UpdateScanButton then ns.UpdateScanButton() end end)
   end)
+end
+
+-- every recipe your characters know that makes an item (one per item): { o = item, m = mats, y = yield, ... ,
+-- char, prof }
+function ns.KnownRecipes()
+  local seen, out = {}, {}
+  for key, c in pairs(ns.db and ns.db.chars or {}) do
+    for profID, book in pairs(c.book or {}) do
+      for _, r in pairs(book) do
+        if r.l and r.o and not seen[r.o] then
+          seen[r.o] = true
+          out[#out + 1] = setmetatable({ char = c.name or key, charKey = key, prof = profID }, { __index = r })
+        end
+      end
+    end
+  end
+  return out
+end
+
+-- what one sells for now: the auctions (a fresh ladder or the browse), else aux or Auctionator
+function ns.SellUnit(id)
+  local l = Fresh(id)
+  if l then return l.p[1] end
+  local b = id and ns.db and ns.db.browse and ns.db.browse[id]
+  if b and b.t and time() - b.t < FRESH then
+    if b.p then return b.p end
+    return nil, "none"            -- browsed lately and nobody sells it
+  end
+  return ns.PriceID(id)
+end
+-- how many are for sale, when the scan saw it lately
+function ns.SupplyOf(id)
+  local l = Fresh(id)
+  if l then return l.total end
+  local b = id and ns.db and ns.db.browse and ns.db.browse[id]
+  if b and b.t and time() - b.t < FRESH then return b.q or 0 end
+  return nil
 end

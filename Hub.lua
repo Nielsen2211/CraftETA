@@ -36,6 +36,7 @@ local MENU = {
   { "specs", "Interface\\Icons\\INV_Misc_Note_06" },
   { "crafters", "Interface\\Icons\\INV_Letter_15" },
   { "gold", "Interface\\Icons\\INV_Misc_Coin_02" },
+  { "profit", "Interface\\Icons\\INV_Misc_Coin_17" },
   { "codex", "Interface\\Icons\\INV_Scroll_03" },
   { "camping", "Interface\\Icons\\Spell_Fire_Fire" },
   { "cooldowns", "Interface\\Icons\\INV_Misc_PocketWatch_01" },
