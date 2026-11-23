@@ -395,27 +395,9 @@ local function OnItemResults(itemKey)
   ScanNext()
 end
 
--- aux's price from your last Full scan (today's look first, else its usual price): no scan needed here
-local function AuxPrice(name)
-  local api, id = _G.AuxForeverAPI, ns.ItemID(name)
-  if not api or not id or not api.IsReady or not api.IsReady() then return nil end
-  local ok, price = pcall(api.GetLatestPrice, id)
-  if ok and type(price) == "number" and price > 0 then return price end
-  ok, price = pcall(api.GetUsualPrice, id)
-  if ok and type(price) == "number" and price > 0 then return price end
-  return nil
-end
--- aux first, then Auctionator's last scan
+-- the auction addons' price from their last scan (Sources.lua): no scan needed here
 local function AuxOrAtrPrice(name)
-  local price = AuxPrice(name)
-  if price then return price end
-  local atr = _G.Auctionator and Auctionator.API and Auctionator.API.v1
-  local id = ns.ItemID(name)
-  if atr and atr.GetAuctionPriceByItemID and id then
-    local ok, p = pcall(atr.GetAuctionPriceByItemID, ADDON, id)
-    if ok and type(p) == "number" and p > 0 then return p end
-  end
-  return nil
+  return ns.SourcePrice(ns.ItemID(name), "today")
 end
 ns.AuxPrice = AuxOrAtrPrice
 
@@ -655,16 +637,11 @@ end
 ns.On("BAG_UPDATE_DELAYED", function() if MailFrame and MailFrame:IsShown() then ReadMailSoon() end end)
 
 ---------------------------------------------------------------------------
--- aux and Auctionator
+-- auction addons
 ---------------------------------------------------------------------------
--- searches for an item at the auction house: in aux when its window is open, else with Auctionator
+-- searches for an item at the auction house in the first auction addon that can (Sources.lua)
 function ns.AHSearch(itemID, name)
-  if _G.aux_frame and _G.aux_frame:IsShown() then return ns.AuxSearch(itemID) end
-  local atr = _G.Auctionator and Auctionator.API and Auctionator.API.v1
-  name = name or (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID))
-  if atr and atr.MultiSearchExact and name then
-    pcall(atr.MultiSearchExact, ADDON, { name })
-  end
+  return ns.SourceSearch(itemID, name)
 end
 
 -- searches for an item on aux's Search tab, while aux's window is open

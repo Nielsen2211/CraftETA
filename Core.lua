@@ -243,65 +243,12 @@ function ns.Have(name)
 end
 
 ---------------------------------------------------------------------------
--- Prices: aux first, then Auctionator, then the last auction house scan of CraftETA
+-- Prices: the auction addons (Sources.lua), then the last auction house scan of CraftETA
 ---------------------------------------------------------------------------
--- which auction house addon you have: "aux", "Auctionator", both ("aux + Auctionator") or nil
-local function Loaded(name)
-  local f = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
-  if not f then return false end
-  local ok, loaded = pcall(f, name)
-  return ok and loaded and true or false
-end
-function ns.HasAux() return _G.AuxForeverAPI ~= nil or Loaded("auxForever") or Loaded("aux-addon") end
-function ns.HasAuctionator() return (_G.Auctionator and Auctionator.API and Auctionator.API.v1) ~= nil or Loaded("Auctionator") end
-function ns.AHAddon()
-  local aux, atr = ns.HasAux(), ns.HasAuctionator()
-  if aux and atr then return "aux + Auctionator" end
-  return (aux and "aux") or (atr and "Auctionator") or nil
-end
--- the addon prices and searches go to: aux when you have it, else Auctionator
-function ns.AHName()
-  return ns.HasAux() and "aux" or (ns.HasAuctionator() and "Auctionator") or "CraftETA"
-end
-
--- Auctionator's price history (allowed by Auctionator): the usual price over its last days, newer days
--- counting more, like aux. Read from its database, carefully: nil if it isn't there or looks different.
-local function AtrUsual(id)
-  local db = _G.Auctionator and Auctionator.Database
-  if not (db and db.GetPriceHistory) then return nil end
-  local ok, hist = pcall(db.GetPriceHistory, db, tostring(id))
-  if not ok or type(hist) ~= "table" or #hist == 0 then return nil end
-  local days = {}
-  for _, e in ipairs(hist) do
-    local p = type(e) == "table" and tonumber(e.minSeen or e.price)
-    if p and p > 0 then days[#days + 1] = { day = tonumber(e.rawDay) or 0, p = p } end
-  end
-  if #days == 0 then return nil end
-  table.sort(days, function(a, b) return a.day > b.day end)
-  local sum, weights = 0, 0
-  for i = 1, math.min(7, #days) do
-    local w = 8 - i          -- the newest day counts 7 times, the 7th day once
-    sum, weights = sum + days[i].p * w, weights + w
-  end
-  return weights > 0 and math.floor(sum / weights + 0.5) or nil
-end
-
--- a price by item ID: aux first, then Auctionator (its history, else its latest price), then CraftETA's own scan
+-- a price by item ID: the usual price of the first auction addon that has one, then CraftETA's own scan
 function ns.PriceID(id, name)
-  if id then
-    local aux = _G.AuxForeverAPI
-    if aux and aux.IsReady and aux.IsReady() then
-      local ok, price = pcall(aux.GetUsualPrice, id)
-      if ok and type(price) == "number" and price > 0 then return price end
-    end
-    local usual = AtrUsual(id)
-    if usual then return usual end
-    local atr = _G.Auctionator and Auctionator.API and Auctionator.API.v1
-    if atr and atr.GetAuctionPriceByItemID then
-      local ok, price = pcall(atr.GetAuctionPriceByItemID, ADDON, id)
-      if ok and type(price) == "number" and price > 0 then return price end
-    end
-  end
+  local price = ns.SourcePrice and ns.SourcePrice(id, "usual")
+  if price then return price end
   local scanned = name and ns.db and ns.db.scanned and ns.db.scanned[name]
   if scanned and scanned.unit then return scanned.unit end
   return nil

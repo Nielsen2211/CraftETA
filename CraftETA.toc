@@ -9,6 +9,7 @@
 ## AddonCompartmentFunc: CraftETA_OnCompartmentClick
 
 Core.lua
+Sources.lua
 Guides.lua
 Gather.lua
 Camp.lua

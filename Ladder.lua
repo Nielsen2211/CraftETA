@@ -58,28 +58,16 @@ local function Fresh(id)
   return nil
 end
 
--- one unit at today's price: a fresh ladder, else aux (today, then usual), else Auctionator (its last
--- scan, then its week), else CraftETA's own scan
+-- one unit at today's price: a fresh ladder, else the auction addons (Sources.lua: their latest scan,
+-- then usual), else CraftETA's own scan
 function ns.BuyUnit(name)
   local id = ns.ItemID(name)
   local l = Fresh(id)
   if l then return l.p[1] end
   local b = id and ns.db and ns.db.browse and ns.db.browse[id]
   if b and b.t and time() - b.t < FRESH then return b.p end
-  local aux = _G.AuxForeverAPI
-  if id and aux and aux.IsReady and aux.IsReady() then
-    for _, fn in ipairs({ aux.GetLatestPrice, aux.GetUsualPrice }) do
-      if type(fn) == "function" then
-        local ok, price = pcall(fn, id)
-        if ok and type(price) == "number" and price > 0 then return price end
-      end
-    end
-  end
-  local atr = _G.Auctionator and Auctionator.API and Auctionator.API.v1
-  if id and atr and atr.GetAuctionPriceByItemID then
-    local ok, price = pcall(atr.GetAuctionPriceByItemID, "CraftETA", id)
-    if ok and type(price) == "number" and price > 0 then return price end
-  end
+  local price = ns.SourcePrice(id, "today")
+  if price then return price end
   return ns.Price(name) or (ns.CratePrice and ns.CratePrice(name))
 end
 
