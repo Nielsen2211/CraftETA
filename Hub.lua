@@ -12,8 +12,12 @@ ns.Hub = H
 H:SetHeight(HEIGHT)
 H.title:Hide()
 H.close:ClearAllPoints()
-H.close:SetPoint("TOPRIGHT", -6, -6)
-H.close:SetSize(24, 24)
+H.close:SetPoint("TOPRIGHT", -4, -4)
+H.close:SetSize(16, 16)
+H.close:SetHitRectInsets(-4, -4, -4, -4)
+local closeBg = H.close:CreateTexture(nil, "BACKGROUND")
+closeBg:SetAllPoints()
+closeBg:SetColorTexture(0.15, 0.16, 0.2, 1)
 ns.HUB_X, ns.HUB_CW = X, CW
 
 local state = { tab = "home", codex = "recipes", filter = "all", profitMode = "craft", offset = 0 }
