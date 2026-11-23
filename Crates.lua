@@ -1476,7 +1476,7 @@ function win:Refresh()
   local missing = math.max(0, need - have)
   if n == 0 then
     bTitle:SetText(L("Your basket is empty", "Din kurv er tom"))
-    bSub:SetText(L("Click the things you want: it adds up the favor and what getting it costs.", "Klik på det, du vil have: så lægger den favor sammen, og hvad det koster at skaffe."))
+    bSub:SetText(L("Click what you want: favor and cost add up here.", "Klik på det du vil have: favor og pris lægges sammen."))
   else
     bTitle:SetText(L("%d in the basket  ·  %d favor", "%d i kurven  ·  %d favor"):format(n, need))
     if missing > 0 then
