@@ -126,6 +126,63 @@ local function DrawBar(f, r, skill)
   f.bar:Show()
 end
 
+-- Other addons (AuctionMaster, aux, Auctionator ...) put their own lines and buttons on the same
+-- recipe window. We remember what Blizzard built, and treat every frame that turns up later as theirs.
+local known, anchored
+local function Kids(parent, out)
+  if not parent or not parent.GetChildren then return out end
+  for _, c in ipairs({ parent:GetChildren() }) do out[#out + 1] = c end
+  return out
+end
+local function Containers()
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local out = Kids(form, {})
+  if page and page ~= form then Kids(page, out) end
+  return out
+end
+local function Snapshot()
+  known = {}
+  for _, c in ipairs(Containers()) do known[c] = true end
+  known[card] = true
+end
+
+-- Keep the card clear of those frames: lift it above them, and if there is no room, hang it
+-- beside the window instead. Runs after every update, so it also follows addons that load late.
+local function KeepClear()
+  if not card or not card:IsShown() or not known or not form then return end
+  local base = 30
+  local top = card:GetTop()
+  local bottom = card:GetBottom()
+  local fb = form:GetBottom()
+  if not (top and bottom and fb) then return end
+  local want = base
+  local h = card:GetHeight()
+  local left, right = card:GetLeft(), card:GetRight()
+  for _, c in ipairs(Containers()) do
+    if not known[c] and c ~= card and c:IsShown() and c:GetNumPoints() > 0 then
+      local ok, ct, cb, cl, cr = pcall(function() return c:GetTop(), c:GetBottom(), c:GetLeft(), c:GetRight() end)
+      if ok and ct and cb and cl and cr and cr > left and cl < right then
+        local cTop = ct - fb          -- how far up from the form's bottom their frame reaches
+        local cBot = cb - fb
+        -- only frames that sit in the strip where the card lives (the bottom of the form)
+        if cBot < base + h and cTop > base then want = math.max(want, cTop + 4) end
+      end
+    end
+  end
+  local formH = form:GetHeight() or 0
+  card:ClearAllPoints()
+  if want + h > formH * 0.8 and ProfessionsFrame then
+    -- no room inside: dock to the right of the window
+    card:SetPoint("TOPLEFT", ProfessionsFrame, "TOPRIGHT", 4, -60)
+    card:SetWidth(math.max(300, form:GetWidth() - 16))
+    anchored = "side"
+  else
+    card:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 8, want)
+    card:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -8, want)
+    anchored = "in"
+  end
+end
+
 local function Update()
   if not card then return end
   local info = Selected()
@@ -274,6 +331,7 @@ local function Update()
     card.matHead:SetPoint("TOPLEFT", PAD, -94); card.mat:SetPoint("TOPLEFT", PAD, -106)
   end
   card:Show()
+  KeepClear()
 end
 ns.UpdateRecipeCard = Update
 
@@ -300,6 +358,7 @@ local function Setup()
   form = page.SchematicForm
   card = Build(form)
   card:Hide()
+  Snapshot()
   if form.Init then hooksecurefunc(form, "Init", Soon) end
   form:HookScript("OnShow", Soon)
   form:HookScript("OnHide", function() card:Hide() end)
