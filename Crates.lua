@@ -1315,8 +1315,8 @@ function win:Refresh()
     local t = tabsNow[k]
     if t then
       b.isCat, b.cat, b.role = t.isCat, t.cat, t.role
-      b:SetWidth(70); b:SetText(t.text)
-      local w = math.max(70, (b.label:GetStringWidth() or 0) + 20)
+      b:SetWidth(60); b:SetText(t.text)
+      local w = math.max(44, (b.label:GetStringWidth() or 0) + 18)
       b:SetWidth(w)
       b:ClearAllPoints(); b:SetPoint("TOPLEFT", x, -80)
       x = x + w + 4
