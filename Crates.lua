@@ -1034,8 +1034,8 @@ wSearch:SetScript("OnTextChanged", function(self)
   favorScroll = 0
   if win:IsShown() then win:Refresh() end
 end)
-local wSort = ns.Button(win, "", 150, 22)
-wSort:SetPoint("TOPRIGHT", wSearch, "BOTTOMRIGHT", 0, -6)
+local wSort = ns.Button(win, "", 118, 20)
+wSort:SetPoint("RIGHT", wSwitchLabel, "LEFT", -16, 0)
 wSort:SetScript("OnClick", function()
   ns.db.favorSort = ns.db.favorSort == "skill" and "price" or "skill"
   favorScroll = 0
@@ -1355,7 +1355,7 @@ function win:Refresh()
   end)
   wEmpty:ClearAllPoints()
   wEmpty:SetPoint("TOPLEFT", 16, -128 - math.min(WROWS, math.ceil(#list / WCOLS)) * WT_H - 6); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
-  wCount:SetText(L("%d things  ·  click: in the basket  ·  right-click: out", "%d ting  ·  klik: i kurven  ·  højreklik: ud"):format(#list))
+  wCount:SetText(L("%d things  ·  click: add  ·  right-click: remove", "%d ting  ·  klik: tilføj  ·  højreklik: fjern"):format(#list))
   local fit = WROWS * WCOLS
   favorScroll = math.min(favorScroll, math.max(0, #list - fit))
   favorScroll = favorScroll - favorScroll % WCOLS
@@ -1382,7 +1382,7 @@ function win:Refresh()
     local need = ""
     if e.skill and e.prof then
       local ok = e.canNow
-      need = "  ·  |cff" .. (ok and "73d973" or "e8574a") .. L("Needs %s %d", "Kræver %s %d"):format(ns.ProfName(e.prof), e.skill) .. "|r"
+      need = "  ·  |cff" .. (ok and "73d973" or "e8574a") .. L("Needs skill %d", "Kræver skill %d"):format(e.skill) .. "|r"
     end
     t.sub:SetText((e.v or "") .. need .. (e.rep and ("  ·  |cffffd24a" .. (e.rep == 2 and "Honored" or "Friendly") .. "|r") or ""))
     t.cost:SetText(e.c .. " favor")
