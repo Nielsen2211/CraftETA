@@ -693,7 +693,7 @@ local function BuildGuide()
   local found = false
   for _, id in ipairs(list) do if id == state.guide then found = true end end
   if not found then state.guide = list[1] end
-  local PER_ROW = 5
+  local PER_ROW = state.stepsOpen and 4 or 5
   for i, id in ipairs(list) do
     local b = Control(i)
     b:ClearAllPoints()

@@ -164,7 +164,7 @@ local count = ns.Font(list, false, 10, 0.42, 0.44, 0.48)
 count:SetPoint("LEFT", head, "RIGHT", 8, 0)
 
 local find = CreateFrame("EditBox", nil, list)
-find:SetSize(200, 24)
+find:SetSize(176, 24)
 find:SetPoint("TOPRIGHT", -PAD, -9)
 find:SetAutoFocus(false)
 find:SetMaxLetters(40)
