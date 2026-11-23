@@ -65,14 +65,17 @@ function ns.Me()
   return c, key
 end
 
-function ns.UpdateMe()
+function ns.UpdateMe(event)
   local c = ns.Me()
   if not c then return end
   c.name = Plain(UnitName("player"))
   local _, class = UnitClass("player")
   c.class = Plain(class)
   c.level = Plain(UnitLevel("player"))
-  c.money = Plain(GetMoney())
+  -- gold: kept up to date by PLAYER_MONEY. At logout the game can answer 0 (or nothing): that is not saved,
+  -- or the character would show 0c on the Alts page
+  local money = Plain(GetMoney())
+  if type(money) == "number" and (event ~= "PLAYER_LOGOUT" or c.money == nil) then c.money = money end
   c.faction = ns.Faction()
   c.seen = time()
   local skills = ns.Skills(true)
@@ -84,7 +87,7 @@ end
 
 for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_MONEY", "PLAYER_LEVEL_UP", "SKILL_LINES_CHANGED", "PLAYER_LOGOUT" }) do
   ns.Register(event)
-  ns.On(event, function() ns.UpdateMe() end)
+  ns.On(event, function() ns.UpdateMe(event) end)
 end
 
 ---------------------------------------------------------------------------
