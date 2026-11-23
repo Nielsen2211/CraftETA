@@ -64,6 +64,7 @@ local LOC = {
     smeltFrom = "Smelt it from %s Ore.", skinBeasts = "Skinning: skin beasts", cloth = "Cloth", rightTrack = "Right-click: track it in the item tracker",
     matsFoot = "Hover a material for where it comes from.", cdAlertOpt = "Tell me when a profession cooldown is ready",
     trackReminderOpt = "Remind me when Find Minerals or Find Herbs is off",
+    rankRemind = "%s is ready for %s. Learn it from %s.", listComplete = "You have everything on your shopping list.", rankRemindOpt = "Tell me when a profession is ready for its next rank", scanRemindOpt = "Remind me when my prices are old", listRemindOpt = "Tell me when the shopping list is complete",
     help = "/ceta: CraftETA  ·  /ceta panel  ·  /ceta farm  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
   },
   da = {
@@ -118,6 +119,7 @@ local LOC = {
     smeltFrom = "Smelt den af %s Ore.", skinBeasts = "Skinning: flå dyr", cloth = "Stof", rightTrack = "Højreklik: følg den i item trackeren",
     matsFoot = "Hold musen over et materiale for at se hvor det kommer fra.", cdAlertOpt = "Sig til når en fag-cooldown er klar",
     trackReminderOpt = "Mind mig om det når Find Minerals eller Find Herbs er slået fra",
+    rankRemind = "%s er klar til %s. Lær det hos %s.", listComplete = "Du har alt på din indkøbsliste.", rankRemindOpt = "Sig til når et fag er klar til næste rank", scanRemindOpt = "Mind mig om det når mine priser er gamle", listRemindOpt = "Sig til når indkøbslisten er komplet",
     help = "/ceta: CraftETA  ·  /ceta panel  ·  /ceta farm  ·  /ceta list  ·  /ceta config  ·  /ceta reset  ·  /ceta da|en",
   },
 }
