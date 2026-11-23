@@ -271,9 +271,9 @@ function ns.ShowGuideView(id, guide, skill, current, y)
 
   -- cost
   subs[2].head:SetText(L("COST OF THIS STEP", "PRIS FOR TRINNET"))
-  if crafting and step and skill then
+  if crafting and step then
     local _, cost, unknown = PlanCost(id, rank, math.min(step[2], goal))
-    costBig:SetText(cost > 0 and ((unknown and "~" or "") .. ns.Money(cost)) or L("Nothing to buy", "Intet at købe"))
+    costBig:SetText(cost > 0 and ((unknown and "~" or "") .. ns.Money(cost)) or (unknown and L("No price yet", "Ingen pris endnu") or L("Nothing to buy", "Intet at købe")))
     local crafts, gcost, gunk, eta = PlanCost(id, rank, goal)
     costGoal:SetText(L("To %d: ", "Til %d: "):format(goal) .. (gunk and "~" or "") .. ns.Money(gcost) .. "  ·  " .. T("crafts", crafts) .. (eta and ("  ·  " .. eta) or ""))
     -- plus or minus on this craft, and what selling the crafts gives back on the way to the goal
@@ -302,7 +302,7 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     b:SetText(labels[i])
     b.label:SetTextColor(v == goal and 1 or 0.85, v == goal and 0.82 or 0.87, v == goal and 0.3 or 0.9)
     b:SetEnabled(okv)
-    if okv and crafting and skill then
+    if okv and crafting then
       local _, c, unk = PlanCost(id, rank, v)
       b.cost:SetText(c > 0 and ((unk and "~" or "") .. ns.Money(c)) or "")
     else
