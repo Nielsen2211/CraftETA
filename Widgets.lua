@@ -3,7 +3,7 @@ local _, ns = ...
 
 function ns.Font(parent, bold, size, r, g, b)
   local t = parent:CreateFontString(nil, "OVERLAY")
-  t:SetFont(bold and ns.F_BOLD or ns.F_SEMI, size or 11, "")
+  t:SetFont(bold and ns.F_BOLD or ns.F_SEMI, math.max(size or 11, 10), "")
   t:SetShadowOffset(0, 0)
   t:SetTextColor(r or 0.85, g or 0.87, b or 0.9)
   t:SetJustifyH("LEFT")
@@ -114,7 +114,7 @@ function ns.Button(parent, text, width, height)
   end
   edge("TOPLEFT", "TOPRIGHT", true); edge("BOTTOMLEFT", "BOTTOMRIGHT", true)
   edge("TOPLEFT", "BOTTOMLEFT"); edge("TOPRIGHT", "BOTTOMRIGHT")
-  local label = ns.Font(b, true, 11, 1, 0.82, 0.3)
+  local label = ns.Font(b, true, 11, 0.91, 0.92, 0.94)
   label:SetPoint("CENTER")
   label:SetJustifyH("CENTER")
   b.label = label
@@ -124,7 +124,7 @@ function ns.Button(parent, text, width, height)
     for _, t in ipairs(edges) do t:SetColorTexture(r, g, bl, 1) end
   end
   b:SetScript("OnEnter", function(self)
-    if self:IsEnabled() then color(1, 0.82, 0.3) end
+    if self:IsEnabled() then b.keepR, b.keepG, b.keepB = label:GetTextColor(); label:SetTextColor(1, 0.82, 0.3); bg:SetColorTexture(0.16, 0.17, 0.21, 0.95) end
     if self.tip then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:SetText(self.tip, 1, 1, 1, 1, true)
@@ -132,11 +132,12 @@ function ns.Button(parent, text, width, height)
     end
   end)
   b:SetScript("OnLeave", function()
-    color(0.25, 0.27, 0.32)
+    bg:SetColorTexture(0.12, 0.13, 0.16, 0.95)
+    if b:IsEnabled() and b.keepR then label:SetTextColor(b.keepR, b.keepG, b.keepB) end
     GameTooltip:Hide()
   end)
   hooksecurefunc(b, "Disable", function() label:SetTextColor(0.42, 0.43, 0.47) end)
-  hooksecurefunc(b, "Enable", function() label:SetTextColor(1, 0.82, 0.3) end)
+  hooksecurefunc(b, "Enable", function() label:SetTextColor(0.91, 0.92, 0.94) end)
   -- text too long for the button (Leatherworking): a smaller font until it fits (not below 8).
   -- b.grow = true: the button grows instead (the main window's page buttons)
   local function Fit()
@@ -148,7 +149,7 @@ function ns.Button(parent, text, width, height)
     local room = b:GetWidth() - 10
     local s = want
     label:SetFont(font, s, flags)
-    while s > 8 and label:GetStringWidth() > room do
+    while s > 10 and label:GetStringWidth() > room do
       s = s - 1
       label:SetFont(font, s, flags)
     end
@@ -163,13 +164,9 @@ end
 
 -- the main button of a view: gold fill, dark bold text (the CraftETA panel's Craft button)
 function ns.Primary(b, size)
-  local fill = b:CreateTexture(nil, "BACKGROUND", nil, 2)
-  fill:SetAllPoints()
-  b.label:SetFont(ns.F_BOLD, size or 12, "")
-  b.label:SetShadowOffset(0, 0)
+  b.label:SetFont(ns.F_BOLD, math.max(size or 12, 11), "")
   local function Look(on)
-    fill:SetColorTexture(on and 1 or 0.2, on and 0.82 or 0.19, on and 0.29 or 0.15, 1)
-    b.label:SetTextColor(on and 0.1 or 0.45, on and 0.08 or 0.45, on and 0.03 or 0.47)
+    b.label:SetTextColor(on and 1 or 0.42, on and 0.82 or 0.43, on and 0.3 or 0.47)
   end
   hooksecurefunc(b, "Enable", function() Look(true) end)
   hooksecurefunc(b, "Disable", function() Look(false) end)

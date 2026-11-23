@@ -161,7 +161,9 @@ function ns.Money(copper)
   if not copper then return "?" end
   copper = math.floor(copper + 0.5)
   local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
-  local gold, silver, cop = "|cffffd24ag|r", "|cffc7c7cfs|r", "|cffeda55fc|r"
+  local gold = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t"
+  local silver = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t"
+  local cop = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t"
   if g > 0 then
     return ("%d%s %d%s"):format(g, gold, s, silver)
   elseif s > 0 then
