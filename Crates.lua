@@ -1034,7 +1034,7 @@ wSearch:SetScript("OnTextChanged", function(self)
   favorScroll = 0
   if win:IsShown() then win:Refresh() end
 end)
-local wSort = ns.Button(win, "", 118, 20)
+local wSort = ns.Button(win, "", 126, 20)
 wSort:SetPoint("RIGHT", wSwitchLabel, "LEFT", -16, 0)
 wSort:SetScript("OnClick", function()
   ns.db.favorSort = ns.db.favorSort == "skill" and "price" or "skill"
@@ -1341,7 +1341,7 @@ function win:Refresh()
     end)
   end
   wVendNote:SetText(opened == #wVend and L("All vendors known", "Alle handlere kendt")
-    or L("%d of %d vendors known  ·  open the grey ones once", "%d af %d handlere kendt  ·  åbn de grå én gang"):format(opened, #wVend))
+    or L("%d of %d vendors", "%d af %d handlere"):format(opened, #wVend))
   -- the tabs: the chosen vendor's own, or the roles across everything
   local da = ns.db.lang == "da"
   local vend = favorVendor and FAVOR_VENDORS[favorVendor]
@@ -1358,7 +1358,7 @@ function win:Refresh()
     if t then
       b.isCat, b.cat, b.role = t.isCat, t.cat, t.role
       b:SetWidth(60); b:SetText(t.text)
-      local w = math.max(44, (b.label:GetStringWidth() or 0) + 18)
+      local w = math.max(50, (b.label:GetStringWidth() or 0) + 18)
       b:SetWidth(w)
       b:ClearAllPoints(); b:SetPoint("TOPLEFT", x, -80)
       x = x + w + 4
@@ -1397,7 +1397,7 @@ function win:Refresh()
   end)
   wEmpty:ClearAllPoints()
   wEmpty:SetPoint("TOPLEFT", 16, -128 - math.min(WROWS, math.ceil(#list / WCOLS)) * WT_H - 6); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
-  wCount:SetText(L("%d things  ·  click: add  ·  right-click: remove", "%d ting  ·  klik: tilføj  ·  højreklik: fjern"):format(#list))
+  wCount:SetText(L("%d things  ·  click: add  ·  right: remove", "%d ting  ·  klik: tilføj  ·  højre: fjern"):format(#list))
   local fit = WROWS * WCOLS
   favorScroll = math.min(favorScroll, math.max(0, #list - fit))
   favorScroll = favorScroll - favorScroll % WCOLS
