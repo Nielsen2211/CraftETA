@@ -33,7 +33,7 @@ local function Build(parent)
   bg:SetColorTexture(0.04, 0.045, 0.06, 0.82)
   local stripe = f:CreateTexture(nil, "BORDER")
   stripe:SetPoint("TOPLEFT"); stripe:SetPoint("BOTTOMLEFT")
-  stripe:SetWidth(2)
+  stripe:SetWidth(2); stripe:SetAlpha(0)
   stripe:SetColorTexture(1, 0.82, 0.3, 0.9)
 
   f.logo = f:CreateTexture(nil, "ARTWORK")

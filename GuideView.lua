@@ -46,7 +46,7 @@ local cur = {}
 ---------------------------------------------------------------------------
 -- The NOW card
 ---------------------------------------------------------------------------
-local now = Card(gv, nil, nil, nil, { 0.47, 0.38, 0.16, 1 })
+local now = Card(gv, nil, nil, nil, { 0.2, 0.21, 0.25, 1 })
 now:SetPoint("TOPLEFT"); now:SetPoint("RIGHT")
 now:SetHeight(196)
 local nowIcon = Icon(now, 48); nowIcon:SetPoint("TOPLEFT", 16, -16)
@@ -149,7 +149,7 @@ end
 -- Under it: what stops you (a trainer), and what comes next
 ---------------------------------------------------------------------------
 local HALF = math.floor((CW - 8) / 2)
-local stop = Card(gv, 0.18, 0.13, 0.078, { 0.43, 0.29, 0.13, 1 })
+local stop = Card(gv, nil, nil, nil, { 0.2, 0.21, 0.25, 1 })
 stop:SetSize(HALF, 84); stop:SetPoint("TOPLEFT", now, "BOTTOMLEFT", 0, -8)
 local stopHead = Head(stop, "", 1, 0.69, 0.38); stopHead:SetPoint("TOPLEFT", 14, -11)
 local stopTitle = ns.Font(stop, true, 12, 0.9, 0.91, 0.94); stopTitle:SetPoint("TOPLEFT", stopHead, "BOTTOMLEFT", 0, -6)

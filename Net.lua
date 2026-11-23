@@ -116,7 +116,7 @@ end
 local GREEN, RED, GREY = "|cff5cd67c", "|cffe6594d", "|cff8c8f96"
 
 function ns.SignedMoney(v)
-  if math.abs(v) < 0.5 then return "0c" end
+  if math.abs(v) < 0.5 then return ns.Money(0) end
   return (v > 0 and "+" or "-") .. ns.Money(math.abs(v))
 end
 

@@ -47,7 +47,7 @@ local filterProf, sortBy, onlyNow, scroll = nil, "profit", false, 0
 ---------------------------------------------------------------------------
 -- The best one now
 ---------------------------------------------------------------------------
-local top = Card(page, { 0.47, 0.38, 0.16 })
+local top = Card(page)
 top:SetPoint("TOPLEFT"); top:SetPoint("RIGHT"); top:SetHeight(84)
 local tIcon = Icon(top, 48); tIcon:SetPoint("LEFT", 16, 0)
 local tHead = ns.Font(top, true, 9, 0.62, 0.55, 0.36); tHead:SetPoint("TOPLEFT", tIcon, "TOPRIGHT", 12, 0)
