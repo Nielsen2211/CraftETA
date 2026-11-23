@@ -951,7 +951,7 @@ function page:Refresh()
   local shopN = 0
   for _ in pairs(shopList) do shopN = shopN + 1 end
   tabs[1]:SetText(L("Cheapest crates", "Billigste kasser"))
-  tabs[2]:SetText(L("Buy for favor", "Køb for favor") .. (shopN > 0 and (" (" .. shopN .. ")") or "") .. "  »")
+  tabs[2]:SetText(L("Buy for favor", "Køb for favor") .. (shopN > 0 and (" (" .. shopN .. ")") or ""))
   for _, b in ipairs(tabs) do
     local on = b.key == tab
     b.label:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.62, on and 0.3 or 0.68)

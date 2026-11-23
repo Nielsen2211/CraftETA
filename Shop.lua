@@ -745,7 +745,7 @@ function ns.RefreshList()
   local da = ns.db.lang == "da"
   hTitle:SetText(da and "Indkøbsliste" or "Shopping list")
   local what = {}
-  for _, p in ipairs(List().plans) do what[#what + 1] = (ns.ProfName and ns.ProfName(p.prof) or "?") .. " → " .. p.target end
+  for _, p in ipairs(List().plans) do what[#what + 1] = (ns.ProfName and ns.ProfName(p.prof) or "?") .. (da and " til " or " to ") .. p.target end
   if List().favor then what[#what + 1] = "Favor " .. List().favor end
   if next(List().extra) then what[#what + 1] = da and "ekstra" or "extra" end
   hSub:SetText(#what > 0 and table.concat(what, "  ·  ") or (da and "Tom" or "Empty"))
