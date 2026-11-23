@@ -57,35 +57,28 @@ local function People()
   local list, byKey = {}, {}
   local roster = GuildRoster()
   local meKey = ns.CharKey and ns.CharKey()
-  -- your characters
+  -- your own characters are not crafters you need to find: leave them out
+  local mine = {}
   for key, c in pairs(ns.db.chars or {}) do
-    local profs, recipes = {}, {}
-    for id, s in pairs(c.profs or {}) do
-      if ns.GUIDES[id] or (ns.GATHER and ns.GATHER[id]) then profs[ns.ProfName(id)] = s.rank end
-    end
-    for id, book in pairs(c.book or {}) do
-      for _, r in pairs(book) do
-        if r.l and r.n then recipes[r.n] = { prof = ns.ProfName(id), icon = r.i, item = r.o } end
-      end
-    end
-    if next(profs) then
-      local p = { key = key, name = c.name or key, class = c.class, level = c.level, profs = profs, recipes = recipes,
-        source = "mine", online = key == meKey, seen = c.seen }
-      list[#list + 1] = p; byKey[key] = p
-    end
+    mine[Low(Short(key))] = true
+    if c.name then mine[Low(c.name)] = true end
   end
   -- guild members with CraftETA
   for sender, g in pairs(ns.guildPeers or {}) do
+   if not mine[Low(Short(sender))] then
     local r = roster[sender] or roster[Short(sender)] or {}
     local p = { key = sender, name = Short(sender), whisper = sender, class = g.class or r.class, level = g.level or r.level,
       profs = g.profs or {}, recipes = {}, source = "guild", online = r.online, zone = r.zone, seen = g.seen }
     for name, prof in pairs(g.recipes or {}) do p.recipes[name] = { prof = prof ~= true and prof or nil } end
     list[#list + 1] = p; byKey[sender] = p
+   end
   end
   -- trade chat adverts
   for _, a in ipairs(ns.Adverts and ns.Adverts() or {}) do
     local p = byKey[a.sender]
-    if p then
+    if mine[Low(a.short)] then
+      -- one of your own characters
+    elseif p then
       p.ad, p.adAt = a.text, a.t
     else
       local r = roster[a.sender] or roster[a.short] or {}
