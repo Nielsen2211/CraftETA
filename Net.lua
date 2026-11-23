@@ -131,7 +131,7 @@ function ns.ProfitText(net)
 end
 
 -- one line for a stretch: "Sells back 85g  ·  net cost 35g" (or net gain)
-function ns.RouteNetText(r)
+function ns.RouteNetText(r, short)
   if not r or r.crafts == 0 then return "" end
   local parts = {}
   if r.sold > 0 or r.unpriced == 0 then
@@ -145,7 +145,7 @@ function ns.RouteNetText(r)
   end
   local text = table.concat(parts, "  ·  ")
   if r.unpriced > 0 then
-    text = text .. "  " .. RED .. L("(no price for %d crafts)", "(ingen pris på %d crafts)"):format(r.unpriced) .. "|r"
+    text = text .. "  " .. RED .. (short and L("(%d unpriced)", "(%d uden pris)") or L("(no price for %d crafts)", "(ingen pris på %d crafts)")):format(r.unpriced) .. "|r"
   end
   return text
 end

@@ -154,7 +154,7 @@ stop:SetSize(HALF, 84); stop:SetPoint("TOPLEFT", now, "BOTTOMLEFT", 0, -8)
 local stopHead = Head(stop, "", 1, 0.69, 0.38); stopHead:SetPoint("TOPLEFT", 14, -11)
 local stopTitle = ns.Font(stop, true, 12, 0.9, 0.91, 0.94); stopTitle:SetPoint("TOPLEFT", stopHead, "BOTTOMLEFT", 0, -6)
 local stopWho = ns.Font(stop, false, 10, 0.82, 0.67, 0.47); stopWho:SetPoint("TOPLEFT", stopTitle, "BOTTOMLEFT", 0, -4)
-stopWho:SetPoint("RIGHT", stop, "RIGHT", -110, 0); stopWho:SetWordWrap(false)
+stopWho:SetPoint("RIGHT", stop, "RIGHT", -110, 0); stopWho:SetWordWrap(true); stopWho:SetMaxLines(2)  -- long trainer names take a second line
 local stopMap = ns.Button(stop, "", 96, 22); stopMap:SetPoint("BOTTOMRIGHT", -12, 12)
 stopMap.label:SetTextColor(1, 0.84, 0.63)
 
@@ -275,7 +275,8 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     local _, cost, unknown = PlanCost(id, rank, math.min(step[2], goal))
     costBig:SetText(cost > 0 and ((unknown and "~" or "") .. ns.Money(cost)) or (unknown and L("No price yet", "Ingen pris endnu") or L("Nothing to buy", "Intet at købe")))
     local crafts, gcost, gunk, eta = PlanCost(id, rank, goal)
-    costGoal:SetText(L("To %d: ", "Til %d: "):format(goal) .. (gunk and "~" or "") .. ns.Money(gcost) .. "  ·  " .. T("crafts", crafts) .. (eta and ("  ·  " .. eta) or ""))
+    local toGoal = L("To %d: ", "Til %d: "):format(goal) .. (gunk and "~" or "") .. ns.Money(gcost) .. "  ·  " .. T("crafts", crafts)
+    ns.Fit(costGoal, toGoal .. (eta and ("  ·  " .. eta) or ""), toGoal)
     -- plus or minus on this craft, and what selling the crafts gives back on the way to the goal
     cur.rank, cur.goal = rank, goal
     if cur.entry then
@@ -283,7 +284,8 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     else
       costSub:SetText("")
     end
-    costNet:SetText(ns.RouteNetText(ns.RouteNet(id, rank, goal, true)))
+    local rn = ns.RouteNet(id, rank, goal, true)
+    ns.Fit(costNet, ns.RouteNetText(rn), ns.RouteNetText(rn, true))
   else
     cur.rank, cur.goal = nil, nil
     costBig:SetText(""); costSub:SetText(crafting and "" or L("Gathering costs nothing but time.", "Samling koster kun tid.")); costGoal:SetText(""); costNet:SetText("")
@@ -304,7 +306,7 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     b:SetEnabled(okv)
     if okv and crafting then
       local _, c, unk = PlanCost(id, rank, v)
-      b.cost:SetText(c > 0 and ((unk and "~" or "") .. ns.Money(c)) or "")
+      b.cost:SetText(c > 0 and ((unk and "~" or "") .. ns.MoneyShort(c)) or "")
     else
       b.cost:SetText("")
     end
@@ -318,7 +320,9 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     stop:Show()
     stopHead:SetText(L("STOPS YOU AT %d", "STOPPER DIG VED %d"):format(r.at))
     stopTitle:SetText(L("Train %s %s", "Træn %s %s"):format(RANK[r.at] or "", guide.name))
-    stopWho:SetText((r[ns.Faction()] or "") .. "  ·  " .. L("level %d", "level %d"):format(r.lvl or 1))
+    local who, lvl = r[ns.Faction()] or "", L("level %d", "level %d"):format(r.lvl or 1)
+    if (r.lvl or 1) <= 1 then ns.Fit(stopWho, who)
+    else ns.Fit(stopWho, who .. "  ·  " .. lvl, who .. "\n" .. lvl, who) end  -- a long trainer name puts the level on its own line, or wraps
     stopMap:SetText(L("Show on map", "Vis på kort"))
     stopMap:SetScript("OnClick", function() ns.ShowTrainer(id) end)
     stopMap.label:SetTextColor(1, 0.84, 0.63)
