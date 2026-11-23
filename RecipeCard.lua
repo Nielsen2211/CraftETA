@@ -3,6 +3,7 @@
 -- where the colours change) and materials (how many you can make, what it costs, what it sells for).
 local _, ns = ...
 local T, Plain = ns.T, ns.Plain
+local function L(en, da) return (ns.db and ns.db.lang == "da") and da or en end
 
 local PAD, W_BAR, BAR_H = 10, 0, 8
 local card, form
@@ -45,7 +46,10 @@ local function Build(parent)
   f.rule = f:CreateTexture(nil, "ARTWORK")
   f.rule:SetHeight(1)
   f.rule:SetPoint("LEFT", f.title, "RIGHT", 8, 0)
-  f.rule:SetPoint("RIGHT", f, "RIGHT", -PAD, 0)
+  f.rule:SetPoint("RIGHT", f, "RIGHT", -PAD - 96, 0)
+  -- the recipe's materials on the shopping list (shift: 5)
+  f.list = ns.Primary(ns.Button(f, "", 88, 18), 10)
+  f.list:SetPoint("TOPRIGHT", -PAD, -6)
   f.rule:SetColorTexture(1, 0.82, 0.3, 0.35)
 
   f.guideHead = Section(f, -30, "")
@@ -193,6 +197,7 @@ local function Update()
   -- materials
   card.matHead:SetText(string.upper(T("rcMats")))
   local parts = {}
+  local lines = 0
   local can = tonumber(Plain(info.numAvailable)) or 0
   if can == 0 and ns.CanMake then can = ns.CanMake(name) end
   parts[#parts + 1] = can > 0 and ("|cff73d973" .. T("rcCanMake", can) .. "|r") or ("|cff8c8f96" .. T("rcCantMake") .. "|r")
@@ -201,7 +206,7 @@ local function Update()
   if entry then
     local cost, missing = ns.CraftCost(entry)
     local yield = entry.y or 1
-    local sell = entry.o and ns.PriceID(entry.o)
+    local sell = entry.o and ((ns.SellUnit and ns.SellUnit(entry.o)) or ns.PriceID(entry.o))
     local money = {}
     if cost > 0 then money[#money + 1] = T("rcCost", (missing and "~" or "") .. ns.Money(cost)) end
     if sell then
@@ -212,9 +217,60 @@ local function Update()
       end
     end
     if #money > 0 then parts[#parts + 1] = table.concat(money, "  ·  ") end
+
+    -- what you are short of for one craft: have / need
+    local mats = entry.m or {}
+    local short = {}
+    for i = 1, #mats, 2 do
+      local have, need = ns.Have(mats[i]), mats[i + 1]
+      if have < need then
+        local icon = ns.ItemIcon(mats[i])
+        short[#short + 1] = ("|T%s:12:12:0:0:64:64:5:59:5:59|t %s  |cffe6594d%d|r|cff8c8f96/%d|r"):format(icon or 134400, mats[i], have, need)
+      end
+    end
+    if #short > 0 then
+      parts[#parts + 1] = "|cffffd24a" .. L("You're short on materials", "Du mangler materialer") .. "|r\n" .. table.concat(short, "\n")
+      lines = lines + 1 + #short
+    end
+
+    -- the cheapest way: a material you (or an alt) can make for less than it costs to buy
+    local best
+    for i = 1, #mats, 2 do
+      local id = ns.ItemID(mats[i])
+      local buy = ns.MatPrice(mats[i])
+      for _, m in ipairs(id and ns.Makers and ns.Makers(id) or {}) do
+        local own = ns.CraftCost(m.recipe) / (m.recipe.y or 1)
+        if buy and own > 0 and own < buy then
+          local save = (buy - own) * mats[i + 1]
+          if not best or save > best.save then best = { mat = mats[i], save = save, char = m.char } end
+        end
+      end
+    end
+    if best then
+      parts[#parts + 1] = "|cff73d973" .. L("Cheapest way: make your own %s (%s) and save %s", "Billigste vej: lav selv %s (%s) og spar %s"):format(best.mat, best.char, ns.Money(best.save)) .. "|r"
+      lines = lines + 1
+    end
+
+    card.list:SetText(L("Shopping list", "Indkøbsliste"))
+    card.list:SetScript("OnClick", function()
+      local n = IsShiftKeyDown() and 5 or 1
+      local want, order = {}, {}
+      for i = 1, #mats, 2 do
+        if not want[mats[i]] then order[#order + 1] = mats[i] end
+        want[mats[i]] = (want[mats[i]] or 0) + mats[i + 1] * n
+      end
+      if #order > 0 and ns.AddToList then
+        ns.AddToList(want, order)
+        ns.Print(L("Materials for %d %s on the shopping list.", "Mats til %d %s er på indkøbslisten."):format(n, name))
+      end
+    end)
+    card.list.tip = L("The materials for one on the shopping list (shift: 5).", "Mats til én på indkøbslisten (shift: 5).")
+    card.list:SetShown(#mats > 0)
+  else
+    card.list:Hide()
   end
   card.mat:SetText(table.concat(parts, "\n"))
-  card:SetHeight(r and 160 or 140)
+  card:SetHeight((r and 160 or 140) + lines * 14)
   if r then
     card.matHead:SetPoint("TOPLEFT", PAD, -116); card.mat:SetPoint("TOPLEFT", PAD, -128)
   else
