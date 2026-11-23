@@ -1,5 +1,4 @@
 -- CraftETA: leveling routes 1-300 for WoW Forever.
--- Routes from WoW-Professions.com (https://www.wow-professions.com/forever), used with permission.
 --
 -- One step:  { from, to, { recipe, crafts, { material, total, material, total, ... }, yield? }, ..., any = true?, note = "..." }
 --   every craft entry of a step is made in order; with any = true, one of them is enough (pick what you have)
@@ -7,9 +6,6 @@
 --   the materials, so a material that differs on your client is read from the game instead.
 -- ranks: { at = skill you can't pass without it, need = skill to learn it, lvl = level, h = Horde, a = Alliance }
 local _, ns = ...
-
-ns.SOURCE = "WoW-Professions.com"
-ns.SOURCE_URL = "wow-professions.com/forever"
 
 ns.GUIDES = {
   -- Alchemy

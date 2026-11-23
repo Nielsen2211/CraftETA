@@ -2,7 +2,6 @@
 -- it in for Merchant's Favor (Dokimi, Crossroads for the Horde; Marcy Baker, Three Corners for the Alliance).
 -- This page finds the cheapest way to a goal ("200 favor"): crates in your bags first, then crates on the
 -- auction house, each filled with its cheapest bundle, counting the materials you already have.
--- Crates and bundles from WoW-Professions.com (https://www.wow-professions.com/forever), used with permission.
 local _, ns = ...
 local T, Plain = ns.T, ns.Plain
 

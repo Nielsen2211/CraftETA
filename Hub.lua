@@ -791,6 +791,7 @@ local function BuildGuide()
     local now, past = i == current, rank >= s[2]
     local chosen = crafting and (ns.Chosen(id, i, s)) or nil
     local name, count = s.what, nil
+    local stepNet = chosen and not past and ns.StepNet(id, i, s) or nil
     if chosen then
       name, count = chosen[1][1], chosen[1][2]
       if #chosen > 1 then name = name .. " |cff8c8f96+" .. (#chosen - 1) .. "|r" end
@@ -798,7 +799,7 @@ local function BuildGuide()
     data[#data + 1] = {
       icon = chosen and ns.ItemIcon(chosen[1][1], ProfIcon(id)) or guide.icon or ProfIcon(id),
       range = ("%d-%d"):format(s[1], s[2]), name = name, current = now, done = past, zebra = i % 2 == 0,
-      value = count and ("x" .. count) or "",
+      value = count and ("x" .. count .. (stepNet and (stepNet.unpriced < stepNet.crafts and ("  " .. ns.StepProfitShort(stepNet)) or "") or "")) or "",
       vr = past and 0.45 or (now and 1 or 0.75), vg = past and 0.47 or (now and 0.82 or 0.77), vb = past and 0.5 or (now and 0.3 or 0.8),
       r = now and 1 or (past and 0.45 or 0.85), g = now and 0.82 or (past and 0.47 or 0.87), b = now and 0.3 or (past and 0.5 or 0.9),
       tip = function(tip)
@@ -812,6 +813,21 @@ local function BuildGuide()
             end
           end
           if s.any then tip:AddLine(T("anyOne"), 0.6, 0.62, 0.68) end
+          local sn = ns.StepNet(id, i, s)
+          for _, e in ipairs(sn.entries) do
+            tip:AddLine(" ")
+            tip:AddDoubleLine(("%s x%d"):format(e.entry[1], e.n), ns.ProfitText(e.net), 1, 1, 1, 1, 1, 1)
+            if e.net.sell then
+              tip:AddDoubleLine("   " .. (ns.db.lang == "da" and "Materialer / sælger" or "Materials / sells"),
+                ns.Money(e.net.cost) .. " / " .. ns.Money(e.net.sell * e.net.y), 0.7, 0.72, 0.76, 0.85, 0.87, 0.9)
+            end
+          end
+          if sn.unpriced < sn.crafts then
+            tip:AddDoubleLine(ns.db.lang == "da" and "Hele trinnet (efter AH's 5%)" or "Whole step (after the AH's 5%)", (sn.profit >= 0 and "|cff5cd67c" or "|cffe6594d") .. ns.SignedMoney(sn.profit) .. "|r", 1, 0.82, 0.3, 1, 1, 1)
+          end
+          if sn.unpriced > 0 then
+            tip:AddLine(ns.db.lang == "da" and ("Ingen pris på " .. sn.unpriced .. " crafts: scan AH") or (sn.unpriced .. " crafts have no price: scan the AH"), 0.9, 0.35, 0.3, true)
+          end
         else
           tip:AddLine(s.what, 1, 1, 1, true)
           tip:AddLine(T("where") .. " " .. s[f], 0.85, 0.87, 0.9, true)

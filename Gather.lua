@@ -1,5 +1,4 @@
 -- CraftETA: gathering routes 1-300 for WoW Forever (Mining, Herbalism, Skinning, Fishing).
--- Routes from WoW-Professions.com (https://www.wow-professions.com/forever), used with permission.
 --
 -- One step: { from, to, what = "what to gather", a = "Alliance zones", h = "Horde zones", note = "..." }
 -- ranks: { at = skill you can't pass without it, need = skill to learn it, lvl = level, h = Horde, a = Alliance }

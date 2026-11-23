@@ -1,5 +1,4 @@
 -- CraftETA: camp items and profession specializations for WoW Forever.
--- Camp items from WoW-Professions.com (https://www.wow-professions.com/forever/camping-guide), used with permission.
 -- One camp item: { skill, name, effect, materials, how to get }
 local _, ns = ...
 

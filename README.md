@@ -18,12 +18,15 @@
 - **Specializations**, **Crafters** (who in your guild can make it), **Gold** (craft profit and what is worth farming), **Codex** (recipes and where materials come from), **Camping** and **Cooldowns**.
 - **Item tracker** and **farming tracker** (loot, value, gold per hour).
 
+## What the route earns
+- **Plus or minus on every craft and step**, from the latest auction house prices (materials against the sell price, after the AH's 5%).
+- **The price of the whole stretch** (1 to 300, or to your goal), what the crafts sell back for, and the net. Hover the cost card.
+- A price that is missing says so; it is never counted as zero.
+
 ## Shopping and the auction house
 - A shopping list from your route, minus bags, bank and mail.
 - Works with **aux** or **Auctionator**, found by itself; buys one item per click with a price check, or sends the list to Auctionator.
 
 Everything can be turned off in /ceta config.
-
-Leveling routes from [WoW-Professions.com](https://www.wow-professions.com/forever), used with permission.
 
 `/ceta` · `/ceta panel` · `/ceta list` · `/ceta farm` · `/ceta track` · `/ceta config` · `/ceta da|en`

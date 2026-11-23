@@ -90,10 +90,37 @@ for i = 1, 3 do
   needRows[i] = r
 end
 -- cost
-local costBig = ns.Font(subs[2], true, 17, 1, 0.82, 0.29); costBig:SetPoint("TOPLEFT", 12, -26)
-local costSub = ns.Font(subs[2], false, 10, 0.5, 0.52, 0.57); costSub:SetPoint("TOPLEFT", costBig, "BOTTOMLEFT", 0, -4)
-local costGoal = ns.Font(subs[2], false, 10, 0.85, 0.87, 0.9); costGoal:SetPoint("TOPLEFT", costSub, "BOTTOMLEFT", 0, -6)
-costGoal:SetPoint("RIGHT", subs[2], "RIGHT", -10, 0); costGoal:SetWordWrap(false)
+local costBig = ns.Font(subs[2], true, 16, 1, 0.82, 0.29); costBig:SetPoint("TOPLEFT", 12, -21)
+local costSub = ns.Font(subs[2], false, 9, 0.5, 0.52, 0.57); costSub:SetPoint("TOPLEFT", costBig, "BOTTOMLEFT", 0, -3)
+costSub:SetPoint("RIGHT", subs[2], "RIGHT", -8, 0); costSub:SetWordWrap(false)
+local costGoal = ns.Font(subs[2], false, 9, 0.85, 0.87, 0.9); costGoal:SetPoint("TOPLEFT", costSub, "BOTTOMLEFT", 0, -3)
+costGoal:SetPoint("RIGHT", subs[2], "RIGHT", -8, 0); costGoal:SetWordWrap(false)
+local costNet = ns.Font(subs[2], false, 9, 0.85, 0.87, 0.9); costNet:SetPoint("TOPLEFT", costGoal, "BOTTOMLEFT", 0, -3)
+costNet:SetPoint("RIGHT", subs[2], "RIGHT", -8, 0); costNet:SetWordWrap(false)
+-- hover the card: what 1 to 300 costs on the AH, what the crafts sell back for, and the net
+subs[2]:EnableMouse(true)
+subs[2]:SetScript("OnEnter", function(self)
+  local id = cur.id
+  if not id or not ns.GUIDES[id] then return end
+  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+  GameTooltip:SetText(L("Prices from your latest scan", "Priser fra din seneste scan"), 1, 1, 1)
+  if cur.entry then
+    local net = ns.EntryNet(cur.entry)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(L("One craft of %s", "Ét craft af %s"):format(cur.entry[1]), 1, 0.82, 0.3)
+    GameTooltip:AddDoubleLine(L("Materials", "Materialer"), (net.costMissing and "~" or "") .. ns.Money(net.cost), 0.85, 0.87, 0.9, 1, 1, 1)
+    if net.sell then
+      GameTooltip:AddDoubleLine(L("Sells for", "Sælger for"), ns.Money(net.sell * net.y), 0.85, 0.87, 0.9, 1, 1, 1)
+    end
+    GameTooltip:AddDoubleLine(L("Profit after the AH's 5%", "Profit efter AH's 5%"), (ns.ProfitText(net)), 0.85, 0.87, 0.9, 1, 1, 1)
+  end
+  ns.AddRouteTip(GameTooltip, L("Skill 1 to 300, everything bought", "Skill 1 til 300, alt købt"), ns.RouteNet(id, 1, 300))
+  if cur.rank and cur.goal and cur.rank > 1 then
+    ns.AddRouteTip(GameTooltip, L("Skill %d to %d, what you still need", "Skill %d til %d, det du mangler"):format(cur.rank, cur.goal), ns.RouteNet(id, cur.rank, cur.goal, true))
+  end
+  GameTooltip:Show()
+end)
+subs[2]:SetScript("OnLeave", function() GameTooltip:Hide() end)
 -- your goal: a number you set, and presets with what each costs
 local goalSub = subs[3]
 -- type the skill you want to reach (Enter sets it)
@@ -243,15 +270,23 @@ function ns.ShowGuideView(id, guide, skill, current, y)
   end
 
   -- cost
-  subs[2].head:SetText(L("COST", "PRIS"))
+  subs[2].head:SetText(L("COST OF THIS STEP", "PRIS FOR TRINNET"))
   if crafting and step and skill then
     local _, cost, unknown = PlanCost(id, rank, math.min(step[2], goal))
     costBig:SetText(cost > 0 and ((unknown and "~" or "") .. ns.Money(cost)) or L("Nothing to buy", "Intet at købe"))
-    costSub:SetText(L("left to buy for this step", "mangler at købe til trinnet"))
     local crafts, gcost, gunk, eta = PlanCost(id, rank, goal)
     costGoal:SetText(L("To %d: ", "Til %d: "):format(goal) .. (gunk and "~" or "") .. ns.Money(gcost) .. "  ·  " .. T("crafts", crafts) .. (eta and ("  ·  " .. eta) or ""))
+    -- plus or minus on this craft, and what selling the crafts gives back on the way to the goal
+    cur.rank, cur.goal = rank, goal
+    if cur.entry then
+      costSub:SetText(L("This craft: ", "Dette craft: ") .. ns.ProfitText(ns.EntryNet(cur.entry)))
+    else
+      costSub:SetText("")
+    end
+    costNet:SetText(ns.RouteNetText(ns.RouteNet(id, rank, goal, true)))
   else
-    costBig:SetText(""); costSub:SetText(crafting and "" or L("Gathering costs nothing but time.", "Samling koster kun tid.")); costGoal:SetText("")
+    cur.rank, cur.goal = nil, nil
+    costBig:SetText(""); costSub:SetText(crafting and "" or L("Gathering costs nothing but time.", "Samling koster kun tid.")); costGoal:SetText(""); costNet:SetText("")
   end
 
   -- your goal
