@@ -4,7 +4,7 @@ local _, ns = ...
 local T = ns.T
 local GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 
-local WIDTH, HEIGHT, SIDE, ROWS, ROW_H = 860, 590, 196, 23, 20
+local WIDTH, HEIGHT, SIDE, ROWS, ROW_H = 900, 620, 196, 23, 20
 local X = SIDE + 16           -- where the page starts
 local CW = WIDTH - X - 18     -- page width
 local H = ns.Window("CraftETAHub", WIDTH)
@@ -12,7 +12,7 @@ ns.Hub = H
 H:SetHeight(HEIGHT)
 H.title:Hide()
 H.close:ClearAllPoints()
-H.close:SetPoint("TOPRIGHT", -14, -18)
+H.close:SetPoint("TOPRIGHT", -6, -6)
 H.close:SetSize(24, 24)
 ns.HUB_X, ns.HUB_CW = X, CW
 
