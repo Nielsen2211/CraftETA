@@ -100,20 +100,6 @@ local function Selected()
   return nil
 end
 
-local function Chance(r, skill)
-  -- yellow and green: (grey - skill) / (grey - yellow)
-  local yellow, grey = r[2], r[4]
-  if not yellow or not grey or grey <= yellow then return nil end
-  return math.max(0, math.min(1, (grey - skill) / (grey - yellow)))
-end
-
-local function ColorAt(r, skill)
-  if skill >= r[4] then return 3 end
-  if skill >= r[3] then return 2 end
-  if skill >= r[2] then return 1 end
-  return 0
-end
-
 local function DrawBar(f, r, skill)
   local w = f.bar:GetWidth()
   if not w or w < 10 then w = 260 end
@@ -175,24 +161,35 @@ local function Update()
 
   -- skill-ups
   card.upHead:SetText(string.upper(T("rcUps")))
-  local r = ns.SKILLUP and ns.SKILLUP[id]
   local color = Plain(info.relativeDifficulty)
-  if type(color) ~= "number" and r then color = ColorAt(r, skill) end
+  local chance, r
+  chance, color, r = ns.SkillUpChance(id, skill, type(color) == "number" and color or nil)
   local learned = Plain(info.learned)
+  local me0 = ns.Me and ns.Me()
+  local bookEntry = me0 and me0.book and me0.book[open.id] and me0.book[open.id][id]
   local text, c
   if learned == false then
     text, c = T("rcNotLearned"), { 0.6, 0.62, 0.68 }
   elseif type(color) == "number" and COLORS[color] then
     c = COLORS[color]
     text = T("rcColor" .. color)
-    local chance = r and (color == 1 or color == 2) and Chance(r, skill)
-    if chance then text = text .. ("  (%d%%)"):format(math.floor(chance * 100 + 0.5)) end
+    if chance and (color == 1 or color == 2) then text = text .. ("  (%d%%)"):format(math.floor(chance * 100 + 0.5)) end
+    -- what a point costs in materials, or a green + when the craft earns
+    if bookEntry and chance and chance > 0 then
+      local _, missing, _, profit = ns.CraftNet(bookEntry)
+      local per = ns.CostPerPoint(bookEntry, chance)
+      if profit and profit >= 0 then
+        text = text .. "  |cff73d973+ " .. L("earns while you level", "tjener mens du lever") .. "|r"
+      elseif per then
+        text = text .. "  |cffc0c2c8" .. L("%s per skill-up", "%s pr. skill-up"):format((missing and "~" or "") .. ns.Money(per)) .. "|r"
+      end
+    end
   else
     text, c = T("rcUnknown"), { 0.6, 0.62, 0.68 }
   end
   card.up:SetText(text)
   card.up:SetTextColor(c[1], c[2], c[3])
-  if r then DrawBar(card, r, skill) else card.bar:Hide() end
+  if r and r[2] and r[4] then DrawBar(card, r, skill) else card.bar:Hide(); r = nil end
 
   -- materials
   card.matHead:SetText(string.upper(T("rcMats")))

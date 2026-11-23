@@ -18,6 +18,11 @@
 - **Specializations**, **Crafters** (who in your guild can make it), **Gold** (craft profit and what is worth farming), **Codex** (recipes and where materials come from), **Camping** and **Cooldowns**.
 - **Item tracker** and **farming tracker** (loot, value, gold per hour).
 
+## Skill-up chance
+- **The chance of a skill-up on every recipe** in the profession window, in its colour (orange, yellow, green, grey), and a green + on a craft that earns money.
+- Hover a recipe: a bar of where it turns yellow, green and grey with your skill on it, and what one skill-up costs in materials.
+- The guide still picks the route; the chance is extra information.
+
 ## What the route earns
 - **Plus or minus on every craft and step**, from the latest auction house prices (materials against the sell price, after the AH's 5%).
 - **The price of the whole stretch** (1 to 300, or to your goal), what the crafts sell back for, and the net. Hover the cost card.
