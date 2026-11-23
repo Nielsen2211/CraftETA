@@ -377,7 +377,13 @@ function ns.RefreshPanel()
   if c then diffDot:SetColorTexture(c[1], c[2], c[3], 1); diffDot:Show() else diffDot:Hide() end
   recipeCount:ClearAllPoints()
   recipeCount:SetPoint("LEFT", diffDot, c and "RIGHT" or "LEFT", c and 6 or 0, 0)
-  recipeCount:SetText(T("make", entry[2])); recipeCount:Show()
+  local countText = T("make", entry[2])
+  -- the chance of a skill-up on it now
+  if rec and rec.id and rec.learned and ns.SkillUpChance then
+    local chance, col = ns.SkillUpChance(rec.id, rank, rec.diff)
+    if chance and col ~= 3 then countText = countText .. "  ·  " .. ns.ChanceText(chance, col) end
+  end
+  recipeCount:SetText(countText); recipeCount:Show()
   leftText:SetText(T("left", left))
   leftPill:SetWidth(math.max(44, leftText:GetStringWidth() + 18))
   leftPill:ClearAllPoints(); leftPill:SetPoint("TOPRIGHT", P, "TOPRIGHT", -26, y - 3); leftPill:Show()

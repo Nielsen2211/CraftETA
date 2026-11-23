@@ -91,6 +91,8 @@ function W.Build()
   add(T("chatAds"), db.chatAds ~= false, function() db.chatAds = not (db.chatAds ~= false) end)
   add(T("shareListOpt"), db.shareList, function() db.shareList = not db.shareList end)
   add(T("vendOpt"), db.vendorMode ~= "ah", function() db.vendorMode = (db.vendorMode ~= "ah") and "ah" or "vendor"; if ns.UpdateVendorButton then ns.UpdateVendorButton() end end)
+  add((db.lang == "da") and "Skill-up chance på hver opskrift i profession vinduet" or "Skill-up chance on every recipe in the profession window",
+    db.skillChance ~= false, function() db.skillChance = not (db.skillChance ~= false); if ns.RefreshSkillChance then ns.RefreshSkillChance() end end)
   add(T("rcCardOpt"), db.recipeCard ~= false, function() db.recipeCard = not (db.recipeCard ~= false); if ns.UpdateRecipeCard then ns.UpdateRecipeCard() end end)
   add(T("ahOpt"), db.ah, function() db.ah = not db.ah end)
   add(T("autoScanOpt"), db.autoScan, function() db.autoScan = not db.autoScan end)
