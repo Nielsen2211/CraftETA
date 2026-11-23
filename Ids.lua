@@ -1,0 +1,75 @@
+-- CraftETA: item IDs for every item the guides name, so icons show before the game has seen the item.
+local _, ns = ...
+
+local ID = {
+  ["Aquamarine"] = 7909, ["Arcanite Rod"] = 16206, ["Arclight Spanner"] = 6219, ["Azure Silk Hood"] = 7048,
+  ["Barbaric Harness"] = 5739, ["Barbaric Shoulders"] = 5964, ["Bear Meat"] = 3173, ["Black Dye"] = 2325,
+  ["Black Mageweave Leggings"] = 9999, ["Black Mageweave Shoulders"] = 10027, ["Black Pearl"] = 7971,
+  ["Blue Dye"] = 6260, ["Bolt of Linen Cloth"] = 2996, ["Bolt of Mageweave"] = 4339, ["Bolt of Silk Cloth"] = 4305,
+  ["Bolt of Woolen Cloth"] = 2997, ["Brightcloth Cloak"] = 14103, ["Brilliant Smallfish"] = 6290,
+  ["Bristle Whisker Catfish"] = 4593, ["Bronze Bar"] = 2841, ["Bronze Framework"] = 4382,
+  ["Bronze Shortsword"] = 2850, ["Bronze Tube"] = 4371, ["Charred Wolf Meat"] = 2679, ["Chunk of Boar Meat"] = 769,
+  ["Citrine"] = 3864, ["Coarse Blasting Powder"] = 4364, ["Coarse Dynamite"] = 4365,
+  ["Coarse Grinding Stone"] = 3478, ["Coarse Stone"] = 2836, ["Coarse Thread"] = 2320, ["Cooked Crab Claw"] = 2682,
+  ["Copper Bar"] = 2840, ["Copper Rod"] = 6217, ["Crawler Claw"] = 2675, ["Crimson Silk Pantaloons"] = 7062,
+  ["Crimson Silk Vest"] = 7058, ["Crystal Vial"] = 8925, ["Cured Heavy Hide"] = 4236, ["Cured Light Hide"] = 4231,
+  ["Cured Medium Hide"] = 4233, ["Curiously Tasty Omelet"] = 3665, ["Dark Leather Belt"] = 4249,
+  ["Dense Blasting Powder"] = 15992, ["Dense Sharpening Stone"] = 12404, ["Dense Stone"] = 12365,
+  ["Double-stitched Woolen Shoulders"] = 4314, ["Dream Dust"] = 11176, ["Elixir of Greater Defense"] = 8951,
+  ["Elixir of Greater Intellect"] = 9179, ["Elixir of Minor Defense"] = 5997, ["Elixir of Minor Fortitude"] = 2458,
+  ["Elixir of Wisdom"] = 3383, ["Embossed Leather Gloves"] = 4239, ["Embossed Leather Pants"] = 4242,
+  ["Empty Vial"] = 3371, ["Explosive Sheep"] = 4384, ["Filet of Redgill"] = 13930, ["Fine Leather Belt"] = 4246,
+  ["Fine Thread"] = 2321, ["Fire Oil"] = 6371, ["Firefin Snapper"] = 6359, ["Gloves of Meditation"] = 4318,
+  ["Goblin Deviled Clams"] = 5527, ["Gold Bar"] = 3577, ["Golden Pearl"] = 13926, ["Golden Rod"] = 11128,
+  ["Golden Scale Bracers"] = 6040, ["Gray Dye"] = 4340, ["Greater Eternal Essence"] = 16203, ["Green Dye"] = 2605,
+  ["Green Iron Bracers"] = 3835, ["Guardian Gloves"] = 5966, ["Gyromatic Micro-Adjustor"] = 10498,
+  ["Handful of Copper Bolts"] = 4359, ["Heavy Blasting Powder"] = 4377, ["Heavy Grinding Stone"] = 3486,
+  ["Heavy Hide"] = 4235, ["Heavy Leather"] = 4234, ["Heavy Linen Bandage"] = 2581,
+  ["Heavy Mageweave Bandage"] = 8545, ["Heavy Mithril Axe"] = 7941, ["Heavy Mithril Boots"] = 7933,
+  ["Heavy Runecloth Bandage"] = 14530, ["Heavy Silk Bandage"] = 6451, ["Heavy Silken Thread"] = 8343,
+  ["Heavy Stone"] = 2838, ["Heavy Wool Bandage"] = 3531, ["Hi-Explosive Bomb"] = 10562,
+  ["Hillman's Leather Gloves"] = 4247, ["Hot Lion Chops"] = 3727, ["Hot Spices"] = 2692, ["Illusion Dust"] = 16204,
+  ["Imperial Plate Belt"] = 12424, ["Imperial Plate Boots"] = 12426, ["Imperial Plate Bracers"] = 12425,
+  ["Imperial Plate Leggings"] = 12429, ["Iridescent Pearl"] = 5500, ["Iron Buckle"] = 7071,
+  ["Ironweb Spider Silk"] = 14227, ["Leaded Vial"] = 3372, ["Lesser Magic Essence"] = 10938,
+  ["Lesser Mana Oil"] = 20747, ["Lesser Mana Potion"] = 3385, ["Lesser Wizard Oil"] = 20746, ["Light Hide"] = 783,
+  ["Light Leather"] = 2318, ["Linen Bandage"] = 1251, ["Linen Belt"] = 7026, ["Linen Cloth"] = 2589,
+  ["Lion Meat"] = 3731, ["Longjaw Mud Snapper"] = 4592, ["Mageweave Bandage"] = 8544, ["Mageweave Cloth"] = 4338,
+  ["Mana Potion"] = 3827, ["Maple Seed"] = 17034, ["Medium Hide"] = 4232, ["Medium Leather"] = 2319,
+  ["Mild Spices"] = 2678, ["Minor Mana Oil"] = 20745, ["Minor Mana Potion"] = 2455, ["Mithril Bar"] = 3860,
+  ["Mithril Casing"] = 10561, ["Mithril Coif"] = 7931, ["Mithril Tube"] = 10559, ["Moss Agate"] = 1206,
+  ["Nature Protection Potion"] = 6052, ["Nightfin Soup"] = 13931, ["Nightscape Headband"] = 8176,
+  ["Nightscape Pants"] = 8193, ["Rainbow Fin Albacore"] = 5095, ["Raptor Egg"] = 3685, ["Raptor Flesh"] = 12184,
+  ["Raw Brilliant Smallfish"] = 6291, ["Raw Bristle Whisker Catfish"] = 6308, ["Raw Longjaw Mud Snapper"] = 6289,
+  ["Raw Mithril Head Trout"] = 8365, ["Raw Nightfin Snapper"] = 13759, ["Raw Rainbow Fin Albacore"] = 6361,
+  ["Raw Redgill"] = 13758, ["Raw Slitherskin Mackerel"] = 6303, ["Raw Spotted Yellowtail"] = 4603,
+  ["Red Dye"] = 2604, ["Red Mageweave Bag"] = 10051, ["Refreshing Spring Water"] = 159, ["Roast Raptor"] = 12210,
+  ["Roasted Boar Meat"] = 2681, ["Rough Blasting Powder"] = 4357, ["Rough Bronze Leggings"] = 2865,
+  ["Rough Copper Bomb"] = 4360, ["Rough Grinding Stone"] = 3470, ["Rough Sharpening Stone"] = 2862,
+  ["Rough Stone"] = 2835, ["Rugged Leather"] = 8170, ["Ruined Leather Scraps"] = 2934, ["Rune Thread"] = 14341,
+  ["Runecloth"] = 14047, ["Runecloth Bandage"] = 14529, ["Runecloth Belt"] = 13856, ["Runecloth Gloves"] = 13863,
+  ["Runecloth Headband"] = 13866, ["Runecloth Shoulders"] = 13867, ["Runed Arcanite Rod"] = 16207,
+  ["Runed Copper Rod"] = 6218, ["Runed Golden Rod"] = 11130, ["Runed Silver Rod"] = 6339,
+  ["Runed Truesilver Rod"] = 11145, ["Runic Leather Headband"] = 15094, ["Salt"] = 4289, ["Shadowgem"] = 1210,
+  ["Shiny Red Apple"] = 4536, ["Silk Bandage"] = 6450, ["Silk Cloth"] = 4306, ["Silken Thread"] = 4291,
+  ["Silver Bar"] = 2842, ["Silver Contact"] = 4404, ["Silver Rod"] = 6338, ["Slitherskin Mackerel"] = 787,
+  ["Small Silk Pack"] = 4245, ["Smoked Bear Meat"] = 6890, ["Solid Blasting Powder"] = 10505,
+  ["Solid Grinding Stone"] = 7966, ["Solid Stone"] = 7912, ["Soothing Spices"] = 3713,
+  ["Soothing Turtle Bisque"] = 3729, ["Spotted Yellowtail"] = 6887, ["Standard Scope"] = 4406, ["Star Ruby"] = 7910,
+  ["Steel Bar"] = 3859, ["Stonescale Eel"] = 13422, ["Stonescale Oil"] = 13423, ["Stranglethorn Seed"] = 17035,
+  ["Strider Meat"] = 5469, ["Strider Stew"] = 5477, ["Stringy Wolf Meat"] = 2672, ["Tangy Clam Meat"] = 5504,
+  ["Thick Leather"] = 4304, ["Thorium Bar"] = 12359, ["Thorium Tube"] = 16000, ["Thorium Widget"] = 15994,
+  ["Truesilver Rod"] = 11144, ["Turtle Meat"] = 3712, ["Unstable Trigger"] = 10560, ["Weak Flux"] = 2880,
+  ["Whirring Bronze Gizmo"] = 4375, ["Wicked Leather Gauntlets"] = 15083, ["Wizard Oil"] = 20750,
+  ["Wizardweave Turban"] = 14130, ["Wool Bandage"] = 3530, ["Wool Cloth"] = 2592, ["Woolen Cape"] = 2584,
+  ["Elixir of Fire Power"] = 6373, ["Mithril Headed Trout"] = 8364,
+}
+
+ns.Register("ADDON_LOADED")
+ns.On("ADDON_LOADED", function(name)
+  if name ~= "CraftETA" or not ns.db then return end
+  ns.db.ids = ns.db.ids or {}
+  for n, id in pairs(ID) do
+    if not ns.db.ids[n] then ns.LearnItem(n, id) end
+  end
+end)
