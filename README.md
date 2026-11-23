@@ -30,7 +30,7 @@
 
 ## Shopping and the auction house
 - A shopping list from your route, minus bags, bank and mail.
-- Works with **aux** or **Auctionator**, found by itself; buys one item per click with a price check, or sends the list to Auctionator.
+- Works with **AuctionMaster**, **aux** or **Auctionator**, found by itself (AuctionMaster prices first); buys one item per click with a price check, or sends the list to Auctionator.
 
 Everything can be turned off in /ceta config.
 
