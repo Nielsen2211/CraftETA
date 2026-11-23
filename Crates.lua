@@ -1140,7 +1140,7 @@ local CATS = {
     { "ptank", "Paladin Tank", "Paladin Tank", { "Protector's", "Warder's", "Enriched Thorium" } },
     { "ret", "Retribution", "Retribution", { "Crusader's", "Justicar's", "Thorium Greatmace" } } },
   [185] = { { "smoothie", "Smoothies", "Smoothies", { "Smoothie", "Smrrthle" } } },
-  [333] = { { "relic", "Relics", "Relics", { "Tenets", "Libram", "Talons", "Totem", "Idol" } },
+  [333] = { { "relic", "Relics", "Relics", { "Tenets", "Libram", "Talons", "Totem", "Idol", "Mystic Mushroom", "Driftwood Icon" } },
     { "weapon", "Caster weapons", "Caster våben", { "Staff", "Orb of", "Soulstaff", "Dreamstaff", "Conduit", "Essence Jar", "Wand" } },
     { "enchant", "Enchants", "Enchants", { "Enchant" } } },
   [202] = { { "bomb", "Bombs", "Bomber", { "Bomb", "Dynamite" } }, { "goggles", "Goggles", "Goggles", { "Goggles" } },

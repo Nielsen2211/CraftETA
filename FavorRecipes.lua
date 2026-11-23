@@ -107,6 +107,8 @@ ns.FAVOR_RECIPES = {
     { "Wicked Smoothie", 250, 90, 2 },
   },
   [333] = {   -- Enchanting
+    { "Mystic Mushroom", 130, 45, nil },
+    { "Polished Driftwood Icon", 130, 45, nil },
     { "Enchant Necklace - Agility", 210, 120, 1 },
     { "Enchant Necklace - Deflection", 210, 120, 1 },
     { "Enchant Necklace - Healing Power", 210, 120, 1 },
