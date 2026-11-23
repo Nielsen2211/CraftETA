@@ -92,7 +92,7 @@ ns.SPECS = {
 
 -- profession cooldowns: { name, spell IDs that share it (or item = ID), icon }
 ns.COOLDOWNS = {
-  { "Transmute", { 17187, 11479, 11480, 17559, 17560, 17561, 17562, 17563, 17564, 17565, 17566 }, icon = "Interface\\Icons\\Trade_Alchemy" },
-  { "Mooncloth", { 18560 }, icon = "Interface\\Icons\\Trade_Tailoring" },
-  { "Salt Shaker", item = 15846, icon = "Interface\\Icons\\INV_Misc_Food_15" },
+  { "Transmute", { 17187, 11479, 11480, 17559, 17560, 17561, 17562, 17563, 17564, 17565, 17566 }, icon = "Interface\\Icons\\Trade_Alchemy", dur = 86400 },
+  { "Mooncloth", { 18560 }, icon = "Interface\\Icons\\Trade_Tailoring", dur = 345600 },
+  { "Salt Shaker", item = 15846, icon = "Interface\\Icons\\INV_Misc_Food_15", dur = 259200 },
 }

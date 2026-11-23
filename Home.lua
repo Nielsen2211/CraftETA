@@ -995,3 +995,140 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
 end
 
 function ns.HideTimeline() tl:Hide() end
+
+---------------------------------------------------------------------------
+-- Cooldowns: a card per character, a bar toward ready, and when it is ready
+---------------------------------------------------------------------------
+local cdPage = Page()
+ns.HubCustom.cooldowns = cdPage
+local cdHead = ns.Font(cdPage, true, 14, 1, 1, 1)
+cdHead:SetPoint("TOPLEFT", 0, -4)
+local cdSub = ns.Font(cdPage, false, 11, 0.6, 0.62, 0.68)
+cdSub:SetPoint("TOPLEFT", cdHead, "BOTTOMLEFT", 0, -4)
+local cdEmpty = ns.Font(cdPage, false, 11, 0.6, 0.62, 0.67)
+cdEmpty:SetPoint("TOPLEFT", 0, -60); cdEmpty:SetWidth(CW)
+cdEmpty:SetWordWrap(true); cdEmpty:SetJustifyH("LEFT")
+local cdFoot = ns.Font(cdPage, false, 10, 0.45, 0.47, 0.52)
+cdFoot:SetPoint("BOTTOMLEFT", 0, 0)
+local CDW = math.floor((CW - 12) / 2)
+local cdCards = {}
+
+local function Span(seconds)
+  local d, h, m = math.floor(seconds / 86400), math.floor(seconds / 3600) % 24, math.floor(seconds / 60) % 60
+  if d > 0 then return ("%dd %dh"):format(d, h) end
+  if h > 0 then return ("%dh %dm"):format(h, m) end
+  return ("%dm"):format(math.max(1, m))
+end
+
+local function CdCard(i)
+  if cdCards[i] then return cdCards[i] end
+  local c = Card(cdPage)
+  c:SetWidth(CDW)
+  c.mark = c:CreateTexture(nil, "BORDER")
+  c.mark:SetPoint("TOPLEFT"); c.mark:SetPoint("BOTTOMLEFT"); c.mark:SetWidth(2)
+  c.mark:SetColorTexture(1, 0.82, 0.3, 1)
+  c.class = c:CreateTexture(nil, "ARTWORK")
+  c.class:SetSize(26, 26); c.class:SetPoint("TOPLEFT", 14, -12)
+  c.name = ns.Font(c, true, 13, 0.9, 0.91, 0.94); c.name:SetPoint("TOPLEFT", c.class, "TOPRIGHT", 10, 1)
+  c.sub = ns.Font(c, false, 10, 0.55, 0.58, 0.64); c.sub:SetPoint("TOPLEFT", c.name, "BOTTOMLEFT", 0, -2)
+  c.rows = {}
+  cdCards[i] = c
+  return c
+end
+
+local function CdRow(c, j)
+  if c.rows[j] then return c.rows[j] end
+  local r = CreateFrame("Frame", nil, c)
+  r:SetPoint("TOPLEFT", 14, -(52 + (j - 1) * 50))
+  r:SetPoint("TOPRIGHT", -14, -(52 + (j - 1) * 50))
+  r:SetHeight(44)
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(32, 32); r.icon:SetPoint("TOPLEFT", 0, 0); r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  r.name = ns.Font(r, true, 11, 0.9, 0.91, 0.94); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 9, 0)
+  r.state = ns.Font(r, true, 11, 1, 1, 1); r.state:SetPoint("TOPRIGHT", 0, 0); r.state:SetJustifyH("RIGHT")
+  r.when = ns.Font(r, false, 9, 0.5, 0.52, 0.57); r.when:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -3)
+  r.bg = r:CreateTexture(nil, "BACKGROUND"); r.bg:SetPoint("BOTTOMLEFT", 0, 0); r.bg:SetPoint("BOTTOMRIGHT", 0, 0); r.bg:SetHeight(5)
+  r.bg:SetColorTexture(1, 1, 1, 0.08)
+  r.fill = r:CreateTexture(nil, "ARTWORK"); r.fill:SetPoint("BOTTOMLEFT", 0, 0); r.fill:SetHeight(5)
+  c.rows[j] = r
+  return r
+end
+
+function cdPage:Refresh()
+  pcall(ns.ReadCooldowns)
+  local now = time()
+  local keys = {}
+  for key, ch in pairs(ns.db.chars) do
+    if ch.cd and next(ch.cd) then keys[#keys + 1] = key end
+  end
+  table.sort(keys, function(a, b)
+    local ca, cb = ns.db.chars[a], ns.db.chars[b]
+    return (ca.name or a) < (cb.name or b)
+  end)
+  cdHead:SetText(L("Cooldowns", "Cooldowns"))
+  local ready, running = 0, 0
+  for _, c in ipairs(cdCards) do c:Hide() end
+  local colH = { 0, 0 }
+  for n, key in ipairs(keys) do
+    local ch = ns.db.chars[key]
+    local card = CdCard(n)
+    local list = {}
+    for _, entry in ipairs(ns.COOLDOWNS) do
+      if ch.cd[entry[1]] then list[#list + 1] = entry end
+    end
+    local col = colH[1] <= colH[2] and 1 or 2
+    local h = 52 + #list * 50 + 4
+    card:ClearAllPoints()
+    card:SetPoint("TOPLEFT", (col - 1) * (CDW + 12), -48 - colH[col])
+    card:SetHeight(h)
+    colH[col] = colH[col] + h + 10
+    ns.ClassIcon(card.class, ch.class)
+    local color = ch.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[ch.class]
+    card.name:SetText(ch.name or key)
+    if color then card.name:SetTextColor(color.r, color.g, color.b) end
+    card.sub:SetText(ch.level and L("Level %d", "Level %d"):format(ch.level) or "")
+    local allReady = true
+    for j, entry in ipairs(list) do
+      local cd = ch.cd[entry[1]]
+      local r = CdRow(card, j)
+      local left = cd.ready - now
+      local icon = entry.icon
+      if entry.item then
+        local okI, tex = pcall(C_Item and C_Item.GetItemIconByID or GetItemIcon, entry.item)
+        if okI and tex then icon = tex end
+      end
+      r.icon:SetTexture(icon)
+      r.name:SetText(entry[1])
+      local total = entry.dur or 86400
+      local w = r:GetWidth()
+      if w <= 1 then w = CDW - 28 end
+      if left <= 0 then
+        ready = ready + 1
+        r.state:SetText(L("Ready", "Klar")); r.state:SetTextColor(0.35, 0.9, 0.4)
+        r.when:SetText(L("Ready to use", "Klar til brug"))
+        r.fill:SetColorTexture(0.35, 0.9, 0.4, 1)
+        r.fill:SetWidth(w)
+      else
+        running = running + 1
+        allReady = false
+        r.state:SetText(Span(left)); r.state:SetTextColor(1, 1, 1)
+        r.when:SetText(L("Ready ", "Klar ") .. date("%a %H:%M", cd.ready))
+        r.fill:SetColorTexture(1, 0.82, 0.3, 1)
+        r.fill:SetWidth(math.max(1, w * math.min(1, math.max(0, 1 - left / total))))
+      end
+      r:Show()
+    end
+    for j = #list + 1, #card.rows do card.rows[j]:Hide() end
+    card.mark:SetColorTexture(allReady and 0.35 or 1, allReady and 0.9 or 0.82, allReady and 0.4 or 0.3, 1)
+    card:Show()
+  end
+  cdEmpty:SetShown(#keys == 0)
+  cdEmpty:SetText(T("noCd") .. "\n" .. L("Open the profession window once so CraftETA can read the real time.", "Åbn fagvinduet én gang, så CraftETA kan læse den rigtige tid."))
+  cdSub:SetText(#keys > 0 and L("%d ready  ·  %d running", "%d klar  ·  %d i gang"):format(ready, running) or "")
+  cdFoot:SetText(T("cdFoot"))
+end
+local cdAcc = 0
+cdPage:SetScript("OnUpdate", function(self, dt)
+  cdAcc = cdAcc + dt
+  if cdAcc > 20 then cdAcc = 0; if self:IsShown() then self:Refresh() end end
+end)
