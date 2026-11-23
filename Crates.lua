@@ -1098,6 +1098,48 @@ local FAVOR_REWARDS = {
   { key = "title", n = { "A profession title", "En profession-titel" }, c = 1000, v = { h = "Gishah", a = "Tamelyn Aldridge" }, i = "Interface\\Icons\\INV_Misc_Note_02" },
   { key = "tabard", n = { h = "Durotar Supply and Logistics Tabard", a = "Azeroth Commerce Authority Tabard" }, c = 200, v = { h = "Gishah", a = "Tamelyn Aldridge" }, i = "Interface\\Icons\\INV_Shirt_GuildTabard_01" },
 }
+-- a recipe's product is a custom item the game has not shown yet: its icon by what it is (slot and cloth, leather or mail)
+local SLOT = {
+  { "Boots", "Sabatons", "Sandals" }, { "Gloves", "Gauntlet", "Handwraps" }, { "Belt", "Waistcord", "Waistguard", "Sash", "Cord", "Girdle", "Waistwrap" },
+  { "Hood", "Helm", "Circlet" }, { "Tunic", "Gown", "Shirt", "Breastplate" }, { "Leggings", "Legguards", "Kilt" },
+  { "Bracers", "Cuffs", "Wristguards" }, { "Shoulders", "Pauldrons" },
+}
+local SLOT_ICON = {
+  [197] = { "INV_Boots_Cloth_01", "INV_Gauntlets_14", "INV_Belt_03", "INV_Helmet_52", "INV_Chest_Cloth_17", "INV_Pants_14", "INV_Bracer_02", "INV_Shoulder_02" },
+  [165] = { "INV_Boots_08", "INV_Gauntlets_17", "INV_Belt_05", "INV_Helmet_15", "INV_Chest_Leather_01", "INV_Pants_06", "INV_Bracer_07", "INV_Shoulder_09" },
+  [164] = { "INV_Boots_Chain_01", "INV_Gauntlets_04", "INV_Belt_18", "INV_Helmet_08", "INV_Chest_Chain", "INV_Pants_04", "INV_Bracer_08", "INV_Shoulder_05" },
+}
+local function SlotIcon(prof, name)
+  local set = SLOT_ICON[prof]
+  if prof == 165 and (name:find("Mail", 1, true) or name:find("Armor Kit", 1, true)) then
+    if name:find("Armor Kit", 1, true) then return "Interface\\Icons\\INV_Misc_ArmorKit_17" end
+    set = SLOT_ICON[164]
+  end
+  if set then
+    for i, words in ipairs(SLOT) do
+      for _, w in ipairs(words) do
+        if name:find(w, 1, true) then return "Interface\\Icons\\" .. set[i] end
+      end
+    end
+  end
+  if name:find("Potion", 1, true) then return "Interface\\Icons\\INV_Potion_54" end
+  if name:find("Elixir", 1, true) then return "Interface\\Icons\\INV_Potion_27" end
+  if name:find("Smoothie", 1, true) or name:find("Smrrthle", 1, true) then return "Interface\\Icons\\INV_Drink_05" end
+  if name:find("Goggles", 1, true) then return "Interface\\Icons\\INV_Misc_Goggles_01" end
+  if name:find("Bomb", 1, true) or name:find("Dynamite", 1, true) then return "Interface\\Icons\\INV_Misc_Bomb_08" end
+  if name:find("Bag", 1, true) or name:find("Satchel", 1, true) then return "Interface\\Icons\\INV_Misc_Bag_10_Blue" end
+  if name:find("Staff", 1, true) or name:find("Wand", 1, true) then return "Interface\\Icons\\INV_Staff_08" end
+  if name:find("Enchant", 1, true) then return "Interface\\Icons\\Trade_Engraving" end
+  if name:find("staff", 1, true) then return "Interface\\Icons\\INV_Staff_08" end
+  if name:find("Libram", 1, true) or name:find("Tenets", 1, true) then return "Interface\\Icons\\INV_Misc_Book_11" end
+  if name:find("Totem", 1, true) then return "Interface\\Icons\\INV_Misc_Idol_03" end
+  if name:find("Orb", 1, true) then return "Interface\\Icons\\INV_Misc_Orb_01" end
+  if name:find("Mace", 1, true) or name:find("Cestus", 1, true) then return "Interface\\Icons\\INV_Mace_01" end
+  if name:find("Glaive", 1, true) then return "Interface\\Icons\\INV_Weapon_Glave_01" end
+  if prof == 202 and (name:find("Cord", 1, true) or name:find("Girdle", 1, true) or name:find("Waistwrap", 1, true)) then return "Interface\\Icons\\INV_Belt_03" end
+  if prof == 202 and name:find("Cloak", 1, true) then return "Interface\\Icons\\INV_Misc_Cape_02" end
+  return nil
+end
 -- everything you can buy: the rewards above, and what the vendors showed you (that wins, it is the live price)
 local function FavorItems(f)
   local all, byName = {}, {}
@@ -1120,7 +1162,7 @@ local function FavorItems(f)
     for _, r in ipairs(list or {}) do
       if not learnedNames[r[1]] then
         local mine = skills[v.prof]
-        all["r:" .. r[1]] = { n = r[1], c = r[3], v = v[f], i = ns.ProfIcon(v.prof), u = mine ~= nil,
+        all["r:" .. r[1]] = { n = r[1], c = r[3], v = v[f], i = SlotIcon(v.prof, r[1]) or ns.ProfIcon(v.prof), u = mine ~= nil,
           skill = r[2], rep = r[4], prof = v.prof, canNow = mine and mine.rank >= r[2] }
       end
     end
