@@ -1015,6 +1015,32 @@ local wSwitch = ns.Switch(win, function() ns.db.favorAll = not ns.db.favorAll; f
 wSwitch:SetPoint("TOPRIGHT", -14, -108)
 local wSwitchLabel = ns.Font(win, false, 10, 0.6, 0.62, 0.67); wSwitchLabel:SetPoint("RIGHT", wSwitch, "LEFT", -6, 0)
 local wCount = ns.Font(win, false, 10, 0.5, 0.52, 0.57); wCount:SetPoint("TOPLEFT", 16, -110)
+-- search by name, and sort by price (cheapest first) or by the skill a recipe needs
+local searchText = ""
+local wSearch = CreateFrame("EditBox", nil, win)
+wSearch:SetSize(150, 22)
+wSearch:SetPoint("TOPRIGHT", -16, -44)
+wSearch:SetAutoFocus(false)
+wSearch:SetFont(ns.F_SEMI, 11, "")
+wSearch:SetTextInsets(7, 7, 0, 0)
+wSearch:SetTextColor(1, 1, 1)
+local wSearchBg = wSearch:CreateTexture(nil, "BACKGROUND"); wSearchBg:SetAllPoints(); wSearchBg:SetColorTexture(0.08, 0.09, 0.11, 1)
+local wSearchHint = ns.Font(wSearch, false, 11, 0.45, 0.47, 0.52); wSearchHint:SetPoint("LEFT", 7, 0)
+wSearch:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+wSearch:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+wSearch:SetScript("OnTextChanged", function(self)
+  searchText = (self:GetText() or ""):lower()
+  wSearchHint:SetShown(searchText == "")
+  favorScroll = 0
+  if win:IsShown() then win:Refresh() end
+end)
+local wSort = ns.Button(win, "", 150, 22)
+wSort:SetPoint("TOPRIGHT", wSearch, "BOTTOMRIGHT", 0, -6)
+wSort:SetScript("OnClick", function()
+  ns.db.favorSort = ns.db.favorSort == "skill" and "price" or "skill"
+  favorScroll = 0
+  win:Refresh()
+end)
 local wEmpty = ns.Font(win, false, 11, 0.6, 0.62, 0.67); wEmpty:SetPoint("TOPLEFT", 16, -104); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
 wEmpty:SetWordWrap(true); wEmpty:SetJustifyH("LEFT")
 
@@ -1301,6 +1327,9 @@ function win:Refresh()
       b:Hide()
     end
   end
+  wSearchHint:SetText(L("Search", "Søg"))
+  local bySkill = ns.db.favorSort == "skill"
+  wSort:SetText(bySkill and L("Sort: skill needed", "Sorter: skill krav") or L("Sort: cheapest", "Sorter: billigst"))
   wSwitch:SetOn(not ns.db.favorAll)
   wSwitchLabel:SetText(L("Only what I can use", "Kun det jeg kan bruge"))
 
@@ -1313,9 +1342,17 @@ function win:Refresh()
     local okRole
     if vprof then okRole = not favorCat or CatOf(vprof, e.n) == favorCat
     else okRole = not favorRole or RoleOf(e.n) == favorRole end
-    if okVendor and okRole and (ns.db.favorAll or (e.u and not known)) then list[#list + 1] = { id = id, e = e, known = known } end
+    local okSearch = searchText == "" or (type(e.n) == "string" and e.n:lower():find(searchText, 1, true) ~= nil)
+    if okVendor and okRole and okSearch and (ns.db.favorAll or (e.u and not known)) then list[#list + 1] = { id = id, e = e, known = known } end
   end
-  table.sort(list, function(a, b) if a.e.c ~= b.e.c then return a.e.c < b.e.c end return a.e.n < b.e.n end)
+  table.sort(list, function(a, b)
+    if bySkill then
+      local sa, sb = a.e.skill or 9999, b.e.skill or 9999
+      if sa ~= sb then return sa < sb end
+    end
+    if a.e.c ~= b.e.c then return a.e.c < b.e.c end
+    return a.e.n < b.e.n
+  end)
   wEmpty:ClearAllPoints()
   wEmpty:SetPoint("TOPLEFT", 16, -128 - math.min(WROWS, math.ceil(#list / WCOLS)) * WT_H - 6); wEmpty:SetPoint("RIGHT", win, "RIGHT", -16, 0)
   wCount:SetText(L("%d things  ·  click: in the basket  ·  right-click: out", "%d ting  ·  klik: i kurven  ·  højreklik: ud"):format(#list))
@@ -1342,7 +1379,12 @@ function win:Refresh()
     t.name:SetText(e.n)
     if known then t.name:SetTextColor(0.5, 0.52, 0.57)
     else t.name:SetTextColor(e.u and 0.9 or 0.6, e.u and 0.91 or 0.42, e.u and 0.94 or 0.4) end
-    t.sub:SetText((e.v or "") .. (e.skill and ("  ·  " .. e.skill) or "") .. (e.rep and ("  ·  |cffffd24a" .. (e.rep == 2 and "Honored" or "Friendly") .. "|r") or ""))
+    local need = ""
+    if e.skill and e.prof then
+      local ok = e.canNow
+      need = "  ·  |cff" .. (ok and "73d973" or "e8574a") .. L("Needs %s %d", "Kræver %s %d"):format(ns.ProfName(e.prof), e.skill) .. "|r"
+    end
+    t.sub:SetText((e.v or "") .. need .. (e.rep and ("  ·  |cffffd24a" .. (e.rep == 2 and "Honored" or "Friendly") .. "|r") or ""))
     t.cost:SetText(e.c .. " favor")
     local inCart = cart[id]
     local short = e.c - have
