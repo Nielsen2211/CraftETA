@@ -4,7 +4,7 @@
 ## Author: Xtreamcoder
 ## Version: 1.7.33
 ## IconTexture: Interface\AddOns\CraftETA\Textures\Logo
-## OptionalDeps: auxForever, Auctionator
+## OptionalDeps: auxForever, Auctionator, AuctionMaster
 ## SavedVariables: CraftETADB
 ## AddonCompartmentFunc: CraftETA_OnCompartmentClick
 

@@ -2,7 +2,8 @@
 -- below; CraftETA asks them in order and uses the first real price. Without any of them, CraftETA's own
 -- scan is used (Ladder.lua and Core.lua).
 --
--- To add an addon: ns.AddPriceSource({ key, name, present, today, usual, search }).
+-- To add an addon: ns.AddPriceSource({ key, name, present, today, usual, search }, first).
+-- Order now: AuctionMaster, aux, Auctionator.
 --   present()       true when the addon is loaded and ready to answer
 --   installed()     optional: true when it is installed, even before it is ready (shown in Settings)
 --   today(id)       price of one now, from its latest scan (copper), or nil
@@ -13,8 +14,9 @@ local ADDON, ns = ...
 
 ns.PRICE_SOURCES = {}
 
-function ns.AddPriceSource(src)
-  ns.PRICE_SOURCES[#ns.PRICE_SOURCES + 1] = src
+-- first = true puts it ahead of the others
+function ns.AddPriceSource(src, first)
+  table.insert(ns.PRICE_SOURCES, first and 1 or (#ns.PRICE_SOURCES + 1), src)
 end
 
 local function Loaded(name)
@@ -155,3 +157,35 @@ ns.AddPriceSource({
     return true
   end,
 })
+
+---------------------------------------------------------------------------
+-- AuctionMaster: it has no API for other addons, so its saved prices are read (AuctionMasterDB, ready
+-- after it has loaded). Per faction: marketPrices.data[id] = { price, priceAt, ... } (its time weighted
+-- market price) and items.data[id] = { lowPrice, count, stacks } (its latest full scan). Read carefully:
+-- if the layout ever changes, nothing is returned and the next source is asked.
+---------------------------------------------------------------------------
+local function AMFaction()
+  local db = _G.AuctionMasterDB
+  if type(db) ~= "table" or type(db.factions) ~= "table" then return nil end
+  local faction = (UnitFactionGroup and UnitFactionGroup("player")) or "Neutral"
+  local f = db.factions[faction] or db.factions.Neutral
+  return type(f) == "table" and f or nil
+end
+local function AMField(store, id)
+  local f = AMFaction()
+  local s = f and f[store]
+  local data = type(s) == "table" and s.data
+  local e = type(data) == "table" and data[id]
+  if type(e) ~= "table" then return nil end
+  local p = tonumber(e[1])
+  return p and p > 0 and math.floor(p) or nil
+end
+function ns.HasAuctionMaster() return Loaded("AuctionMaster") end
+
+ns.AddPriceSource({
+  key = "auctionmaster", name = "AuctionMaster",
+  present = function() return Loaded("AuctionMaster") and AMFaction() ~= nil end,
+  installed = function() return Loaded("AuctionMaster") end,
+  today = function(id) return AMField("items", id) end,
+  usual = function(id) return AMField("marketPrices", id) end,
+}, true)          -- when you have AuctionMaster, its prices come first
