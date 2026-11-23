@@ -153,21 +153,49 @@ local function Cooldown(entry)
   return nil
 end
 
+-- the profession window knows the real time left: it is the number shown in the recipe's tooltip
+local function WindowLeft(entry)
+  local ui = C_TradeSkillUI
+  if entry.item or not (ui and ui.GetRecipeCooldown and ui.GetRecipeInfo and ns.ProfessionFrame()) then return nil end
+  for _, id in ipairs(entry[2]) do
+    local okI, info = pcall(ui.GetRecipeInfo, id)
+    if okI and type(info) == "table" and Plain(info.name) and info.learned ~= false then
+      local ok, cd = pcall(ui.GetRecipeCooldown, id)
+      if ok then return math.max(0, Plain(cd) or 0) end
+    end
+  end
+  return nil
+end
+
 function ns.ReadCooldowns()
   local c = ns.Me()
   if not c then return end
   c.cd = c.cd or {}
   for _, entry in ipairs(ns.COOLDOWNS) do
     local start, dur = Cooldown(entry)
-    if start then
-      -- a global cooldown (1.5 s) is not the real one
-      local left = (dur > 2 and start > 0) and (start + dur - GetTime()) or 0
+    local windowLeft = WindowLeft(entry)
+    if start or windowLeft then
       local was = c.cd[entry[1]]
       local now = time()
+      local left
+      if windowLeft then
+        left = windowLeft                         -- read from the profession window: exact
+      else
+        -- a global cooldown (1.5 s) is not the real one
+        left = (dur > 2 and start > 0) and (start + dur - GetTime()) or 0
+        -- more time left than the cooldown lasts: the game's clock is not ours, so the number is no good
+        if left > dur + 60 then
+          if was and was.ready > now and was.ready - now <= dur + 60 then left = was.ready - now else left = nil end
+        end
+      end
+      if left == nil then
+        -- no trustworthy number: leave what we had; the profession window gives the real one
+        if was and was.ready - now > 8 * 86400 then c.cd[entry[1]] = nil end
+      else
       local ready = now + math.max(0, left)
       -- the game sometimes answers 0 while the cooldown runs (the global cooldown, a hidden value):
       -- a cooldown we know is still running stays as it is
-      if left <= 0 and was and was.ready > now + 5 then ready = was.ready end
+      if left <= 0 and was and was.ready > now + 5 and was.ready - now <= 8 * 86400 then ready = was.ready end
       local told
       if not was then
         told = ready <= now or nil              -- seen ready the first time: nothing to tell
@@ -177,6 +205,7 @@ function ns.ReadCooldowns()
         told = was.told                         -- the same cooldown: told stays told
       end
       c.cd[entry[1]] = { ready = ready, told = told }
+      end
     else
       c.cd[entry[1]] = nil
     end
@@ -184,7 +213,10 @@ function ns.ReadCooldowns()
 end
 for _, e in ipairs({ "PLAYER_LOGIN", "SPELL_UPDATE_COOLDOWN", "BAG_UPDATE_COOLDOWN", "TRADE_SKILL_SHOW" }) do
   ns.Register(e)
-  ns.On(e, function() pcall(ns.ReadCooldowns) end)
+  ns.On(e, function()
+    pcall(ns.ReadCooldowns)
+    if e == "TRADE_SKILL_SHOW" and C_Timer then C_Timer.After(0.6, function() pcall(ns.ReadCooldowns) end) end
+  end)
 end
 
 -- tells you once when a cooldown on any of your characters is ready
