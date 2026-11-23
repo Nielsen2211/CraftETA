@@ -160,6 +160,11 @@ local function Control(i)
     controls[i] = b
   end
   b:ClearAllPoints() -- each page places its own
+  b.grow = true
+  if b.baseSize and b.label then                 -- a squeezed row last time: its normal font back
+    local font, _, flags = b.label:GetFont()
+    if font then b.label:SetFont(font, b.baseSize, flags) end
+  end
   b:SetWidth(86)
   return b
 end
@@ -180,14 +185,45 @@ local function FitControls()
       end
     end
   end
+  -- where a row must end: the content's right edge, or the left of a button pinned top right on that row
+  -- (All professions / My professions, Back)
+  local function Limit(y)
+    local limit = X + CW
+    for _, f in ipairs(ns.hubRightFrames or {}) do
+      if f:IsShown() then
+        local fp, _, _, fx, fy = f:GetPoint(1)
+        if fp == "TOPRIGHT" and fy and math.abs(fy - y) < 4 then
+          limit = math.min(limit, (H:GetWidth() or 0) + (fx or 0) - f:GetWidth() - 8)
+        end
+      end
+    end
+    return limit
+  end
   for _, row in pairs(byRow) do
     table.sort(row, function(a, b) return a.x < b.x end)
     local shift, right = 0, nil
     for _, e in ipairs(row) do
       local x = e.x + shift
       if right and x < right + 4 then shift = shift + (right + 4 - x); x = right + 4 end
-      if x ~= e.x then e.b:ClearAllPoints(); e.b:SetPoint("TOPLEFT", H, "TOPLEFT", x, e.y) end
+      e.nx = x
       right = x + e.b:GetWidth()
+    end
+    -- too wide for the room: every button in the row gets narrower (a smaller font where needed)
+    local limit = Limit(row[1].y)
+    if right and right > limit then
+      local start, gaps, sum = row[1].x, 4 * (#row - 1), 0
+      for _, e in ipairs(row) do sum = sum + e.b:GetWidth() end
+      local scale = math.max(0.4, (limit - start - gaps) / sum)
+      local x = start
+      for _, e in ipairs(row) do
+        e.b.grow = false
+        e.b:SetWidth(math.floor(e.b:GetWidth() * scale))
+        e.nx = x
+        x = x + e.b:GetWidth() + 4
+      end
+    end
+    for _, e in ipairs(row) do
+      if e.nx ~= e.x then e.b:ClearAllPoints(); e.b:SetPoint("TOPLEFT", H, "TOPLEFT", e.nx, e.y) end
     end
   end
 end
@@ -667,6 +703,8 @@ local function BuildGuide()
   local toggle = Control(#list + 1)
   toggle:ClearAllPoints()
   toggle:SetPoint("TOPRIGHT", H, "TOPRIGHT", -48, -22)
+  ns.hubRightFrames = ns.hubRightFrames or {}
+  if not toggle.listed then toggle.listed = true; table.insert(ns.hubRightFrames, toggle) end
   toggle:SetWidth(124)
   toggle:SetText(state.allProfs and T("myProfs") or T("allProfs"))
   toggle.label:SetTextColor(1, 0.82, 0.3)
@@ -734,6 +772,8 @@ local function BuildGuide()
     local back = Control(#list + 2)
     back:ClearAllPoints()
     back:SetPoint("TOPRIGHT", H, "TOPRIGHT", -178, -22)
+    ns.hubRightFrames = ns.hubRightFrames or {}
+    if not back.listed then back.listed = true; table.insert(ns.hubRightFrames, back) end
     back:SetWidth(124)
     back:SetText((ns.db.lang == "da") and "Tilbage til trinnet" or "Back to the step")
     back.label:SetTextColor(1, 0.82, 0.3)
