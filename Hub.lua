@@ -31,10 +31,13 @@ ns.ProfIcon = ProfIcon
 ---------------------------------------------------------------------------
 -- Tabs and the control row
 ---------------------------------------------------------------------------
+-- the three you use most on top (Home, Professions, Shopping list), a line, then the rest
 local MENU = {
   { "home", "Interface\\Icons\\INV_Misc_Note_01" },
-  { "alts", "Interface\\Icons\\INV_Misc_GroupLooking" },
   { "guide", "Interface\\Icons\\INV_Misc_Book_11" },
+  { "list", "Interface\\Icons\\INV_Misc_Note_05", function() ns.ToggleList() end },
+  { "sep" },
+  { "alts", "Interface\\Icons\\INV_Misc_GroupLooking" },
   { "specs", "Interface\\Icons\\INV_Misc_Note_06" },
   { "crafters", "Interface\\Icons\\INV_Letter_15" },
   { "gold", "Interface\\Icons\\INV_Misc_Coin_02" },
@@ -68,6 +71,12 @@ local menuButtons = {}
 local my = -62
 for _, item in ipairs(MENU) do
   local key, icon, action = item[1], item[2], item[3]
+  if key == "sep" then
+    local line = side:CreateTexture(nil, "ARTWORK")
+    line:SetHeight(1); line:SetPoint("TOPLEFT", 18, my - 6); line:SetPoint("RIGHT", side, "RIGHT", -18, 0)
+    line:SetColorTexture(1, 1, 1, 0.07)
+    my = my - 13
+  else
   local b = CreateFrame("Button", nil, side)
   b:SetSize(SIDE - 26, 28)
   b:SetPoint("TOPLEFT", 8, my)
@@ -93,8 +102,31 @@ for _, item in ipairs(MENU) do
     state.tab, state.offset = key, 0
     ns.RefreshHub()
   end)
+  -- a small count on the right: things to buy, cooldowns that are ready
+  b.badge = ns.Font(b, true, 10, 0.92, 0.93, 0.96)
+  b.badge:SetPoint("RIGHT", -10, 0)
+  b.badgeBg = ns.Round(b, "BORDER", 0, 4)
+  b.badgeBg:SetPoint("TOPLEFT", b.badge, "TOPLEFT", -5, 3); b.badgeBg:SetPoint("BOTTOMRIGHT", b.badge, "BOTTOMRIGHT", 5, -3)
+  b.badgeBg:SetColorTexture(0.17, 0.18, 0.22, 1)
   menuButtons[#menuButtons + 1] = b
   my = my - 30
+  end
+end
+local function Badges()
+  local counts = {}
+  local ok, items = pcall(ns.ListItems)
+  local n = 0
+  for _, item in ipairs(ok and items or {}) do if item.still > 0 then n = n + 1 end end
+  counts.list = n
+  local me = ns.Me and ns.Me()
+  local ready = 0
+  for _, cd in pairs(me and me.cd or {}) do if (cd.ready or 0) <= time() then ready = ready + 1 end end
+  counts.cooldowns = ready
+  for _, b in ipairs(menuButtons) do
+    local c = counts[b.key] or 0
+    b.badge:SetText(c > 0 and tostring(c) or "")
+    b.badgeBg:SetShown(c > 0)
+  end
 end
 
 -- the bottom of the menu: item tracker, shopping list, and who you are
@@ -863,6 +895,7 @@ function ns.RefreshHub()
     b.sel:SetShown(on); b.bar:SetShown(on)
     b.text:SetTextColor(on and 1 or 0.78, on and 0.82 or 0.8, on and 0.3 or 0.84)
   end
+  pcall(Badges)
   ns.UpdateMe()
   local me = ns.Me()
   local color = me and me.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[me.class]
