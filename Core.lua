@@ -377,6 +377,37 @@ local function Share(step, skill)
 end
 ns.Share = Share
 
+-- the craft to do now in a step, and how many are left. A step with several crafts ("make both, in this
+-- order") goes to the next one once you have made enough of the first (it stays in your bags for later
+-- steps) or it gives no skill-ups any more. A craft you picked with the arrows wins while it is not done.
+function ns.StepEntry(profID, index, step, rank)
+  rank = rank or 0
+  local share = Share(step, rank)
+  if step.any then
+    local chosen, pick = ns.Chosen(profID, index, step)
+    return chosen[1], math.ceil(chosen[1][2] * share), pick or 1
+  end
+  local all = Entries(step)
+  if #all == 1 then return all[1], math.ceil(all[1][2] * share), 1 end
+  local function Open(e)
+    local rec = ns.Recipe and ns.Recipe(e[1])
+    local left = math.max(0, e[2] - ns.Have(e[1]))
+    return left > 0 and not (rec and rec.diff == 3), left
+  end
+  local manual = ns.db.choice and ns.db.choice[profID .. ":" .. index]
+  if manual and all[manual] then
+    local open, left = Open(all[manual])
+    if open then return all[manual], left, manual end
+  end
+  for i, e in ipairs(all) do
+    local open, left = Open(e)
+    if open then return e, left, i end
+  end
+  -- all made: the last craft, for the skill points that are left
+  local last = all[#all]
+  return last, math.max(1, math.ceil(last[2] * share)), #all
+end
+
 -- buying it on the auction house costs less than its materials (Heavy Leather, Bolt of Runecloth):
 -- then the plan buys it rather than making it. No price for it or one of its materials: make it
 local function CheaperToBuy(name, entry)
