@@ -124,7 +124,7 @@ function ns.NextSteps()
       for i, step in ipairs(guide.steps) do
         if rank < step[2] then
           if ns.GUIDES[id] then
-            local entry = (ns.Chosen(id, i, step))[1]
+            local entry = ns.StepEntry(id, i, step, rank)
             out[#out + 1] = { icon = ns.ItemIcon(entry[1], icon), title = T("levelWith", guide.name, entry[1]),
               sub = ("%d/%d · %d-%d · %s"):format(rank, max, step[1], step[2], T("crafts", entry[2])), r = 0.45, g = 0.75, b = 1, prof = id }
           else
