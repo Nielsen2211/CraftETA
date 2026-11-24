@@ -205,6 +205,7 @@ function ns.ShowGuideView(id, guide, skill, current, y)
   local goal = ns.Goal(id, rank, max)
   local step = current and guide.steps[current]
   cur.id = id
+  cur.entry, cur.left = nil, nil
   gv:ClearAllPoints(); gv:SetPoint("TOPLEFT", H, "TOPLEFT", X, y)
   gv:SetHeight(196 + 8 + 84 + 10 + 26)
   gv:Show()
@@ -236,7 +237,10 @@ function ns.ShowGuideView(id, guide, skill, current, y)
   craft:SetShown(crafting and step ~= nil and rank < 300)
   local st = ns.panelState or {}
   local ready = ns.ProfessionFrame and ns.ProfessionFrame() and st.prof == id and st.job
-  craft:SetText(ready and T("craftN", st.job.count) or T("craftNow"))
+  -- the window is open on this profession and the step's recipe isn't learned: say so, like the panel
+  local noRecipe = ns.ProfessionFrame and ns.ProfessionFrame() and st.prof == id and cur.entry and st.needRecipe == cur.entry[1]
+  craft:SetText(ready and T("craftN", st.job.count) or noRecipe and T("needRecipe") or T("craftNow"))
+  if noRecipe then craft:Disable() else craft:Enable() end
   craft:SetScript("OnClick", function()
     local s = ns.panelState or {}
     if ns.ProfessionFrame() and s.prof == id and s.job then ns.Craft(s.job.name, s.job.count) else ns.OpenProfessionWindow(id) end
@@ -254,12 +258,19 @@ function ns.ShowGuideView(id, guide, skill, current, y)
   for _, r in ipairs(needRows) do r:Hide() end
   if crafting and cur.entry and step then
     local per = ns.MatsPerCraft(cur.entry)
+    -- up to the step's end or your goal, whichever comes first: the same range as the cost next to it
+    local stop = math.min(step[2], goal)
+    local _, planMats = ns.Plan(id, rank, stop)
+    if stop < step[2] then
+      subs[1].head:SetText(L("NEEDS TO %d", "SKAL BRUGE TIL %d"):format(stop))
+    end
     local n = 0
     for i = 1, #per, 2 do
       n = n + 1
       local r = needRows[n]
       if not r then break end
       local name, need = per[i], per[i + 1] * cur.left
+      if stop < step[2] and planMats then need = planMats[name] or 0 end
       local have = ns.Have(name)
       r.icon:SetTexture(ns.ItemIcon(name)); r.name:SetText(name)
       r.value:SetText((have >= need and "|cff5cd67c" or "|cffe8574a") .. have .. " / " .. need .. "|r")

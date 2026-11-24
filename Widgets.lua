@@ -149,6 +149,7 @@ function ns.Button(parent, text, width, height)
   end
   edge("TOPLEFT", "TOPRIGHT", true); edge("BOTTOMLEFT", "BOTTOMRIGHT", true)
   edge("TOPLEFT", "BOTTOMLEFT"); edge("TOPRIGHT", "BOTTOMRIGHT")
+  b.bg = bg
   local label = ns.Font(b, true, 11, 0.91, 0.92, 0.94)
   label:SetPoint("CENTER")
   label:SetJustifyH("CENTER")
@@ -168,8 +169,13 @@ function ns.Button(parent, text, width, height)
   b:SetScript("OnEnter", function(self)
     if self:IsEnabled() then
       b.keepR, b.keepG, b.keepB = label:GetTextColor()
-      rawColor(label, 1, 0.82, 0.3); b.hovering = true
-      bg:SetColorTexture(0.16, 0.17, 0.21, 0.95)
+      if b.primaryFill then
+        -- a gold button: gold text would vanish on it, so the button lightens and the text stays dark
+        b.primaryFill(true)
+      else
+        rawColor(label, 1, 0.82, 0.3); b.hovering = true
+        bg:SetColorTexture(0.16, 0.17, 0.21, 0.95)
+      end
     end
     if self.tip then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -178,7 +184,7 @@ function ns.Button(parent, text, width, height)
     end
   end)
   b:SetScript("OnLeave", function()
-    bg:SetColorTexture(0.12, 0.13, 0.16, 0.95)
+    if b.primaryFill then b.primaryFill(false) else bg:SetColorTexture(0.12, 0.13, 0.16, 0.95) end
     if b.hovering then b.hovering = false; if b.keepR then rawColor(label, b.keepR, b.keepG, b.keepB) end end
     GameTooltip:Hide()
   end)

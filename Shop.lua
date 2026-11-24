@@ -500,7 +500,11 @@ buyButton:SetScript("OnClick", function()
   end
   if buying then return end
   local item, s = Current(ns.ListItems())
-  if not item then return end
+  if not item then
+    -- nothing scanned to buy yet: the big button scans (the small Scan button hides then)
+    if not scanning and ns.ScanPrices then ns.ScanPrices() end
+    return
+  end
   local id = ns.ItemID(item.name)
   if not id then return end
   if item.crate then
@@ -711,6 +715,9 @@ function ns.RefreshList()
     or (da and "Kun " or "Only ") .. (ns.Plain(UnitName("player")) or ""))
   local items = ns.ListItems()
   local total, unknown, shown = 0, false, 0
+  -- the list scrolls with the mouse wheel when it is longer than the window
+  S.offset = math.max(0, math.min(S.offset or 0, #items - ROWS))
+  local idx = 0
   local needAll, gotAll, left, inMail = 0, 0, 0, 0
   local extraAll = 0   -- vendor materials you buy on the auction house: what that costs more
   for _, item in ipairs(items) do
@@ -736,7 +743,8 @@ function ns.RefreshList()
     local got = math.min(item.need, item.need - item.still)
     needAll, gotAll = needAll + item.need, gotAll + math.max(0, got)
     if item.still > 0 then left = left + 1 elseif not item.done then inMail = inMail + 1 end
-    if shown < ROWS then
+    idx = idx + 1
+    if idx > S.offset and shown < ROWS then
       shown = shown + 1
       local r = rows[shown]
       r.item, r.itemID = item.name, ns.ItemID(item.name)
@@ -799,7 +807,7 @@ function ns.RefreshList()
   local cardH = 12 + math.max(1, shown) * ROW_H
   if #items > ROWS then
     moreText:ClearAllPoints(); moreText:SetPoint("TOPLEFT", 20, -96 - cardH + 2)
-    moreText:SetText((da and "+ %d mere (de øverste købes først)" or "+ %d more (the top ones are bought first)"):format(#items - ROWS))
+    moreText:SetText((da and "%d til %d af %d  ·  scroll for flere" or "%d-%d of %d  ·  scroll for more"):format(S.offset + 1, S.offset + shown, #items))
     moreText:Show(); cardH = cardH + 14
   else
     moreText:Hide()
@@ -828,6 +836,7 @@ function ns.RefreshList()
     end
     local item, s = Current(items)
     local text
+    local bigScans = false
     if buying and buying.quote then
       buyButton:SetText(T("confirm", ns.Money(buying.total), T("priceUp", math.floor(buying.over + 0.5))))
       buyButton:Enable()
@@ -842,9 +851,15 @@ function ns.RefreshList()
     else
       local anyLeft = false
       for _, it in ipairs(items) do if it.still > 0 then anyLeft = true end end
-      buyButton:SetText(anyLeft and T("scan") or T("allBought"))
-      buyButton:Disable()
+      buyButton:SetText(anyLeft and (scanning and T("scanning", scanning.index, #scanning.items) or T("scan")) or T("allBought"))
+      if anyLeft and not scanning then buyButton:Enable() else buyButton:Disable() end
+      bigScans = anyLeft
       text = not anyLeft and #items > 0 and T("allBought") or nil
+    end
+    if bigScans then
+      -- one Scan prices button, not two
+      scanButton:Hide()
+      atrButton:ClearAllPoints(); atrButton:SetPoint("TOPLEFT", 14, y + 30)
     end
     buyButton:ClearAllPoints(); buyButton:SetPoint("TOPLEFT", 14, y)
     skipButton:ClearAllPoints(); skipButton:SetPoint("LEFT", buyButton, "RIGHT", 6, 0)
@@ -913,6 +928,11 @@ end
 
 S:SetScript("OnShow", function() ns.PlaceList(); ns.RefreshList() end)
 S:SetScript("OnHide", function() S.byAH = false; S.byVendor = false end)
+S:EnableMouseWheel(true)
+S:SetScript("OnMouseWheel", function(_, delta)
+  S.offset = (S.offset or 0) - delta
+  ns.RefreshList()
+end)
 
 -- a vendor opened (or closed): the list opens next to it when the vendor sells something from it,
 -- and closes with it again when it opened that way

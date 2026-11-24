@@ -90,6 +90,29 @@ local function Build(parent)
   return f
 end
 
+-- picks a recipe in the open profession window: the list's own selection (it scrolls to it), with a
+-- search that hides it cleared first; the game's OpenRecipe as the last way
+function ns.ShowRecipe(recipeID)
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  local list = page and page.RecipeList
+  local info = C_TradeSkillUI and C_TradeSkillUI.GetRecipeInfo and select(2, pcall(C_TradeSkillUI.GetRecipeInfo, recipeID))
+  if type(info) ~= "table" then info = nil end
+  local box = list and list.SearchBox
+  if box and box.GetText and box:GetText() ~= "" then
+    box:SetText("")
+    if C_TradeSkillUI.SetRecipeItemNameFilter then pcall(C_TradeSkillUI.SetRecipeItemNameFilter, "") end
+  end
+  if info and list and list.SelectRecipe then
+    if pcall(list.SelectRecipe, list, info, true) then return true end
+  end
+  if info and page and page.SelectRecipe then
+    if pcall(page.SelectRecipe, page, info) then return true end
+  end
+  if C_TradeSkillUI and C_TradeSkillUI.OpenRecipe then
+    return (pcall(C_TradeSkillUI.OpenRecipe, recipeID))
+  end
+end
+
 -- the recipe the window shows
 local function Selected()
   if form and form.GetRecipeInfo then
@@ -146,40 +169,69 @@ local function Snapshot()
   known[card] = true
 end
 
--- Keep the card clear of those frames: lift it above them, and if there is no room, hang it
--- beside the window instead. Runs after every update, so it also follows addons that load late.
+-- Keep the card clear of everything else in the recipe window: Blizzard's reagent slots (a recipe with
+-- many reagents reaches far down) and other addons' lines and buttons. The card sits at the bottom of the
+-- form, under all of them; when there is not room for all of it there, it hangs outside the window
+-- instead (under CraftETA's panel when that is beside the window). Runs after every update, so it also
+-- follows recipes with more reagents and addons that load late.
+local function Obstacles(out, parent, depth)
+  for _, c in ipairs(Kids(parent, {})) do
+    if c ~= card and c:IsShown() then
+      out[#out + 1] = c
+      if depth < 2 then Obstacles(out, c, depth + 1) end
+    end
+  end
+  return out
+end
+
 local function KeepClear()
-  if not card or not card:IsShown() or not known or not form then return end
+  if not card or not card:IsShown() or not form then return end
   local base = 30
-  local top = card:GetTop()
-  local bottom = card:GetBottom()
-  local fb = form:GetBottom()
-  if not (top and bottom and fb) then return end
-  local want = base
+  local fb, ft = form:GetBottom(), form:GetTop()
+  local fl, fr = form:GetLeft(), form:GetRight()
+  if not (fb and ft and fl and fr) then return end
+  local formH, formW = ft - fb, fr - fl
   local h = card:GetHeight()
-  local left, right = card:GetLeft(), card:GetRight()
-  for _, c in ipairs(Containers()) do
-    if not known[c] and c ~= card and c:IsShown() and c:GetNumPoints() > 0 then
-      local ok, ct, cb, cl, cr = pcall(function() return c:GetTop(), c:GetBottom(), c:GetLeft(), c:GetRight() end)
-      if ok and ct and cb and cl and cr and cr > left and cl < right then
-        local cTop = ct - fb          -- how far up from the form's bottom their frame reaches
-        local cBot = cb - fb
-        -- only frames that sit in the strip where the card lives (the bottom of the form)
-        if cBot < base + h and cTop > base then want = math.max(want, cTop + 4) end
+  local left, right = fl + 8, fr - 8
+  -- the lowest thing above the card's spot: the card's top has to stay under it
+  local floor = formH
+  local frames = Obstacles({}, form, 1)
+  local page = ProfessionsFrame and ProfessionsFrame.CraftingPage
+  if page and page ~= form then
+    for _, c in ipairs(Kids(page, {})) do if c ~= form and c ~= card and c:IsShown() and known and not known[c] then frames[#frames + 1] = c end end
+  end
+  for _, c in ipairs(frames) do
+    local ok, ct, cb, cl, cr = pcall(function() return c:GetTop(), c:GetBottom(), c:GetLeft(), c:GetRight() end)
+    if ok and ct and cb and cl and cr then
+      local cTop, cBot = ct - fb, cb - fb
+      local big = (ct - cb) > formH * 0.6 or (cr - cl) > formW * 0.95   -- backgrounds and the form's own frames
+      local visible = (ct - cb) >= 2 and (cr - cl) >= 2
+      if not big and visible and cr > left and cl < right and cBot > base - 4 and cBot < floor then
+        floor = math.max(base, cBot)
       end
     end
   end
-  local formH = form:GetHeight() or 0
   card:ClearAllPoints()
-  if want + h > formH * 0.8 and ProfessionsFrame then
-    -- no room inside: dock to the right of the window
-    card:SetPoint("TOPLEFT", ProfessionsFrame, "TOPRIGHT", 4, -60)
-    card:SetWidth(math.max(300, form:GetWidth() - 16))
-    anchored = "side"
-  else
-    card:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 8, want)
-    card:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -8, want)
+  if floor - 4 - base >= h then
+    card:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 8, base)
+    card:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -8, base)
     anchored = "in"
+  else
+    -- no room inside: outside the window
+    local panel = ns.Panel
+    local pl = panel and panel:IsShown() and panel:GetLeft()
+    local wr = ProfessionsFrame and ProfessionsFrame:GetRight()
+    if pl and wr and math.abs(pl - wr) < 40 then
+      card:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 0, -6)
+      card:SetWidth(panel:GetWidth())
+    elseif ProfessionsFrame then
+      card:SetPoint("TOPLEFT", ProfessionsFrame, "TOPRIGHT", 4, -60)
+      card:SetWidth(math.max(300, formW - 16))
+    else
+      card:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 8, base)
+      card:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -8, base)
+    end
+    anchored = "side"
   end
 end
 
@@ -205,10 +257,13 @@ local function Update()
       card.guide:SetText(T("rcGuideNow", st.recipe, st.step[1], st.step[2]))
       card.guide:SetTextColor(0.85, 0.86, 0.9)
       local target = ns.Recipe(st.recipe)
-      if target and target.id and C_TradeSkillUI and C_TradeSkillUI.OpenRecipe then
+      if target and target.id and target.learned then
         card.show:SetText(T("rcShow"))
-        card.show:SetScript("OnClick", function() pcall(C_TradeSkillUI.OpenRecipe, target.id) end)
+        card.show:SetScript("OnClick", function() ns.ShowRecipe(target.id) end)
         card.show:Show()
+      else
+        -- not learned yet: nothing in the window to show
+        card.guide:SetText(T("rcGuideNow", st.recipe, st.step[1], st.step[2]) .. "  |cffe6594d" .. L("not learned", "ikke lært") .. "|r")
       end
     end
   else

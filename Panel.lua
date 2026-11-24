@@ -135,6 +135,11 @@ end
 hooksecurefunc(craftBtn, "Enable", function() CraftLook(true) end)
 hooksecurefunc(craftBtn, "Disable", function() CraftLook(false) end)
 CraftLook(true)
+-- hover: a lighter gold, the text stays dark and readable
+craftBtn.primaryFill = function(on)
+  if not craftBtn:IsEnabled() then return end
+  craftFill:SetColorTexture(on and 1 or 1, on and 0.88 or 0.82, on and 0.5 or 0.29, 1)
+end
 local addList = ns.Button(P, "+", 28, 28)
 addList.label:SetFont(ns.F_BOLD, 16, "")
 addList.label:SetTextColor(0.85, 0.87, 0.9)
@@ -452,6 +457,7 @@ function ns.RefreshPanel()
   elseif not recipe or not recipe.learned then
     text = T("needRecipe")
   end
+  state.needRecipe = open and (not recipe or not recipe.learned) and entry[1] or nil
   -- what the button makes: the step's craft, or first a material for it you can make yourself
   state.job = nil
   if not text and left > 0 then
