@@ -55,9 +55,18 @@ function ns.VendorSells(name)
   return ns.VENDOR_ITEMS[name] ~= nil or Learned(name) ~= nil
 end
 
--- get it at a vendor: a vendor sells it, and Settings say vendor
+-- get it at a vendor: a vendor sells it, Settings say vendor, and you have not picked the auction house
+-- for this one (ctrl-click on the shopping list)
 function ns.AtVendor(name)
-  return ns.db and ns.db.vendorMode ~= "ah" and ns.VendorSells(name) or false
+  return ns.db and ns.db.vendorMode ~= "ah" and not (ns.db.ahItems and ns.db.ahItems[name]) and ns.VendorSells(name) or false
+end
+
+-- what buying it on the auction house costs more than at the vendor (negative: the auction house is cheaper)
+function ns.VendorExtra(name, count, ahCost)
+  if not (ahCost and count and count > 0 and ns.VendorSells(name)) then return nil end
+  local vc = ns.VendorCost(name)
+  if not vc then return nil end
+  return ahCost - math.ceil(vc * count)
 end
 
 -- what one costs at the vendor: the price you saw there, else the list, else 4 times what a vendor pays
