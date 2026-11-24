@@ -437,7 +437,7 @@ function home:Refresh()
       r.title:SetText(s.title)
       r.title:SetTextColor(0.9, 0.91, 0.94)
       r.accent:SetColorTexture(s.r or 1, s.g or 1, s.b or 1, 1)
-      r.sub:SetText(s.sub or "")
+      ns.FitList(r.sub, s.sub or "")
       r.prof = s.prof
       r:Show()
     else
@@ -955,7 +955,9 @@ function ns.ShowTimeline(id, guide, skill, current, data, below)
     ic.tex:SetTexture(entry and ns.ItemIcon(entry[1], ns.ProfIcon(id)) or guide.icon or ns.ProfIcon(id))
     ic.tex:SetDesaturated(rank >= s[2])
     ic:SetAlpha(rank >= s[2] and 0.55 or 1)
-    ic:SetShown(fits)
+    -- the badge with your skill sits above the bar: no icon under it
+    local underBadge = skill and x1 + 20 > Pos(rank) - 19 and x1 < Pos(rank) + 19
+    ic:SetShown(fits and not underBadge)
   end
   for i = #guide.steps + 1, #segs do segs[i]:Hide(); icons[i]:Hide() end
   -- where you learn the next ranks

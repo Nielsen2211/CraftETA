@@ -10,6 +10,38 @@ function ns.Font(parent, bold, size, r, g, b)
   return t
 end
 
+-- width of the text on one line, without the "..." the client adds when it is too long
+function ns.TextWidth(fs)
+  if fs.GetUnboundedStringWidth then return fs:GetUnboundedStringWidth() end
+  return fs:GetStringWidth()
+end
+
+-- set the first text that fits on the font string's line (the last one is used anyway)
+function ns.Fit(fs, ...)
+  local w = fs:GetWidth() or 0
+  local n = select("#", ...)
+  for i = 1, n do
+    local t = select(i, ...)
+    fs:SetText(t)
+    if i == n or w <= 0 or ns.TextWidth(fs) <= w + 0.5 then return end
+  end
+end
+
+-- a list "a, b, c, d" that does not fit becomes "a, b +2" instead of being cut in the middle of a word
+function ns.FitList(fs, text)
+  fs:SetText(text or "")
+  local w = fs:GetWidth() or 0
+  if w <= 0 or not text or ns.TextWidth(fs) <= w + 0.5 then return end
+  local head, list = text:match("^(.-)(%f[%w][^·]-,.*)$")
+  if not list then return end
+  local items = {}
+  for part in (list .. ","):gmatch("%s*(.-),") do items[#items + 1] = part end
+  for keep = #items - 1, 1, -1 do
+    fs:SetText(head .. table.concat(items, ", ", 1, keep) .. " +" .. (#items - keep))
+    if ns.TextWidth(fs) <= w + 0.5 then return end
+  end
+end
+
 -- the ETA panel, cut in nine: the rounded corners keep their shape at any window size
 function ns.Skin(frame)
   local TW, TH = 1024, 64         -- texture size

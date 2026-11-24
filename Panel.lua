@@ -345,9 +345,12 @@ function ns.RefreshPanel()
   y = y - 8
   local cardTop = y
   y = y - 12
-  stepHead:ClearAllPoints(); stepHead:SetPoint("TOPLEFT", 26, y)
-  stepHead:SetText(string.upper(step[1] .. " - " .. step[2] .. "  ·  " .. T("stepOf", index, #guide.steps)
-    .. (index > base and ("  ·  " .. T("skippedAhead")) or ""))); stepHead:Show()
+  stepHead:ClearAllPoints(); stepHead:SetPoint("TOPLEFT", 26, y); stepHead:SetPoint("RIGHT", P, "RIGHT", -64, 0)  -- stops before the skip arrows
+  stepHead:SetWordWrap(false)
+  local range = step[1] .. " - " .. step[2]
+  local stepOf = T("stepOf", index, #guide.steps)
+  local ahead = index > base and ("  ·  " .. T("skippedAhead")) or ""
+  ns.Fit(stepHead, string.upper(range .. "  ·  " .. stepOf .. ahead), string.upper(range .. ahead), string.upper(range)); stepHead:Show()
   skipNext:ClearAllPoints(); skipNext:SetPoint("TOPRIGHT", -24, y + 3)
   skipBack:ClearAllPoints(); skipBack:SetPoint("RIGHT", skipNext, "LEFT", -2, 0)
   skipNext:SetShown(index < #guide.steps)
@@ -369,7 +372,17 @@ function ns.RefreshPanel()
   recipeIcon:SetTexture(RecipeIcon(entry[1], entry)); recipeIcon:Show()
   recipeName:ClearAllPoints(); recipeName:SetPoint("TOPLEFT", recipeIcon, "TOPRIGHT", 10, -1)
   recipeName:SetPoint("RIGHT", P, "RIGHT", -86, 0)
-  recipeName:SetText(entry[1]); recipeName:Show()
+  recipeName:SetFont(ns.F_BOLD, 14, ""); recipeName:SetText(entry[1])
+  -- long names: one size smaller, and if that is not enough the "left" pill moves down next to the count
+  local pillDown = false
+  if ns.TextWidth(recipeName) > (recipeName:GetWidth() or 0) + 0.5 then
+    recipeName:SetFont(ns.F_BOLD, 12, "")
+    if ns.TextWidth(recipeName) > (recipeName:GetWidth() or 0) + 0.5 and #all <= 1 then
+      pillDown = true
+      recipeName:SetPoint("RIGHT", P, "RIGHT", -26, 0)
+    end
+  end
+  recipeName:Show()
   -- the skill-up colour as a dot (orange, yellow, green, grey), when the game knows it
   local rec = ns.Recipe(entry[1])
   local c = rec and DIFF_COLOR[rec.diff or -1]
@@ -386,7 +399,9 @@ function ns.RefreshPanel()
   recipeCount:SetText(countText); recipeCount:Show()
   leftText:SetText(T("left", left))
   leftPill:SetWidth(math.max(44, leftText:GetStringWidth() + 18))
-  leftPill:ClearAllPoints(); leftPill:SetPoint("TOPRIGHT", P, "TOPRIGHT", -26, y - 3); leftPill:Show()
+  leftPill:ClearAllPoints()
+  if pillDown then leftPill:SetPoint("BOTTOMRIGHT", P, "TOPRIGHT", -26, y - 36) else leftPill:SetPoint("TOPRIGHT", P, "TOPRIGHT", -26, y - 3) end
+  leftPill:Show()
   if #all > 1 then
     nextChoice:ClearAllPoints(); nextChoice:SetPoint("TOPRIGHT", P, "TOPRIGHT", -26, y - 22); nextChoice:Show()
     prevChoice:ClearAllPoints(); prevChoice:SetPoint("RIGHT", nextChoice, "LEFT", -2, 0); prevChoice:Show()
