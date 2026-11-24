@@ -90,11 +90,14 @@ function ns.Window(name, width, title)
       ns.db["point_" .. name] = { left, top }
     end
   end)
-  -- a solid fill under the (slightly see-through) skin, so nothing behind shows through the text
-  local solid = f:CreateTexture(nil, "BACKGROUND", nil, -8)
-  solid:SetPoint("TOPLEFT", 1, -1)
-  solid:SetPoint("BOTTOMRIGHT", -1, 1)
-  solid:SetColorTexture(0.043, 0.047, 0.063, 1)
+  -- a solid fill under the (slightly see-through) skin, so nothing behind shows through the text.
+  -- Three pieces that stay inside the rounded corners (8 px): one square fill would poke out of them.
+  for _, inset in ipairs({ { 8, 1 }, { 1, 8 }, { 3, 3 } }) do
+    local solid = f:CreateTexture(nil, "BACKGROUND", nil, -8)
+    solid:SetPoint("TOPLEFT", inset[1], -inset[2])
+    solid:SetPoint("BOTTOMRIGHT", -inset[1], inset[2])
+    solid:SetColorTexture(0.043, 0.047, 0.063, 1)
+  end
   ns.Skin(f)
   f.title = ns.Font(f, true, 15)
   f.title:SetPoint("LEFT", f, "TOPLEFT", 14, -20)
