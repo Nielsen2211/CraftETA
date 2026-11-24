@@ -9,6 +9,12 @@ local P = ns.Window("CraftETAPanel", WIDTH)
 ns.Panel = P
 
 -- 2.0 look: the profession and your skill big at the top, the step in a card of its own
+-- a rounded box (cards, the warning, the "2 left" pill)
+local function Box(parent, layer, r, g, b, a)
+  local t = ns.Round(parent, layer or "BACKGROUND", 1)
+  t:SetColorTexture(r, g, b, a or 1)
+  return t
+end
 local function Fill(parent, layer, r, g, b, a)
   local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, 1)
   t:SetColorTexture(r, g, b, a or 1)
@@ -52,7 +58,7 @@ local etaAll = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
 etaAll:SetPoint("TOPLEFT", etaRank, "BOTTOMLEFT", 0, -3)
 etaAll:SetPoint("RIGHT", P, "RIGHT", -14, 0)
 
-local warnBg = Fill(P, "BACKGROUND", 0.2, 0.149, 0.086)
+local warnBg = Box(P, "BACKGROUND", 0.2, 0.149, 0.086)
 warnBg:Hide()
 local warn = ns.Font(P, true, 10, 1, 0.69, 0.38)
 warn:SetPoint("RIGHT", P, "RIGHT", -40, 0)
@@ -65,7 +71,7 @@ warnPin:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, 0)
 warnPin:Hide()
 
 -- the step, in its card
-local card = Fill(P, "BACKGROUND", 0.086, 0.094, 0.122)
+local card = Box(P, "BACKGROUND", 0.086, 0.094, 0.122)
 card:Hide()
 local stepHead = ns.Font(P, true, 9, 0.36, 0.38, 0.42)
 local recipeIcon = P:CreateTexture(nil, "ARTWORK")
@@ -74,12 +80,13 @@ recipeIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 local recipeName = ns.Font(P, true, 14, 1, 0.82, 0.29)
 recipeName:SetWordWrap(false)
 local diffDot = P:CreateTexture(nil, "ARTWORK")
+diffDot:SetTexture(ns.TEX .. "Dot")
 diffDot:SetSize(7, 7)
 local recipeCount = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
 -- "2 left" as a small green pill
 local leftPill = CreateFrame("Frame", nil, P)
 leftPill:SetSize(52, 18)
-local leftBg = Fill(leftPill, "BACKGROUND", 0.118, 0.204, 0.141)
+local leftBg = Box(leftPill, "BACKGROUND", 0.118, 0.204, 0.141)
 leftBg:SetAllPoints()
 local leftText = ns.Font(leftPill, true, 10, 0.36, 0.84, 0.49)
 leftText:SetPoint("CENTER")
@@ -123,7 +130,7 @@ note:SetWidth(WIDTH - 52)
 -- one Craft button that follows the guide: what the step still needs, and first any material for it
 -- that you can make yourself (a grinding stone, a bolt) but don't have enough of
 local craftBtn = ns.Button(P, T("craft"), WIDTH - 52 - 34, 28)
-local craftFill = craftBtn:CreateTexture(nil, "BACKGROUND", nil, 2)
+local craftFill = ns.Round(craftBtn, "BACKGROUND", 2)
 craftFill:SetAllPoints()
 craftFill:SetColorTexture(1, 0.82, 0.29, 1)
 craftBtn.label:SetFont(ns.F_BOLD, 13, "")
@@ -324,7 +331,7 @@ function ns.RefreshPanel()
     local h = warn:GetStringHeight() + 14
     warnBg:ClearAllPoints(); warnBg:SetPoint("TOPLEFT", 14, y - 7); warnBg:SetPoint("RIGHT", P, "RIGHT", -14, 0)
     warnBg:SetHeight(h); warnBg:Show()
-    warnPin:ClearAllPoints(); warnPin:SetPoint("RIGHT", warnBg, "RIGHT", -8, 0); warnPin:Show()
+    warnPin:ClearAllPoints(); warnPin:SetPoint("RIGHT", warnBg.box, "RIGHT", -8, 0); warnPin:Show()
     y = y - 7 - h - 2
   else
     warn:SetText(""); warn:Hide(); warnPin:Hide(); warnBg:Hide()
@@ -390,7 +397,7 @@ function ns.RefreshPanel()
   local rec = ns.Recipe(entry[1])
   local c = rec and DIFF_COLOR[rec.diff or -1]
   diffDot:ClearAllPoints(); diffDot:SetPoint("BOTTOMLEFT", recipeIcon, "BOTTOMRIGHT", 10, 4)
-  if c then diffDot:SetColorTexture(c[1], c[2], c[3], 1); diffDot:Show() else diffDot:Hide() end
+  if c then diffDot:SetVertexColor(c[1], c[2], c[3], 1); diffDot:Show() else diffDot:Hide() end
   recipeCount:ClearAllPoints()
   recipeCount:SetPoint("LEFT", diffDot, c and "RIGHT" or "LEFT", c and 6 or 0, 0)
   local countText = T("make", entry[2])
@@ -642,7 +649,7 @@ function ns.RefreshGatherPanel(open)
     local h = warn:GetStringHeight() + 14
     warnBg:ClearAllPoints(); warnBg:SetPoint("TOPLEFT", 14, y - 7); warnBg:SetPoint("RIGHT", P, "RIGHT", -14, 0)
     warnBg:SetHeight(h); warnBg:Show()
-    warnPin:ClearAllPoints(); warnPin:SetPoint("RIGHT", warnBg, "RIGHT", -8, 0); warnPin:Show()
+    warnPin:ClearAllPoints(); warnPin:SetPoint("RIGHT", warnBg.box, "RIGHT", -8, 0); warnPin:Show()
     y = y - 7 - h - 2
   else
     warn:Hide(); warnPin:Hide(); warnBg:Hide()

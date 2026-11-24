@@ -9,10 +9,9 @@ local function L(en, da) return (ns.db and ns.db.lang == "da") and da or en end
 
 local function Card(parent)
   local f = CreateFrame("Frame", nil, parent)
-  local bg = f:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
-  -- the same flat card as the step in the profession panel: no edges, a shade lighter than the window
-  bg:SetColorTexture(0.086, 0.094, 0.122, 1)
+  -- the same flat card as the step in the profession panel: no edges, a shade lighter than the window,
+  -- rounded like every box in the ETA family
+  f.bg = ns.RoundBox(f, 0.086, 0.094, 0.122, 1)
   return f
 end
 ns.Card = Card
@@ -172,12 +171,10 @@ ns.HubCustom.home = home
 local GOLD = { 1, 0.82, 0.29 }
 
 local function Edge(f, r, g, b, a)
-  for _, p in ipairs({ { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
-    local t = f:CreateTexture(nil, "BORDER")
-    t:SetPoint(p[1]); t:SetPoint(p[2])
-    if p[3] then t:SetHeight(1) else t:SetWidth(1) end
-    t:SetColorTexture(r, g, b, a or 1)
-  end
+  local line = ns.Round(f, "BORDER", 0, nil, true)
+  line:SetAllPoints(f)
+  line:SetColorTexture(r, g, b, a or 1)
+  return line
 end
 local function Tip(frame, fn)
   frame:EnableMouse(true)
@@ -191,14 +188,6 @@ end
 local hero = Card(home)
 hero:SetPoint("TOPLEFT"); hero:SetPoint("RIGHT"); hero:SetHeight(92)
 Edge(hero, 0.2, 0.21, 0.25)
-local glow = hero:CreateTexture(nil, "BACKGROUND", nil, 2)
-glow:SetPoint("TOPLEFT", 1, -1); glow:SetPoint("BOTTOMLEFT", 1, 1); glow:SetWidth(260)
-glow:SetColorTexture(1, 1, 1, 1)
-if glow.SetGradient and CreateColor then
-  pcall(glow.SetGradient, glow, "HORIZONTAL", CreateColor(1, 0.82, 0.3, 0.1), CreateColor(1, 0.82, 0.3, 0))
-else
-  glow:SetColorTexture(1, 0.82, 0.3, 0.04)
-end
 local classIcon = hero:CreateTexture(nil, "ARTWORK")
 classIcon:SetSize(50, 50); classIcon:SetPoint("TOPLEFT", 16, -12)
 local nameText = ns.Font(hero, true, 22, 0.9, 0.91, 0.94)
@@ -338,7 +327,7 @@ for i = 1, 9 do
   local r = CreateFrame("Button", nil, stepCard)
   r:SetSize(COLW - 28, STEP_H - 6)
   r:SetPoint("TOPLEFT", 14, -32 - (i - 1) * STEP_H)
-  local bg = r:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(1, 1, 1, 0.025)
+  ns.RoundBox(r, 1, 1, 1, 0.025)
   r.accent = r:CreateTexture(nil, "BORDER"); r.accent:SetPoint("TOPLEFT"); r.accent:SetPoint("BOTTOMLEFT"); r.accent:SetWidth(2); r.accent:SetAlpha(0)
   r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(28, 28); r.icon:SetPoint("LEFT", 10, 0)
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -346,7 +335,7 @@ for i = 1, 9 do
   r.title:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, 0); r.title:SetPoint("RIGHT", r, "RIGHT", -8, 0); r.title:SetWordWrap(false)
   r.sub = ns.Font(r, false, 9, 0.5, 0.52, 0.57)
   r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, 0); r.sub:SetPoint("RIGHT", r, "RIGHT", -8, 0); r.sub:SetWordWrap(false)
-  local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.04)
+  local hl = ns.Round(r, "HIGHLIGHT", 0); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.04)
   r:SetScript("OnClick", function(self)
     if self.prof then ns.hubState.guide = self.prof; ns.ToggleHub("guide") end
   end)
@@ -861,7 +850,7 @@ now:SetColorTexture(1, 1, 1, 0.95)
 local badge = CreateFrame("Frame", nil, tl)
 badge:SetSize(34, 16)
 badge:SetFrameLevel(tl:GetFrameLevel() + 6)
-local badgeBg = badge:CreateTexture(nil, "BACKGROUND")
+local badgeBg = ns.Round(badge, "BACKGROUND", 0, 4)
 badgeBg:SetAllPoints()
 badgeBg:SetColorTexture(1, 0.82, 0.3, 1)
 local badgeText = ns.Font(badge, true, 10, 0.08, 0.08, 0.1)

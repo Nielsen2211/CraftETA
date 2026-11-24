@@ -20,14 +20,7 @@ local function Fill(parent, r, g, b, a, layer)
 end
 local function Card(parent, edge)
   local f = CreateFrame("Frame", nil, parent)
-  Fill(f, 0.086, 0.094, 0.122):SetAllPoints()
-  local e = edge or { 0.2, 0.21, 0.25 }
-  for _, p in ipairs({ { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
-    local t = f:CreateTexture(nil, "BORDER")
-    t:SetPoint(p[1]); t:SetPoint(p[2])
-    if p[3] then t:SetHeight(1) else t:SetWidth(1) end
-    t:SetColorTexture(e[1], e[2], e[3], 1)
-  end
+  ns.RoundBox(f, 0.086, 0.094, 0.122, 1, edge or { 0.2, 0.21, 0.25 })
   return f
 end
 local function Icon(parent, size)
@@ -93,8 +86,8 @@ local function Row(i)
   r:SetHeight(ROW_H - 4)
   r:SetPoint("TOPLEFT", 10, -8 - (i - 1) * ROW_H); r:SetPoint("RIGHT", list, "RIGHT", -10, 0)
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  Fill(r, 1, 1, 1, 0.025):SetAllPoints()
-  local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.05)
+  ns.RoundBox(r, 1, 1, 1, 0.025)
+  local hl = ns.Round(r, "HIGHLIGHT", 0); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.05)
   r.icon = Icon(r, 28); r.icon:SetPoint("LEFT", 6, 0)
   r.gain = ns.Font(r, true, 12, 0.35, 0.9, 0.4); r.gain:SetPoint("TOPRIGHT", -8, -4); r.gain:SetJustifyH("RIGHT")
   r.money = ns.Font(r, false, 9, 0.6, 0.62, 0.67); r.money:SetPoint("BOTTOMRIGHT", -8, 5); r.money:SetJustifyH("RIGHT")

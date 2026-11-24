@@ -14,16 +14,7 @@ local function Fill(parent, r, g, b, a, layer)
 end
 local function Card(parent, r, g, b, edge)
   local f = CreateFrame("Frame", nil, parent)
-  f.bg = Fill(f, r or 0.086, g or 0.094, b or 0.122)
-  f.bg:SetAllPoints()
-  if edge then
-    for _, p in ipairs({ { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
-      local t = f:CreateTexture(nil, "BORDER")
-      t:SetPoint(p[1]); t:SetPoint(p[2])
-      if p[3] then t:SetHeight(1) else t:SetWidth(1) end
-      t:SetColorTexture(edge[1], edge[2], edge[3], edge[4] or 1)
-    end
-  end
+  f.bg = ns.RoundBox(f, r or 0.086, g or 0.094, b or 0.122, 1, edge)
   return f
 end
 local function Head(parent, text, r, g, b)
@@ -51,7 +42,7 @@ now:SetPoint("TOPLEFT"); now:SetPoint("RIGHT")
 now:SetHeight(196)
 local nowIcon = Icon(now, 48); nowIcon:SetPoint("TOPLEFT", 16, -16)
 local badge = CreateFrame("Frame", nil, now); badge:SetSize(36, 15); badge:SetPoint("TOPLEFT", nowIcon, "TOPRIGHT", 12, 0)
-Fill(badge, 1, 0.82, 0.29):SetAllPoints()
+ns.RoundBox(badge, 1, 0.82, 0.29, 1)
 local badgeText = ns.Font(badge, true, 9, 0.08, 0.06, 0.02); badgeText:SetPoint("CENTER"); badgeText:SetShadowOffset(0, 0)
 local nowRange = ns.Font(now, true, 10, 0.5, 0.52, 0.57); nowRange:SetPoint("LEFT", badge, "RIGHT", 8, 0)
 local nowTitle = ns.Font(now, true, 17, 1, 0.82, 0.29)

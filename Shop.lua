@@ -164,7 +164,7 @@ pBg:SetColorTexture(1, 1, 1, 0.08)
 local pFill = S:CreateTexture(nil, "OVERLAY"); pFill:SetPoint("TOPLEFT", pBg); pFill:SetPoint("BOTTOMLEFT", pBg); pFill:SetWidth(1)
 pFill:SetColorTexture(1, 0.82, 0.3, 1)
 -- the card the items sit on
-local card = S:CreateTexture(nil, "BORDER"); card:SetPoint("TOPLEFT", 10, -96); card:SetPoint("RIGHT", S, "RIGHT", -10, 0)
+local card = ns.Round(S, "BORDER", 0); card:SetPoint("TOPLEFT", 10, -96); card:SetPoint("RIGHT", S, "RIGHT", -10, 0)
 card:SetColorTexture(0.086, 0.094, 0.122, 1)
 local moreText = ns.Font(S, false, 9, 0.45, 0.47, 0.52)
 

@@ -65,6 +65,91 @@ function ns.Skin(frame)
   mid:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
 end
 
+-- One corner shape for every box, card, button and tag: Round.tga (fill) or RoundLine.tga (a thin edge),
+-- cut in nine so the corners keep their shape at any size. ns.RADIUS is the corner in UI units.
+-- The result works like a texture: SetColorTexture, SetVertexColor, SetPoint, SetAllPoints, Show, Hide...
+ns.RADIUS = 6
+local ROUND_PARTS = {
+  -- texcoords (of 64 px, corner 16) and the two anchors of each part on the box
+  { 0, .25, 0, .25, "TOPLEFT" }, { .75, 1, 0, .25, "TOPRIGHT" },
+  { 0, .25, .75, 1, "BOTTOMLEFT" }, { .75, 1, .75, 1, "BOTTOMRIGHT" },
+  { .25, .75, 0, .25, "TOP" }, { .25, .75, .75, 1, "BOTTOM" },
+  { 0, .25, .25, .75, "LEFT" }, { .75, 1, .25, .75, "RIGHT" },
+  { .25, .75, .25, .75, "CENTER" },
+}
+function ns.Round(parent, layer, sub, radius, line)
+  local box = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub or 0)
+  local rad = radius or ns.RADIUS
+  local parts = {}
+  for i, p in ipairs(ROUND_PARTS) do
+    local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub or 0)
+    t:SetTexture(ns.TEX .. (line and "RoundLine" or "Round"))
+    t:SetTexCoord(p[1], p[2], p[3], p[4])
+    parts[i] = t
+  end
+  local tl, tr, bl, br, top, bot, left, right, mid = unpack(parts)
+  tl:SetPoint("TOPLEFT", box); tr:SetPoint("TOPRIGHT", box)
+  bl:SetPoint("BOTTOMLEFT", box); br:SetPoint("BOTTOMRIGHT", box)
+  top:SetPoint("TOPLEFT", tl, "TOPRIGHT"); top:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
+  bot:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
+  left:SetPoint("TOPLEFT", tl, "BOTTOMLEFT"); left:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
+  right:SetPoint("TOPLEFT", tr, "BOTTOMLEFT"); right:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
+  mid:SetPoint("TOPLEFT", tl, "BOTTOMRIGHT"); mid:SetPoint("BOTTOMRIGHT", br, "TOPLEFT")
+  local o = { box = box, parts = parts }
+  -- a box lower than two corners (a 10 px tag) gets a smaller corner, never a broken one
+  function o.Fit()
+    local w, h = box:GetWidth() or 0, box:GetHeight() or 0
+    local r = rad
+    if w > 0 and h > 0 then r = math.max(1, math.min(rad, math.floor(math.min(w, h) / 2))) end
+    for i = 1, 4 do parts[i]:SetSize(r, r) end
+  end
+  o.Fit()
+  if parent.HookScript then parent:HookScript("OnSizeChanged", o.Fit) end
+  local function each(method)
+    return function(_, ...) for _, t in ipairs(parts) do t[method](t, ...) end end
+  end
+  o.SetVertexColor = each("SetVertexColor")
+  o.SetAlpha = each("SetAlpha")
+  o.SetDrawLayer = each("SetDrawLayer")
+  o.SetBlendMode = each("SetBlendMode")
+  function o:SetColorTexture(r, g, b, a) for _, t in ipairs(parts) do t:SetVertexColor(r, g, b, a or 1) end end
+  function o:Show() for _, t in ipairs(parts) do t:Show() end end
+  function o:Hide() for _, t in ipairs(parts) do t:Hide() end end
+  function o:SetShown(on) if on then o:Show() else o:Hide() end end
+  function o:IsShown() return mid:IsShown() end
+  function o:IsVisible() return mid:IsVisible() end
+  function o:SetPoint(...) box:SetPoint(...); o.Fit() end
+  function o:SetAllPoints(...) box:SetAllPoints(...); o.Fit() end
+  function o:ClearAllPoints() box:ClearAllPoints() end
+  function o:SetSize(...) box:SetSize(...); o.Fit() end
+  function o:SetWidth(...) box:SetWidth(...); o.Fit() end
+  function o:SetHeight(...) box:SetHeight(...); o.Fit() end
+  function o:GetWidth() return box:GetWidth() end
+  function o:GetHeight() return box:GetHeight() end
+  function o:GetParent() return parent end
+  -- a gradient cannot follow nine parts: the start colour is used
+  function o:SetGradient() end
+  -- anything else (GetTop, GetPoint...) is asked of the box the nine parts sit on
+  return setmetatable(o, { __index = function(_, k)
+    local m = box[k]
+    if type(m) == "function" then return function(_, ...) return m(box, ...) end end
+    return m
+  end })
+end
+-- a rounded box with an optional rounded edge on top of it
+function ns.RoundBox(parent, r, g, b, a, edge, layer, sub)
+  local fill = ns.Round(parent, layer or "BACKGROUND", sub or 1)
+  fill:SetAllPoints(parent)
+  fill:SetColorTexture(r or 0.086, g or 0.094, b or 0.122, a or 1)
+  local line
+  if edge then
+    line = ns.Round(parent, "BORDER", 0, nil, true)
+    line:SetAllPoints(parent)
+    line:SetColorTexture(edge[1], edge[2], edge[3], edge[4] or 1)
+  end
+  return fill, line
+end
+
 -- a window in the ETA look: title, close (×), drag to move, remembered position
 function ns.Window(name, width, title)
   local f = CreateFrame("Frame", name, UIParent)
@@ -90,14 +175,12 @@ function ns.Window(name, width, title)
       ns.db["point_" .. name] = { left, top }
     end
   end)
-  -- a solid fill under the (slightly see-through) skin, so nothing behind shows through the text.
-  -- Three pieces that stay inside the rounded corners (8 px): one square fill would poke out of them.
-  for _, inset in ipairs({ { 8, 1 }, { 1, 8 }, { 3, 3 } }) do
-    local solid = f:CreateTexture(nil, "BACKGROUND", nil, -8)
-    solid:SetPoint("TOPLEFT", inset[1], -inset[2])
-    solid:SetPoint("BOTTOMRIGHT", -inset[1], inset[2])
-    solid:SetColorTexture(0.043, 0.047, 0.063, 1)
-  end
+  -- a solid fill under the (slightly see-through) skin, so nothing behind shows through the text
+  -- rounded like the skin, so no square corner shows behind its round ones
+  local solid = ns.Round(f, "BACKGROUND", -8, 8)
+  solid:SetPoint("TOPLEFT", 1, -1)
+  solid:SetPoint("BOTTOMRIGHT", -1, 1)
+  solid:SetColorTexture(0.043, 0.047, 0.063, 1)
   ns.Skin(f)
   f.title = ns.Font(f, true, 15)
   f.title:SetPoint("LEFT", f, "TOPLEFT", 14, -20)
@@ -136,19 +219,8 @@ end
 function ns.Button(parent, text, width, height)
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(width or 80, height or 22)
-  local bg = b:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
-  bg:SetColorTexture(0.12, 0.13, 0.16, 0.95)
-  local edges = {}
-  local function edge(p1, p2, horizontal)
-    local t = b:CreateTexture(nil, "BORDER")
-    t:SetPoint(p1); t:SetPoint(p2)
-    if horizontal then t:SetHeight(1) else t:SetWidth(1) end
-    t:SetColorTexture(0.25, 0.27, 0.32, 1)
-    edges[#edges + 1] = t
-  end
-  edge("TOPLEFT", "TOPRIGHT", true); edge("BOTTOMLEFT", "BOTTOMRIGHT", true)
-  edge("TOPLEFT", "BOTTOMLEFT"); edge("TOPRIGHT", "BOTTOMRIGHT")
+  local bg, line = ns.RoundBox(b, 0.12, 0.13, 0.16, 0.95, { 0.25, 0.27, 0.32, 1 }, "BACKGROUND", 0)
+  local edges = { line }
   b.bg = bg
   local label = ns.Font(b, true, 11, 0.91, 0.92, 0.94)
   label:SetPoint("CENTER")
@@ -264,7 +336,7 @@ function ns.Row(parent, height)
   r.value:SetPoint("RIGHT", 0, 0)
   r.value:SetJustifyH("RIGHT")
   r.name:SetPoint("RIGHT", r.value, "LEFT", -6, 0)
-  local hl = r:CreateTexture(nil, "HIGHLIGHT")
+  local hl = ns.Round(r, "HIGHLIGHT", 0)
   hl:SetAllPoints()
   hl:SetColorTexture(1, 1, 1, 0.04)
   return r
@@ -306,12 +378,7 @@ function ns.NumberBox(parent, width, height, size, onSet)
   box:SetTextColor(1, 0.82, 0.29)
   box:SetJustifyH("CENTER")
   box:SetTextInsets(4, 4, 0, 0)
-  local bg = box:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
-  bg:SetColorTexture(0.08, 0.09, 0.11, 0.95)
-  local line = box:CreateTexture(nil, "BORDER")
-  line:SetPoint("BOTTOMLEFT"); line:SetPoint("BOTTOMRIGHT"); line:SetHeight(1)
-  line:SetColorTexture(0.45, 0.4, 0.25, 0.9)
+  ns.RoundBox(box, 0.08, 0.09, 0.11, 0.95, { 0.25, 0.27, 0.32, 1 }, "BACKGROUND", 0)
   local function Apply(self)
     local n = tonumber(self:GetText())
     if n and n ~= self.value then onSet(n) else self:SetText(self.value or "") end
@@ -330,17 +397,16 @@ end
 -- an on/off switch: a track with a knob that slides to the right when on (gold) and left when off (grey)
 function ns.Switch(parent, onClick)
   local b = CreateFrame("Button", nil, parent)
-  b:SetSize(30, 16)
-  b.track = b:CreateTexture(nil, "ARTWORK"); b.track:SetAllPoints()
-  b.edge = b:CreateTexture(nil, "BORDER"); b.edge:SetPoint("TOPLEFT", -1, 1); b.edge:SetPoint("BOTTOMRIGHT", 1, -1)
-  b.knob = b:CreateTexture(nil, "OVERLAY"); b.knob:SetSize(12, 12)
+  -- the same round switch as LevelETA (ToggleOn / ToggleOff)
+  b:SetSize(32, 18)
+  b.off = b:CreateTexture(nil, "ARTWORK"); b.off:SetAllPoints()
+  b.off:SetTexture(ns.TEX .. "ToggleOff"); b.off:SetTexCoord(0, 1, 0, 36 / 64)
+  b.onTex = b:CreateTexture(nil, "ARTWORK"); b.onTex:SetAllPoints()
+  b.onTex:SetTexture(ns.TEX .. "ToggleOn"); b.onTex:SetTexCoord(0, 1, 0, 36 / 64)
   function b:SetOn(on)
     self.on = on and true or false
-    self.track:SetColorTexture(on and 1 or 0.17, on and 0.82 or 0.18, on and 0.3 or 0.22, 1)
-    self.edge:SetColorTexture(on and 0.6 or 0.3, on and 0.48 or 0.31, on and 0.16 or 0.36, 1)
-    self.knob:SetColorTexture(on and 0.1 or 0.62, on and 0.08 or 0.64, on and 0.03 or 0.68, 1)
-    self.knob:ClearAllPoints()
-    self.knob:SetPoint(on and "RIGHT" or "LEFT", on and -2 or 2, 0)
+    self.onTex:SetShown(self.on)
+    self.off:SetShown(not self.on)
   end
   b:SetScript("OnClick", function(self) if onClick then onClick(self) end end)
   b:SetOn(false)
