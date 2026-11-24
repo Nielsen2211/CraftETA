@@ -120,28 +120,35 @@ function ns.SignedMoney(v)
   return (v > 0 and "+" or "-") .. ns.Money(math.abs(v))
 end
 
+-- whole gold, rounded up, with a sign: "+4g", "-1g"
+function ns.SignedGold(v)
+  if math.abs(v) < 0.5 then return ns.MoneyShort(0) end
+  return (v > 0 and "+" or "-") .. ns.MoneyShort(math.abs(v))
+end
+
 -- "+3s 20c" in green, "-1g" in red, or why there is no number
-function ns.ProfitText(net)
+function ns.ProfitText(net, short)
   if net.profit then
-    return (net.profit >= 0 and GREEN or RED) .. ns.SignedMoney(net.profit) .. "|r"
+    return (net.profit >= 0 and GREEN or RED) .. (short and ns.SignedGold or ns.SignedMoney)(net.profit) .. "|r"
   elseif net.sellState == "none" then
-    return GREY .. L("nobody sells it on the AH", "ingen sælger den på AH") .. "|r"
+    return GREY .. (short and L("not on the AH", "ikke på AH") or L("nobody sells it on the AH", "ingen sælger den på AH")) .. "|r"
   end
   return GREY .. L("no price", "ingen pris") .. "|r"
 end
 
 -- one line for a stretch: "Sells back 85g  ·  net cost 35g" (or net gain)
-function ns.RouteNetText(r, short)
+function ns.RouteNetText(r, short, bare)
   if not r or r.crafts == 0 then return "" end
+  local Money = short and ns.MoneyShort or ns.Money
   local parts = {}
-  if r.sold > 0 or r.unpriced == 0 then
-    parts[#parts + 1] = L("Sells back ", "Sælges igen for ") .. ns.Money(r.revenue)
+  if not bare and (r.sold > 0 or r.unpriced == 0) then
+    parts[#parts + 1] = L("Sells back ", "Sælges igen for ") .. Money(r.revenue)
   end
   local net = r.net
   if net >= 0 then
-    parts[#parts + 1] = L("net cost ", "netto pris ") .. (r.costUnknown and "~" or "") .. ns.Money(net)
+    parts[#parts + 1] = L("net cost ", "netto pris ") .. (r.costUnknown and "~" or "") .. Money(net)
   else
-    parts[#parts + 1] = GREEN .. L("net gain ", "netto gevinst ") .. ns.Money(-net) .. "|r"
+    parts[#parts + 1] = GREEN .. L("net gain ", "netto gevinst ") .. Money(-net) .. "|r"
   end
   local text = table.concat(parts, "  ·  ")
   if r.unpriced > 0 then

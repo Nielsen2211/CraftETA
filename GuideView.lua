@@ -273,19 +273,19 @@ function ns.ShowGuideView(id, guide, skill, current, y)
   subs[2].head:SetText(L("COST OF THIS STEP", "PRIS FOR TRINNET"))
   if crafting and step then
     local _, cost, unknown = PlanCost(id, rank, math.min(step[2], goal))
-    costBig:SetText(cost > 0 and ((unknown and "~" or "") .. ns.Money(cost)) or (unknown and L("No price yet", "Ingen pris endnu") or L("Nothing to buy", "Intet at købe")))
+    costBig:SetText(cost > 0 and ((unknown and "~" or "") .. ns.MoneyShort(cost)) or (unknown and L("No price yet", "Ingen pris endnu") or L("Nothing to buy", "Intet at købe")))
     local crafts, gcost, gunk, eta = PlanCost(id, rank, goal)
-    local toGoal = L("To %d: ", "Til %d: "):format(goal) .. (gunk and "~" or "") .. ns.Money(gcost) .. "  ·  " .. T("crafts", crafts)
+    local toGoal = L("To %d: ", "Til %d: "):format(goal) .. (gunk and "~" or "") .. ns.MoneyShort(gcost) .. "  ·  " .. T("crafts", crafts)
     ns.Fit(costGoal, toGoal .. (eta and ("  ·  " .. eta) or ""), toGoal)
     -- plus or minus on this craft, and what selling the crafts gives back on the way to the goal
     cur.rank, cur.goal = rank, goal
     if cur.entry then
-      costSub:SetText(L("This craft: ", "Dette craft: ") .. ns.ProfitText(ns.EntryNet(cur.entry)))
+      costSub:SetText(L("This craft: ", "Dette craft: ") .. ns.ProfitText(ns.EntryNet(cur.entry), true))
     else
       costSub:SetText("")
     end
     local rn = ns.RouteNet(id, rank, goal, true)
-    ns.Fit(costNet, ns.RouteNetText(rn), ns.RouteNetText(rn, true))
+    ns.Fit(costNet, ns.RouteNetText(rn, true), ns.RouteNetText(rn, true, true))
   else
     cur.rank, cur.goal = nil, nil
     costBig:SetText(""); costSub:SetText(crafting and "" or L("Gathering costs nothing but time.", "Samling koster kun tid.")); costGoal:SetText(""); costNet:SetText("")
@@ -295,7 +295,7 @@ function ns.ShowGuideView(id, guide, skill, current, y)
   subs[3].head:SetText(L("YOUR GOAL", "DIT MÅL"))
   goalNum:SetNumberValue(goal)
   goalNum.onSet = function(n) SetGoal(id, math.max(rank + 1, math.min(300, n))) end
-  goalInfo:SetText(goal >= 300 and "" or (crafting and L("route stops here", "ruten stopper her") or ""))
+  goalInfo:SetText("")
   local vals = { math.max(rank + 1, math.min(300, max)), 150, 225, 300 }
   local labels = { L("Cap", "Loft"), "150", "225", "300" }
   for i, b in ipairs(presets) do
@@ -328,9 +328,9 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     stopMap.label:SetTextColor(1, 0.84, 0.63)
   else
     stop:Show()
-    stopHead:SetText(L("YOUR GOAL", "DIT MÅL"))
-    stopTitle:SetText(L("Nothing stops you before %d", "Intet stopper dig før %d"):format(goal))
-    stopWho:SetText(rank >= 300 and "" or L("You can train all the way to your goal.", "Du kan træne hele vejen til dit mål."))
+    stopHead:SetText(L("TRAINER", "TRÆNER"))
+    stopTitle:SetText(rank >= 300 and "" or L("No trainer visit needed up to %d", "Ingen træner nødvendig op til %d"):format(goal))
+    stopWho:SetText("")
     stopMap:SetText(""); stopMap:SetScript("OnClick", nil)
   end
   stopMap:SetShown(r ~= nil and goal > r.at)
