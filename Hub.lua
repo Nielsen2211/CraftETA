@@ -749,14 +749,14 @@ local function BuildGuide()
         local cost, unknown = ns.Cost(mats)
         local eta = ns.Duration(ns.TimeFor(id, target - rank, crafts))
         lines[#lines + 1] = "|cff8c8f96" .. T("toRank", target) .. ":|r " .. T("crafts", crafts)
-          .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.Money(cost)) or "") .. (eta and ("  ·  " .. T("eta", eta)) or "")
+          .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.MoneyShort(cost)) or "") .. (eta and ("  ·  " .. T("eta", eta)) or "")
       end
       if not skill then
         -- a profession you don't have: what the whole route takes
         local crafts, mats = ns.Plan(id, 1, 300)
         local cost, unknown = ns.Cost(mats)
         lines[#lines + 1] = "|cff8c8f96" .. T("wholeRoute") .. ":|r " .. T("crafts", crafts)
-          .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.Money(cost)) or "")
+          .. (cost > 0 and ("  ·  " .. (unknown and "~" or "") .. ns.MoneyShort(cost)) or "")
       end
     else
       lines[#lines + 1] = ("|cffffd24a%d-%d:|r %s"):format(step[1], step[2], step.what)

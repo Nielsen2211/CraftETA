@@ -330,7 +330,7 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     stop:Show()
     stopHead:SetText(L("TRAINER", "TRÆNER"))
     stopTitle:SetText(rank >= 300 and "" or L("No trainer visit needed up to %d", "Ingen træner nødvendig op til %d"):format(goal))
-    stopWho:SetText("")
+    stopWho:SetText(rank >= 300 and "" or L("You can train all the way to your goal.", "Du kan træne hele vejen til dit mål."))
     stopMap:SetText(""); stopMap:SetScript("OnClick", nil)
   end
   stopMap:SetShown(r ~= nil and goal > r.at)
