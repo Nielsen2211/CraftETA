@@ -435,16 +435,32 @@ function ns.Plan(profID, skill, target)
       if step[2] > target then
         share = share * (target - math.max(step[1], skill)) / math.max(1, step[2] - math.max(step[1], skill))
       end
-      for _, entry in ipairs((ns.Chosen(profID, index, step))) do
-        local n = math.ceil(entry[2] * share)
+      -- a step of several crafts in order ("make both"): the ones before the current are done, the
+      -- current one has what is left, the ones after it all of theirs
+      local chosen = ns.Chosen(profID, index, step)
+      local cur, curLeft
+      if not step.any and #chosen > 1 and skill >= step[1] then
+        local _, left, i = ns.StepEntry(profID, index, step, skill)
+        cur, curLeft = i, left
+      end
+      for i, entry in ipairs(chosen) do
+        local n, part
+        if cur then
+          n = (i < cur and 0) or (i == cur and curLeft) or entry[2]
+          part = n / math.max(1, entry[2])
+        else
+          n, part = math.ceil(entry[2] * share), share
+        end
         crafts = crafts + n
         -- what the route makes itself (bolts, grinding stones, oils) isn't bought later
         made[entry[1]] = (made[entry[1]] or 0) + n * (entry[4] or 1)
         local list = entry[3]
         for m = 1, #list, 2 do
           local name = list[m]
-          if not mats[name] then order[#order + 1] = name end
-          mats[name] = (mats[name] or 0) + math.ceil(list[m + 1] * share)
+          if n > 0 then
+            if not mats[name] then order[#order + 1] = name end
+            mats[name] = (mats[name] or 0) + math.ceil(list[m + 1] * part)
+          end
         end
       end
     end
