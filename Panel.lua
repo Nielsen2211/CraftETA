@@ -47,6 +47,23 @@ hubButton:SetScript("OnClick", function() ns.ToggleHub() end)
 local gearButton = ns.IconButton(P, "Interface\\Icons\\INV_Misc_Gear_01", 16, function() return T("settings") end)
 gearButton:SetPoint("RIGHT", hubButton, "LEFT", -6, 0)
 gearButton:SetScript("OnClick", function() ns.ToggleSettings() end)
+-- compact: only the craft and the Craft button while you craft; the arrow opens the rest again
+local compactButton = CreateFrame("Button", nil, P)
+compactButton:SetSize(16, 16)
+compactButton:SetPoint("RIGHT", gearButton, "LEFT", -6, 0)
+compactButton.icon = compactButton:CreateTexture(nil, "ARTWORK"); compactButton.icon:SetAllPoints()
+local compactHl = compactButton:CreateTexture(nil, "HIGHLIGHT"); compactHl:SetAllPoints(); compactHl:SetColorTexture(1, 0.82, 0.3, 0.25)
+compactButton:SetScript("OnClick", function()
+  ns.db.panelCompact = not ns.db.panelCompact
+  ns.RefreshPanel()
+end)
+compactButton:SetScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+  local da = ns.db and ns.db.lang == "da"
+  GameTooltip:SetText(ns.db.panelCompact and (da and "Vis det hele" or "Show everything") or (da and "Kompakt: kun det du crafter" or "Compact: only what you craft"), 1, 1, 1)
+  GameTooltip:Show()
+end)
+compactButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 local bar = ns.Bar(P, WIDTH - 28)
 bar:SetPoint("TOPLEFT", 14, -80)
@@ -268,6 +285,7 @@ end
 
 function ns.RefreshPanel()
   if not P:IsShown() or not ns.db then return end
+  compactButton.icon:SetTexture(ns.db.panelCompact and "Interface\\Buttons\\Arrow-Down-Up" or "Interface\\Buttons\\Arrow-Up-Up")
   local skills = ns.Skills()
   local profID, open = PickProfession(skills)
   local guide = profID and ns.GUIDES[profID]
@@ -526,6 +544,27 @@ function ns.RefreshPanel()
   end
   source:Hide()
   P:SetHeight(-y + 22)
+  if ns.db.panelCompact then
+    -- compact: the craft, how many are left, and the Craft button, right under your skill
+    for _, r in ipairs(matRows) do r:Hide() end
+    for _, w in ipairs({ etaRank, etaAll, note, status, nextHead, nextLine, stepHead, skipBack, skipNext, prevChoice, nextChoice }) do w:Hide() end
+    local cy = -92
+    if warnBg:IsShown() then
+      local h = warn:GetStringHeight() + 14
+      warn:ClearAllPoints(); warn:SetPoint("TOPLEFT", 24, cy - 14); warn:SetPoint("RIGHT", P, "RIGHT", -40, 0)
+      warnBg:ClearAllPoints(); warnBg:SetPoint("TOPLEFT", 14, cy - 7); warnBg:SetPoint("RIGHT", P, "RIGHT", -14, 0); warnBg:SetHeight(h)
+      warnPin:ClearAllPoints(); warnPin:SetPoint("RIGHT", warnBg.box, "RIGHT", -8, 0)
+      cy = cy - 7 - h - 2
+    end
+    local top = cy - 8
+    recipeIcon:ClearAllPoints(); recipeIcon:SetPoint("TOPLEFT", 26, top - 12)
+    leftPill:ClearAllPoints(); leftPill:SetPoint("TOPRIGHT", P, "TOPRIGHT", -26, top - 15)
+    craftBtn:ClearAllPoints(); craftBtn:SetPoint("TOPLEFT", 26, top - 12 - 46)
+    local bottom = top - 12 - 46 - 34 - 8
+    card:ClearAllPoints(); card:SetPoint("TOPLEFT", 14, top); card:SetPoint("RIGHT", P, "RIGHT", -14, 0)
+    card:SetHeight(top - bottom)
+    P:SetHeight(-bottom + 14)
+  end
 end
 
 -- docked to the right of the profession window while it is open; free otherwise
