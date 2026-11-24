@@ -155,8 +155,19 @@ function ns.Button(parent, text, width, height)
   local function color(r, g, bl)
     for _, t in ipairs(edges) do t:SetColorTexture(r, g, bl, 1) end
   end
+  -- while the mouse is over the button its text is gold; a colour set meanwhile (a tab that was clicked)
+  -- is kept and shown when the mouse leaves, so hovering never loses a tab's state
+  local rawColor = label.SetTextColor
+  function label:SetTextColor(r, g, bl, a)
+    if b.hovering then b.keepR, b.keepG, b.keepB = r, g, bl; return end
+    rawColor(self, r, g, bl, a)
+  end
   b:SetScript("OnEnter", function(self)
-    if self:IsEnabled() then b.keepR, b.keepG, b.keepB = label:GetTextColor(); label:SetTextColor(1, 0.82, 0.3); bg:SetColorTexture(0.16, 0.17, 0.21, 0.95) end
+    if self:IsEnabled() then
+      b.keepR, b.keepG, b.keepB = label:GetTextColor()
+      rawColor(label, 1, 0.82, 0.3); b.hovering = true
+      bg:SetColorTexture(0.16, 0.17, 0.21, 0.95)
+    end
     if self.tip then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:SetText(self.tip, 1, 1, 1, 1, true)
@@ -165,10 +176,10 @@ function ns.Button(parent, text, width, height)
   end)
   b:SetScript("OnLeave", function()
     bg:SetColorTexture(0.12, 0.13, 0.16, 0.95)
-    if b:IsEnabled() and b.keepR then label:SetTextColor(b.keepR, b.keepG, b.keepB) end
+    if b.hovering then b.hovering = false; if b.keepR then rawColor(label, b.keepR, b.keepG, b.keepB) end end
     GameTooltip:Hide()
   end)
-  hooksecurefunc(b, "Disable", function() label:SetTextColor(0.42, 0.43, 0.47) end)
+  hooksecurefunc(b, "Disable", function() b.hovering = false; label:SetTextColor(0.42, 0.43, 0.47) end)
   hooksecurefunc(b, "Enable", function() label:SetTextColor(0.91, 0.92, 0.94) end)
   -- text too long for the button (Leatherworking): a smaller font until it fits (not below 8).
   -- b.grow = true: the button grows instead (the main window's page buttons)
