@@ -33,7 +33,7 @@ local LOC = {
     anyOne = "One of these is enough", t_guide = "Professions", t_recipes = "Recipes", t_profit = "Profit", t_crafters = "Crafters", t_chars = "Characters", t_list = "Shopping list", t_settings = "Settings",
     more = "+%d more (scroll)", f_all = "All", f_learned = "Learned", f_missing = "Not learned",
     noBook = "Open your profession windows once so CraftETA can read your recipes.", notLearned = "Not learned yet",
-    ttMade = "Made by", ttCost = "Craft cost", ttUsed = "Used in", ttRecipes = "%s: %d recipes", recipeCount = "%d recipes",
+    fixShort = "You are %d %s short for %s (sold or used?): make them again first.", ttMade = "Made by", ttCost = "Craft cost", ttUsed = "Used in", ttRecipes = "%s: %d recipes", recipeCount = "%d recipes",
     p_craft = "Craft", p_farm = "Farm", youGather = "You can gather it (%s)", needProf = "Needs %s", fromMobs = "Drops from humanoids",
     farmFoot = "Auction house price for one, highest first", noPrices = "No prices yet: scan the auction house with %s.",
     sellsFor = "Sells for (%d)", ahCut = "Auction house cut (5%)", matsCost = "Materials", profit = "Profit",
@@ -88,7 +88,7 @@ local LOC = {
     anyOne = "Én af dem er nok", t_guide = "Fag", t_recipes = "Opskrifter", t_profit = "Profit", t_crafters = "Craftere", t_chars = "Karakterer", t_list = "Indkøbsliste", t_settings = "Indstillinger",
     more = "+%d mere (scroll)", f_all = "Alle", f_learned = "Lært", f_missing = "Ikke lært",
     noBook = "Åbn dine fagvinduer én gang, så CraftETA kan læse dine opskrifter.", notLearned = "Ikke lært endnu",
-    ttMade = "Laves af", ttCost = "Craft-pris", ttUsed = "Bruges i", ttRecipes = "%s: %d opskrifter", recipeCount = "%d opskrifter",
+    fixShort = "Du mangler %d %s til %s (solgt eller brugt?): lav dem igen først.", ttMade = "Laves af", ttCost = "Craft-pris", ttUsed = "Bruges i", ttRecipes = "%s: %d opskrifter", recipeCount = "%d opskrifter",
     p_craft = "Craft", p_farm = "Farm", youGather = "Du kan samle det (%s)", needProf = "Kræver %s", fromMobs = "Dropper fra humanoider",
     farmFoot = "Auktionspris for én, højeste først", noPrices = "Ingen priser endnu: scan auktionshuset med %s.",
     sellsFor = "Sælges for (%d)", ahCut = "Auktionshusets andel (5%)", matsCost = "Materialer", profit = "Profit",
@@ -380,7 +380,7 @@ ns.Share = Share
 -- the craft to do now in a step, and how many are left. A step with several crafts ("make both, in this
 -- order") goes to the next one once you have made enough of the first (it stays in your bags for later
 -- steps) or it gives no skill-ups any more. A craft you picked with the arrows wins while it is not done.
-function ns.StepEntry(profID, index, step, rank)
+function ns.BaseStepEntry(profID, index, step, rank)
   rank = rank or 0
   local share = Share(step, rank)
   if step.any then
@@ -406,6 +406,37 @@ function ns.StepEntry(profID, index, step, rank)
   -- all made: the last craft, for the skill points that are left
   local last = all[#all]
   return last, math.max(1, math.ceil(last[2] * share)), #all
+end
+
+-- the same, but when the craft needs something an earlier step made (Heavy Blasting Powder for the sheep)
+-- and you sold, deleted or used it up, the guide sends you back to make what is missing first.
+-- The 4th value then says what for: { name, short, need, have, forName }
+-- Leather is bought or skinned rather than made from the lighter kind, so it never sends you back for it.
+local BOUGHT = { ["Light Leather"] = true, ["Medium Leather"] = true, ["Heavy Leather"] = true, ["Thick Leather"] = true, ["Rugged Leather"] = true }
+function ns.StepEntry(profID, index, step, rank)
+  local entry, left, pick = ns.BaseStepEntry(profID, index, step, rank)
+  local guide = ns.GUIDES[profID]
+  if not (guide and entry and left and left > 0) then return entry, left, pick end
+  local mats = entry[3]
+  for m = 1, #mats, 2 do
+    local name = mats[m]
+    local maker
+    for i = 1, BOUGHT[name] and 0 or index do
+      for _, e in ipairs(Entries(guide.steps[i])) do
+        if e[1] == name and e ~= entry then maker = e end
+      end
+    end
+    if maker then
+      local need = math.ceil(mats[m + 1] / math.max(1, entry[2]) * left)
+      local have = ns.Have(name)
+      if have < need then
+        local short = need - have
+        local runs = math.ceil(short / (maker[4] or 1))
+        return maker, runs, pick, { name = name, short = short, need = need, have = have, forName = entry[1] }
+      end
+    end
+  end
+  return entry, left, pick
 end
 
 -- buying it on the auction house costs less than its materials (Heavy Leather, Bolt of Runecloth):
@@ -440,7 +471,7 @@ function ns.Plan(profID, skill, target)
       local chosen = ns.Chosen(profID, index, step)
       local cur, curLeft
       if not step.any and #chosen > 1 and skill >= step[1] then
-        local _, left, i = ns.StepEntry(profID, index, step, skill)
+        local _, left, i = ns.BaseStepEntry(profID, index, step, skill)
         cur, curLeft = i, left
       end
       for i, entry in ipairs(chosen) do
