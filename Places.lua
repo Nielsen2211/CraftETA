@@ -277,3 +277,60 @@ for _, e in ipairs({ "TRAINER_UPDATE", "TRAINER_CLOSED" }) do
     C_Timer.After(0.2, UpdateTrainer)
   end)
 end
+
+---------------------------------------------------------------------------
+-- At a trainer: a gold star next to every recipe your guide uses that you have not learned yet
+---------------------------------------------------------------------------
+local stars, starTicker = {}, nil
+local function Wanted()
+  local want = {}
+  if not (GetNumTrainerServices and GetTrainerServiceInfo) then return want end
+  local okN, n = pcall(GetNumTrainerServices)
+  for i = 1, (okN and tonumber(Plain(n)) or 0) do
+    local ok, name, _, kind = pcall(GetTrainerServiceInfo, i)
+    name, kind = Plain(name), Plain(kind)
+    if ok and type(name) == "string" and kind ~= "used" and GuideRecipe(name) then want[name] = true end
+  end
+  return want
+end
+local function Walk(frame, fn, depth)
+  if depth > 8 or not frame or not frame:IsVisible() then return end
+  for _, r in ipairs({ frame:GetRegions() }) do
+    if r.GetObjectType and r:GetObjectType() == "FontString" and r:IsVisible() then fn(r) end
+  end
+  for _, c in ipairs({ frame:GetChildren() }) do Walk(c, fn, depth + 1) end
+end
+local function MarkTrainer()
+  local root = ClassTrainerFrame
+  for _, s in pairs(stars) do s.used = false end
+  if ns.trainerOpen and root and root:IsShown() and not (ns.db and ns.db.trainerStars == false) then
+    local want = Wanted()
+    Walk(root, function(fs)
+      local ok, text = pcall(fs.GetText, fs)
+      text = ok and Plain(text) or nil
+      if type(text) == "string" and want[text] then
+        local s = stars[fs]
+        if not s then
+          s = fs:GetParent():CreateTexture(nil, "OVERLAY", nil, 7)
+          s:SetSize(14, 14)
+          s:SetTexture("Interface\\Common\\ReputationStar")
+          s:SetTexCoord(0, 0.5, 0, 0.5)
+          stars[fs] = s
+        end
+        s:ClearAllPoints()
+        s:SetPoint("LEFT", fs, "LEFT", math.min(fs:GetStringWidth() or 0, fs:GetWidth() or 999) + 4, 0)
+        s:Show()
+        s.used = true
+      end
+    end, 0)
+  end
+  for _, s in pairs(stars) do if not s.used then s:Hide() end end
+end
+ns.On("TRAINER_SHOW", function()
+  if not starTicker then
+    starTicker = C_Timer.NewTicker(0.25, function()
+      MarkTrainer()
+      if not ns.trainerOpen then starTicker:Cancel(); starTicker = nil end
+    end)
+  end
+end)
