@@ -359,12 +359,8 @@ function ns.RefreshPanel()
 
   -- in a step of several crafts, the first one not done (in order); a done one has its points
   local all = ns.Entries(step)
-  local show = step.any and (pick or 1) or (ns.db.choice[profID .. ":" .. index] or 1)
-  if not all[show] then show = 1 end
+  local entry, left, show = ns.StepEntry(profID, index, step, rank)
   state.pick = show
-  local entry = all[show]
-  local share = math.min(1, (step[2] - math.max(step[1], rank)) / math.max(1, step[2] - step[1]))
-  local left = math.ceil(entry[2] * share)
   state.recipe, state.left = entry[1], left
 
   y = y - 4
