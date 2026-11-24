@@ -239,7 +239,7 @@ local function UpdateTrainer()
   local frame = ClassTrainerFrame and ClassTrainerFrame:IsShown() and ClassTrainerFrame or nil
   local list, cost = TrainerList()
   if #list == 0 then learnBtn:Hide(); return end
-  learnBtn:SetText(L("CraftETA: learn %d for the guide (%s)", "CraftETA: lær %d til guiden (%s)"):format(#list, ns.Money(cost)))
+  learnBtn:SetText(L("CraftETA: learn %d for the guide (%s)", "CraftETA: lær %d til guiden (%s)"):format(#list, ns.MoneyShort(cost)))
   local names = {}
   for _, s in ipairs(list) do names[#names + 1] = s.rank and (s.name .. " (" .. s.rank .. ")") or s.name end
   learnBtn.tip = L("What your guide still needs from this trainer:\n", "Det guiden mangler fra denne træner:\n") .. table.concat(names, "\n")

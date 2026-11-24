@@ -849,7 +849,7 @@ function page:Refresh()
     listBtn:Hide()
   else
     planEmpty:Hide()
-    planTotal:SetText(ns.Money(math.max(0, gold)))
+    planTotal:SetText(ns.MoneyShort(math.max(0, gold)))
     planPer:SetText(L("+%d favor  ·  %s per favor", "+%d favor  ·  %s pr. favor"):format(got, ns.Money(math.max(0, gold) / math.max(1, got))))
     listBtn:Show()
     listBtn:SetText(L("Plan to shopping list", "Planen på indkøbslisten"))
@@ -911,7 +911,7 @@ function page:Refresh()
             "Prisen er den billigste fra din seneste scan. Ved auktionshuset køber indkøbslistens køb-knap den billigste."), 0.85, 0.87, 0.9, true)
         end }
     end
-    AddStep(#cOrder > 0 and L("Buy the crates", "Køb kasserne") or L("Your crates", "Dine kasser"), cost > 0 and ns.Money(cost) or "", lines)
+    AddStep(#cOrder > 0 and L("Buy the crates", "Køb kasserne") or L("Your crates", "Dine kasser"), cost > 0 and ns.MoneyShort(cost) or "", lines)
 
     -- 2: materials
     lines, cost = {}, 0
@@ -927,7 +927,7 @@ function page:Refresh()
           if m.have > 0 then tip:AddDoubleLine(L("From your bags", "Fra dine tasker"), m.have, 0.85, 0.87, 0.9, 1, 1, 1) end
         end }
     end
-    AddStep(L("Get the materials", "Skaf materialerne"), cost > 0 and ns.Money(cost) or "", lines)
+    AddStep(L("Get the materials", "Skaf materialerne"), cost > 0 and ns.MoneyShort(cost) or "", lines)
 
     -- 3: fill and seal
     lines = {}
@@ -987,7 +987,7 @@ function page:Refresh()
     t.name:SetText(CrateName(r.c))
     t.sub:SetText(r.b.count .. " " .. r.b.mat)
     t.per:SetText(ns.Money(r.per) .. L("/favor", "/favor"))
-    t.fav:SetText("+" .. r.c[3] .. "  ·  " .. ns.Money(r.b.spend))
+    t.fav:SetText("+" .. r.c[3] .. "  ·  " .. ns.MoneyShort(r.b.spend))
     local c = r.c
     Tip(t, function(tip)
       tip:SetText(CrateName(c), 1, 0.82, 0.3)

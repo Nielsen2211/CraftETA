@@ -262,9 +262,9 @@ local function Update()
     local yield = entry.y or 1
     local sell = entry.o and ((ns.SellUnit and ns.SellUnit(entry.o)) or ns.PriceID(entry.o))
     local money = {}
-    if cost > 0 then money[#money + 1] = T("rcCost", (missing and "~" or "") .. ns.Money(cost)) end
+    if cost > 0 then money[#money + 1] = T("rcCost", (missing and "~" or "") .. ns.MoneyShort(cost)) end
     if sell then
-      money[#money + 1] = T("rcSells", ns.Money(sell * yield))
+      money[#money + 1] = T("rcSells", ns.MoneyShort(sell * yield))
       if cost > 0 then
         local profit = math.floor(sell * yield * 0.95) - cost   -- the auction house keeps 5%
         money[#money + 1] = (profit >= 0 and "|cff73d973" or "|cffe6594d") .. T("rcProfit", (profit < 0 and "-" or "") .. ns.Money(math.abs(profit))) .. "|r"

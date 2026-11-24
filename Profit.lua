@@ -272,11 +272,11 @@ function page:Refresh()
       .. (e.now > 0 and ("  ·  |cff73d973" .. L("%d now", "%d nu"):format(e.now) .. "|r") or ""))
     if e.none then
       r.gain:SetText(L("you set the price", "du sætter prisen")); r.gain:SetTextColor(1, 0.82, 0.3)
-      r.money:SetText(L("materials %s", "mats %s"):format(ns.Money(e.cost)))
+      r.money:SetText(L("materials %s", "mats %s"):format(ns.MoneyShort(e.cost)))
     else
       r.gain:SetText(Signed(e.gain))
       r.gain:SetTextColor(e.gain >= 0 and 0.35 or 1, e.gain >= 0 and 0.9 or 0.4, e.gain >= 0 and 0.4 or 0.35)
-      r.money:SetText(L("sells %s  ·  mats %s  ·  %d%%", "sælger %s  ·  mats %s  ·  %d%%"):format(ns.Money(e.sell * e.y), ns.Money(e.cost), math.floor(e.margin * 100 + 0.5)))
+      r.money:SetText(L("sells %s  ·  mats %s  ·  %d%%", "sælger %s  ·  mats %s  ·  %d%%"):format(ns.MoneyShort(e.sell * e.y), ns.MoneyShort(e.cost), math.floor(e.margin * 100 + 0.5)))
     end
     r:SetScript("OnEnter", function(self) Tip(self, e) end)
     r:SetScript("OnClick", function(_, button)

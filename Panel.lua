@@ -293,7 +293,7 @@ function ns.RefreshPanel()
     local cost, unknown = ns.Cost(mats)
     local time = ns.Duration(ns.TimeFor(profID, target - rank, crafts))
     local parts = { label, T("crafts", crafts) }
-    if cost > 0 or not unknown then parts[#parts + 1] = ns.Money(cost) .. (unknown and "+" or "") end
+    if cost > 0 or not unknown then parts[#parts + 1] = ns.MoneyShort(cost) .. (unknown and "+" or "") end
     if time then parts[#parts + 1] = T("eta", time) end
     return table.concat(parts, "  ·  ")
   end

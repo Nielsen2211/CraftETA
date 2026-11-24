@@ -481,7 +481,7 @@ local function BuildRecipes(first)
     local color = r.l and (DIFF_COLOR[r.d] or { 0.85, 0.87, 0.9 }) or { 0.5, 0.55, 0.65 }
     data[#data + 1] = {
       icon = r.i or 134400, name = r.n, r = color[1], g = color[2], b = color[3],
-      value = cost > 0 and ((missing and "~" or "") .. ns.Money(cost)) or "",
+      value = cost > 0 and ((missing and "~" or "") .. ns.MoneyShort(cost)) or "",
       tip = function(tip)
         tip:SetText(r.n, color[1], color[2], color[3])
         if not r.l then
