@@ -359,8 +359,10 @@ function ns.RefreshPanel()
 
   -- in a step of several crafts, the first one not done (in order); a done one has its points
   local all = ns.Entries(step)
-  local entry, left, show = ns.StepEntry(profID, index, step, rank)
+  local entry, left, show, fix = ns.StepEntry(profID, index, step, rank)
   state.pick = show
+  -- something an earlier step made is gone (sold, deleted, used): make it again first
+  state.fix = fix and T("fixShort", fix.short, fix.name, fix.forName) or nil
   state.recipe, state.left = entry[1], left
 
   y = y - 4
@@ -427,8 +429,9 @@ function ns.RefreshPanel()
     y = y - 26
   end
 
-  if step.note then
-    note:ClearAllPoints(); note:SetPoint("TOPLEFT", 26, y - 4); note:SetText(step.note); note:Show()
+  if state.fix or step.note then
+    note:ClearAllPoints(); note:SetPoint("TOPLEFT", 26, y - 4)
+    note:SetText(state.fix and ("|cffffb060" .. state.fix .. "|r") or step.note); note:Show()
     y = y - 4 - note:GetStringHeight() - 2
   else
     note:Hide()
