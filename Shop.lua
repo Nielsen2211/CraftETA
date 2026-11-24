@@ -201,7 +201,12 @@ for i = 1, ROWS do
   r.mail:Hide()
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   r:SetScript("OnClick", function(self, button)
-    if self.vendor and IsShiftKeyDown() and ns.ShowVendor then
+    if IsControlKeyDown() and ns.VendorSells and ns.VendorSells(self.item) then
+      -- a vendor material: buy it on the auction house instead, or back to the vendor
+      ns.db.ahItems = ns.db.ahItems or {}
+      ns.db.ahItems[self.item] = not ns.db.ahItems[self.item] or nil
+      ns.Refresh()
+    elseif self.vendor and IsShiftKeyDown() and ns.ShowVendor then
       -- a vendor material: the map arrow to where it is sold (Places.lua)
       ns.ShowVendor(self.item)
     elseif button == "RightButton" then
@@ -220,6 +225,17 @@ for i = 1, ROWS do
       GameTooltip:AddLine(T("vendHead"), 1, 0.82, 0.3)
       for _, l in ipairs(ns.VendorWhere(self.item)) do GameTooltip:AddLine(l, 0.85, 0.86, 0.9, true) end
       GameTooltip:AddLine((ns.db and ns.db.lang == "da") and "Shift-klik: vis på kortet" or "Shift-click: show on the map", 0.55, 0.58, 0.64)
+    end
+    if ns.VendorSells and ns.VendorSells(self.item) then
+      local da = ns.db and ns.db.lang == "da"
+      GameTooltip:AddLine(" ")
+      if self.extra then
+        GameTooltip:AddLine((self.extra >= 0 and (da and "Auktionshuset koster %s mere end vendoren" or "The auction house costs %s more than the vendor")
+          or (da and "Auktionshuset er %s billigere end vendoren" or "The auction house is %s cheaper than the vendor")):format(ns.Money(math.abs(self.extra))),
+          self.extra >= 0 and 1 or 0.45, self.extra >= 0 and 0.55 or 0.85, self.extra >= 0 and 0.4 or 0.5, true)
+      end
+      GameTooltip:AddLine(self.vendor and (da and "Ctrl-klik: køb den på auktionshuset i stedet" or "Ctrl-click: buy it on the auction house instead")
+        or (da and "Ctrl-klik: køb den hos vendoren igen" or "Ctrl-click: buy it at the vendor again"), 0.55, 0.58, 0.64)
     end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine((ns.AHName() ~= "CraftETA" and (T("searchAux", ns.AHName()) .. "  ·  ") or "") .. "Right-click: remove", 0.62, 0.6, 0.56)
@@ -696,6 +712,7 @@ function ns.RefreshList()
   local items = ns.ListItems()
   local total, unknown, shown = 0, false, 0
   local needAll, gotAll, left, inMail = 0, 0, 0, 0
+  local extraAll = 0   -- vendor materials you buy on the auction house: what that costs more
   for _, item in ipairs(items) do
     local s = ns.db.scanned[item.name]
     local est
@@ -714,6 +731,8 @@ function ns.RefreshList()
       end
     end
     if est then total = total + est elseif item.still > 0 then unknown = true end
+    local extra = not item.vendor and item.still > 0 and ns.VendorExtra and ns.VendorExtra(item.name, item.still, est) or nil
+    if extra then extraAll = extraAll + extra end
     local got = math.min(item.need, item.need - item.still)
     needAll, gotAll = needAll + item.need, gotAll + math.max(0, got)
     if item.still > 0 then left = left + 1 elseif not item.done then inMail = inMail + 1 end
@@ -722,8 +741,10 @@ function ns.RefreshList()
       local r = rows[shown]
       r.item, r.itemID = item.name, ns.ItemID(item.name)
       r.icon:SetTexture(ns.ItemIcon(item.name))
-      r.name:SetText(item.vendor and (item.name .. "  |cff8c8f96" .. T("vendTag") .. "|r") or item.name)
-      r.vendor = item.vendor
+      r.name:SetText(item.vendor and (item.name .. "  |cff8c8f96" .. T("vendTag") .. "|r")
+        or extra and (item.name .. (extra >= 0 and "  |cffe8574a+" or "  |cff5cd67c-") .. ns.Money(math.abs(extra)) .. "|r")
+        or item.name)
+      r.vendor, r.extra = item.vendor, extra
       -- done once it is in the bags or the bank; bought but still in the mail is blue
       local done = item.done
       local mailed = not done and item.still == 0
@@ -767,7 +788,8 @@ function ns.RefreshList()
   if next(List().extra) then what[#what + 1] = da and "ekstra" or "extra" end
   hSub:SetText(#what > 0 and table.concat(what, "  ·  ") or (da and "Tom" or "Empty"))
   hTotal:SetText(ns.Money(total) .. (unknown and "+" or ""))
-  hTotalSub:SetText(left > 0 and ((da and "%d ting at købe" or "%d to buy"):format(left))
+  hTotalSub:SetText(extraAll > 0 and left > 0 and ((da and "%d at købe  ·  AH +%s" or "%d to buy  ·  AH +%s"):format(left, ns.Money(extraAll)))
+    or left > 0 and ((da and "%d ting at købe" or "%d to buy"):format(left))
     or inMail > 0 and ((da and "%d i posten" or "%d in the mail"):format(inMail))
     or (#items > 0 and (da and "alt er klar" or "all done") or ""))
   pFill:SetWidth(math.max(1, (pBg:GetWidth() or (WIDTH - 28)) * (needAll > 0 and gotAll / needAll or 0)))
