@@ -217,14 +217,12 @@ function ns.ShowGuideView(id, guide, skill, current, y)
     nowSub:SetText(""); nowNote:SetText("")
   elseif crafting then
     local chosen = ns.Chosen(id, current, step)
-    local entry = chosen[1]
-    local share = math.min(1, (step[2] - math.max(step[1], rank)) / math.max(1, step[2] - step[1]))
-    local left = math.ceil(entry[2] * share)
+    local entry, left = ns.StepEntry(id, current, step, rank)
     nowIcon:SetTexture(ns.ItemIcon(entry[1], ns.ProfIcon(id)))
     nowRange:SetText(step[1] .. " - " .. step[2])
     nowTitle:SetText(L("Craft %d %s", "Lav %d %s"):format(left, entry[1]))
     nowSub:SetText(L("Skill %d - %d  ·  about %d crafts", "Skill %d - %d  ·  cirka %d crafts"):format(math.max(step[1], rank), step[2], left)
-      .. (#chosen > 1 and ("  ·  + " .. chosen[2][1]) or ""))
+      .. (#chosen > 1 and chosen[1] == entry and ("  ·  + " .. chosen[2][1]) or ""))
     nowNote:SetText(step.note or "")
     cur.entry, cur.left = entry, left
   else
