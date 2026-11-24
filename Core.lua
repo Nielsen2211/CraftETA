@@ -172,13 +172,11 @@ function ns.Money(copper)
   return ("%d%s"):format(c, cop)
 end
 
--- the biggest coin only, for small labels: "43g", "96s", "12c"
+-- whole gold, rounded up, for small labels: "1g", "8g" (anything above zero shows at least 1g)
 function ns.MoneyShort(copper)
   if not copper then return "?" end
-  copper = math.floor(copper + 0.5)
-  if copper >= 10000 then return math.floor(copper / 10000 + 0.5) .. "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t" end
-  if copper >= 100 then return math.floor(copper / 100 + 0.5) .. "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t" end
-  return copper .. "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t"
+  if copper <= 0 then return "0|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t" end
+  return math.ceil(copper / 10000 - 1e-9) .. "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t"
 end
 
 function ns.Duration(seconds)
