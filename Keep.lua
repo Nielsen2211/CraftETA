@@ -94,6 +94,13 @@ local function BankList()
   return list
 end
 
+-- for the shopping list: what it can bank, and banking it (the same as the window's button)
+function ns.KeepBankable()
+  local n = 0
+  for _, item in ipairs(BankList()) do if not skip[item.id] then n = n + 1 end end
+  return n
+end
+
 local function BankOpen()
   return (BankFrame and BankFrame:IsShown()) or (ns.bankOpen and true) or false
 end
@@ -116,6 +123,17 @@ local function Deposit(id)
 end
 
 local Refresh
+function ns.BankKeep()
+  local moved = 0
+  for _, item in ipairs(BankList()) do
+    if not skip[item.id] then moved = moved + Deposit(item.id) end
+  end
+  if moved > 0 then ns.Print(L("Banked %d items for later in your guide.", "Lagde %d ting i banken til senere i guiden."):format(moved)) end
+  C_Timer.After(0.6, function()
+    if win and win:IsShown() then Refresh() end
+    if ns.RefreshList then ns.RefreshList() end
+  end)
+end
 local function Build()
   win = ns.Window("CraftETABank", 340, "Craft|cffffd24aETA|r  |cff9ca3af" .. L("Bank for later", "Gem til senere") .. "|r")
   win:SetFrameStrata("HIGH")
@@ -215,10 +233,12 @@ local function OnBank()
   ns.bankOpen = true
   if not win then Build() end
   C_Timer.After(0.3, Refresh)
+  if ns.RefreshList then C_Timer.After(0.3, ns.RefreshList) end
 end
 local function OnBankClosed()
   ns.bankOpen = false
   if win then win:Hide() end
+  if ns.RefreshList then ns.RefreshList() end
 end
 ns.Register("BANKFRAME_OPENED")
 ns.On("BANKFRAME_OPENED", OnBank)
