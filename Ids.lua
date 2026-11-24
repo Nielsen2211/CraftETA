@@ -63,6 +63,7 @@ local ID = {
   ["Whirring Bronze Gizmo"] = 4375, ["Wicked Leather Gauntlets"] = 15083, ["Wizard Oil"] = 20750,
   ["Wizardweave Turban"] = 14130, ["Wool Bandage"] = 3530, ["Wool Cloth"] = 2592, ["Woolen Cape"] = 2584,
   ["Elixir of Fire Power"] = 6373, ["Mithril Headed Trout"] = 8364, ["Lesser Arcane Elixir"] = 217398, ["Idol of the Dream"] = 220606, ["Totem of Thunder"] = 228176, ["Truesilver Transformer"] = 18631, ["Patterned Bronze Bracers"] = 2868,
+  ["Iron Grenade"] = 4390, ["Iron Bar"] = 3575, ["Silvered Bronze Gauntlets"] = 3483,
 }
 
 ns.Register("ADDON_LOADED")
