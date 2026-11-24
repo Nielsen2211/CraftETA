@@ -93,75 +93,110 @@ function ns.VendorWhere(name)
 end
 
 ---------------------------------------------------------------------------
--- At a vendor: remember what it sells, and a button that buys what the list needs
+-- At a vendor: remember what it sells, and buy what the list still needs (the button is in the
+-- shopping list, like the buy guide at the auction house: Shop.lua)
 ---------------------------------------------------------------------------
-local button
+-- one thing on the vendor: name, copper for one, items per purchase, how many it has left (-1: no limit)
+local function MerchantItem(i)
+  local name, price, stack, avail
+  if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+    local ok, info = pcall(C_MerchantFrame.GetItemInfo, i)
+    if ok and type(info) == "table" then
+      name, price, stack, avail = info.name, info.price, info.stackCount, info.numAvailable
+    end
+  end
+  if name == nil and GetMerchantItemInfo then
+    local ok, n, _, p, st, a = pcall(GetMerchantItemInfo, i)
+    if ok then name, price, stack, avail = n, p, st, a end
+  end
+  name, price, stack, avail = Plain(name), Plain(price), tonumber(Plain(stack)), tonumber(Plain(avail))
+  if type(name) ~= "string" and GetMerchantItemLink then
+    -- not loaded yet: the name from its link
+    local ok, link = pcall(GetMerchantItemLink, i)
+    link = ok and Plain(link)
+    if type(link) == "string" then name = link:match("%[(.-)%]") end
+  end
+  if type(name) ~= "string" or type(price) ~= "number" or price <= 0 then return nil end
+  stack = math.max(1, stack or 1)
+  return name, price / stack, stack, avail or -1
+end
 
 local function MerchantItems()
   local out = {}
-  local n = GetMerchantNumItems and GetMerchantNumItems() or 0
+  local okN, n = pcall(GetMerchantNumItems or function() return 0 end)
+  n = okN and tonumber(Plain(n)) or 0
   for i = 1, n do
-    local ok, name, _, price, stack = pcall(GetMerchantItemInfo, i)
-    if ok and C_MerchantFrame and C_MerchantFrame.GetItemInfo then
-      local okI, info = pcall(C_MerchantFrame.GetItemInfo, i)
-      if okI and type(info) == "table" then name, price, stack = info.name, info.price, info.stackCount end
-    end
-    name, price, stack = Plain(name), Plain(price), Plain(stack)
-    if type(name) == "string" and type(price) == "number" then
-      out[name] = { index = i, price = price / math.max(1, tonumber(stack) or 1), stack = tonumber(stack) or 1 }
+    local name, unit, stack, avail = MerchantItem(i)
+    if name and not out[name] then
+      out[name] = { index = i, price = unit, stack = stack, avail = avail }
     end
   end
   return out
 end
 
-local function Needed(sold)
-  local need, total = {}, 0
+local function MerchantOpen()
+  return MerchantFrame and MerchantFrame:IsShown() and ns.db and true or false
+end
+
+-- what bought here is on its way into the bags (a click before the bags update must not buy it twice)
+local justBought = {}
+
+-- at an open vendor: what this vendor sells from the list, { name, count, price } with the count it can
+-- buy now (stock and gold), the number of items and what it costs
+function ns.VendorNeed()
+  if not MerchantOpen() then return nil end
+  local sold = MerchantItems()
+  local need, n, total = {}, 0, 0
+  local money = GetMoney and GetMoney() or 0
   for _, item in ipairs(ns.ListItems and ns.ListItems() or {}) do
     local s = sold[item.name]
-    if s and item.still > 0 and ns.db.vendorMode ~= "ah" then
-      need[#need + 1] = { name = item.name, count = item.still, s = s }
-      total = total + s.price * item.still
+    local count = s and (item.still - (justBought[item.name] or 0)) or 0
+    if count > 0 then
+      -- whole purchases: a vendor that sells 5 at a time gets 5, 10, 15...
+      local buys = math.ceil(count / s.stack)
+      if s.avail >= 0 then buys = math.min(buys, s.avail) end
+      local each = s.price * s.stack
+      buys = math.min(buys, math.floor((money - total) / math.max(1, each)))
+      if buys > 0 then
+        local qty = buys * s.stack
+        need[#need + 1] = { name = item.name, count = qty, buys = buys, s = s, cost = math.ceil(each * buys) }
+        n, total = n + qty, total + math.ceil(each * buys)
+      end
     end
   end
-  return need, total
+  return need, n, total
 end
 
-local function Update()
-  if not button then return end
-  if not (MerchantFrame and MerchantFrame:IsShown()) or not ns.db then button:Hide(); return end
-  local need, total = Needed(MerchantItems())
-  if #need == 0 then button:Hide(); return end
-  local n = 0
-  for _, e in ipairs(need) do n = n + e.count end
-  button:SetText(T("vendBuy", n, ns.Money(math.ceil(total))))
-  button.need = need
-  button:Show()
-end
-ns.UpdateVendorButton = Update
-
-local function Buy(self)
-  if not self.need or GetMoney() < 1 then return end
-  for _, e in ipairs(self.need) do
-    local left = e.count
-    -- in stack-sized purchases where the vendor sells stacks, else one call per max stack
-    local maxStack = (GetMerchantItemMaxStack and GetMerchantItemMaxStack(e.s.index)) or 20
+-- buys it (from a click: the vendor wants a hardware event)
+function ns.VendorBuy()
+  local need = ns.VendorNeed()
+  if not need or #need == 0 then return end
+  for _, e in ipairs(need) do
     if e.s.stack > 1 then
-      local stacks = math.ceil(left / e.s.stack)
-      for _ = 1, stacks do pcall(BuyMerchantItem, e.s.index, 1) end
+      -- sold in bundles: one purchase per bundle
+      for _ = 1, e.buys do pcall(BuyMerchantItem, e.s.index, 1) end
     else
+      local maxStack = (GetMerchantItemMaxStack and tonumber(Plain(GetMerchantItemMaxStack(e.s.index)))) or 20
+      maxStack = math.max(1, maxStack)
+      local left = e.count
       while left > 0 do
         local take = math.min(left, maxStack)
         pcall(BuyMerchantItem, e.s.index, take)
         left = left - take
       end
     end
+    justBought[e.name] = (justBought[e.name] or 0) + e.count
+    ns.Print(T("vendBought", e.count, e.name, ns.Money(e.cost)))
   end
-  C_Timer.After(1, Update)
+  -- the bags tell from here on
+  C_Timer.After(3, function() wipe(justBought); if ns.Refresh then ns.Refresh() end end)
+  if ns.Refresh then ns.Refresh() end
 end
 
 ns.Register("MERCHANT_SHOW")
 ns.On("MERCHANT_SHOW", function()
   if not ns.db then return end
+  wipe(justBought)
   -- remember who sells what we use
   ns.db.vendors = ns.db.vendors or {}
   local npc = Plain(UnitName("npc"))
@@ -174,15 +209,14 @@ ns.On("MERCHANT_SHOW", function()
       ns.db.vendors[name] = { npc = npc, zone = zone, price = s.price, spot = spot }
     end
   end
-  if not button and MerchantFrame then
-    button = ns.Button(MerchantFrame, "", 230, 24)
-    button:SetPoint("TOPLEFT", MerchantFrame, "BOTTOMLEFT", 4, -4)
-    button:SetScript("OnClick", Buy)
-    button.tip = T("vendBuyTip")
-  end
-  C_Timer.After(0.2, Update)
+  -- item info can come a moment later: look again then
+  C_Timer.After(0.3, function() if ns.OnVendor then ns.OnVendor(true) end end)
 end)
-for _, e in ipairs({ "MERCHANT_UPDATE", "BAG_UPDATE_DELAYED", "MERCHANT_CLOSED" }) do
+ns.Register("MERCHANT_CLOSED")
+ns.On("MERCHANT_CLOSED", function() wipe(justBought); if ns.OnVendor then ns.OnVendor(false) end end)
+for _, e in ipairs({ "MERCHANT_UPDATE", "BAG_UPDATE_DELAYED" }) do
   ns.Register(e)
-  ns.On(e, function() C_Timer.After(0.2, Update) end)
+  ns.On(e, function()
+    if MerchantOpen() then C_Timer.After(0.2, function() if ns.Refresh then ns.Refresh() end end) end
+  end)
 end

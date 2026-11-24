@@ -64,10 +64,11 @@ local function CharKey()
   return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
 end
 
--- only what you just bought on the auction house (on its way by mail), so the buy guide doesn't buy it
--- again; the mailbox itself isn't counted: the list says what is left to buy
+-- what waits in the mail: bought on the auction house since the mailbox was last open, plus what was
+-- in this character's mailbox then. Not bought again, but not done either until it is in the bags
 local function MailCount(name)
-  return ns.db.pending and ns.db.pending[name] or 0
+  local box = ns.db.mail and ns.db.mail[CharKey()]
+  return (ns.db.pending and ns.db.pending[name] or 0) + (box and box[name] or 0)
 end
 ns.MailCount = MailCount
 
@@ -106,6 +107,7 @@ function ns.ListItems()
       local have, mail = ns.Have(name), MailCount(name)
       local still = math.max(0, total[name] - have - mail)
       items[#items + 1] = { name = name, need = total[name], have = have, mail = mail, still = still,
+        done = have >= total[name],
         vendor = ns.AtVendor and ns.AtVendor(name) or false, crate = crates[name] or nil }
     end
   end
@@ -236,6 +238,14 @@ local atrButton = ns.Button(S, T("auctionator"), 110, 22)
 local clearButton = ns.Button(S, T("clear"), 60, 22)
 local buyButton = ns.Primary(ns.Button(S, "", WIDTH - 28 - 74, 32), 13)
 local skipButton = ns.Button(S, T("next2"), 68, 32)
+local vendButton = ns.Primary(ns.Button(S, "", WIDTH - 28, 32), 13)
+vendButton:SetScript("OnClick", function(self)
+  if ns.VendorBuy then ns.VendorBuy() end
+  -- one click, one purchase: the bags update before the next
+  self:Disable()
+  C_Timer.After(1.5, function() self:Enable(); ns.Refresh() end)
+end)
+vendButton:Hide()
 skipButton.label:SetTextColor(0.85, 0.87, 0.9)
 for _, b in ipairs({ scanButton, atrButton, clearButton }) do b.label:SetTextColor(0.85, 0.87, 0.9) end
 local guide = ns.Font(S, false, 10, 0.75, 0.72, 0.6)
@@ -685,7 +695,7 @@ function ns.RefreshList()
     or (da and "Kun " or "Only ") .. (ns.Plain(UnitName("player")) or ""))
   local items = ns.ListItems()
   local total, unknown, shown = 0, false, 0
-  local needAll, gotAll, left = 0, 0, 0
+  local needAll, gotAll, left, inMail = 0, 0, 0, 0
   for _, item in ipairs(items) do
     local s = ns.db.scanned[item.name]
     local est
@@ -706,7 +716,7 @@ function ns.RefreshList()
     if est then total = total + est elseif item.still > 0 then unknown = true end
     local got = math.min(item.need, item.need - item.still)
     needAll, gotAll = needAll + item.need, gotAll + math.max(0, got)
-    if item.still > 0 then left = left + 1 end
+    if item.still > 0 then left = left + 1 elseif not item.done then inMail = inMail + 1 end
     if shown < ROWS then
       shown = shown + 1
       local r = rows[shown]
@@ -714,16 +724,23 @@ function ns.RefreshList()
       r.icon:SetTexture(ns.ItemIcon(item.name))
       r.name:SetText(item.vendor and (item.name .. "  |cff8c8f96" .. T("vendTag") .. "|r") or item.name)
       r.vendor = item.vendor
-      local done = item.still == 0
+      -- done once it is in the bags or the bank; bought but still in the mail is blue
+      local done = item.done
+      local mailed = not done and item.still == 0
       r.still:SetText(done and ("|TInterface\\RaidFrame\\ReadyCheck-Ready:12|t |cff73d973" .. item.need .. "|r")
+        or mailed and ("|cff8cb3ff" .. math.min(item.need, item.have) .. "|r |cff8c8f96/ " .. item.need .. "|r")
         or ("|cffe6594d" .. math.max(0, got) .. "|r |cff8c8f96/ " .. item.need .. "|r"))
       local frac = item.need > 0 and math.max(0, got) / item.need or 1
       local w = r.barBg:GetWidth() or 150
       r.barFill:SetWidth(math.max(1, w * math.min(1, frac)))
-      r.barFill:SetColorTexture(done and 0.35 or 1, done and 0.9 or 0.82, done and 0.4 or 0.3, 1)
+      if done then r.barFill:SetColorTexture(0.35, 0.9, 0.4, 1)
+      elseif mailed then r.barFill:SetColorTexture(0.55, 0.7, 1, 1)
+      else r.barFill:SetColorTexture(1, 0.82, 0.3, 1) end
       r.mail:SetText("")
       if done then
         r.value:SetText("|cff73d973" .. ((ns.db.lang == "da") and "klar" or "done") .. "|r")
+      elseif mailed then
+        r.value:SetText("|cff8cb3ff" .. T("inMail") .. " " .. item.mail .. "|r")
       elseif item.vendor then
         r.value:SetText(est and ("|cffaaaaaa" .. T("vendor") .. "|r  " .. ns.Money(est)) or ("|cffaaaaaa" .. T("vendor") .. "|r"))
       elseif s and s.none and not AuxOrAtrPrice(item.name) then
@@ -750,7 +767,9 @@ function ns.RefreshList()
   if next(List().extra) then what[#what + 1] = da and "ekstra" or "extra" end
   hSub:SetText(#what > 0 and table.concat(what, "  ·  ") or (da and "Tom" or "Empty"))
   hTotal:SetText(ns.Money(total) .. (unknown and "+" or ""))
-  hTotalSub:SetText(left > 0 and ((da and "%d ting at købe" or "%d to buy"):format(left)) or (#items > 0 and (da and "alt er klar" or "all done") or ""))
+  hTotalSub:SetText(left > 0 and ((da and "%d ting at købe" or "%d to buy"):format(left))
+    or inMail > 0 and ((da and "%d i posten" or "%d in the mail"):format(inMail))
+    or (#items > 0 and (da and "alt er klar" or "all done") or ""))
   pFill:SetWidth(math.max(1, (pBg:GetWidth() or (WIDTH - 28)) * (needAll > 0 and gotAll / needAll or 0)))
   pFill:SetShown(needAll > 0)
 
@@ -827,9 +846,27 @@ function ns.RefreshList()
     end
   else
     boughtText:Hide()
+    -- at a vendor that sells something from the list: one button buys it, like the buy guide above
+    local vNeed, vN, vTotal
+    if ns.VendorNeed then vNeed, vN, vTotal = ns.VendorNeed() end
+    if vNeed and #vNeed > 0 then
+      vendButton:SetText(T("vendBuyHere", vN, ns.Money(vTotal)))
+      vendButton:ClearAllPoints(); vendButton:SetPoint("TOPLEFT", 14, y)
+      vendButton:Show()
+      y = y - 38
+      local names = {}
+      for _, e in ipairs(vNeed) do names[#names + 1] = e.count .. " " .. e.name end
+      guide:SetText(table.concat(names, ",  "))
+      guide:ClearAllPoints(); guide:SetPoint("TOPLEFT", 14, y)
+      guide:Show()
+      y = y - guide:GetStringHeight() - 8
+    else
+      vendButton:Hide()
+    end
     clearButton:SetPoint("TOPLEFT", 14, y)
     y = y - 30
   end
+  if atAH then vendButton:Hide() end
   S:SetHeight(-y + 18)
 end
 
@@ -837,10 +874,15 @@ end
 function ns.PlaceList()
   local aux, blizz = _G.aux_frame, _G.AuctionHouseFrame
   local frame = (aux and aux:IsShown() and aux) or (blizz and blizz:IsShown() and blizz) or nil
+  local merchant = _G.MerchantFrame
   if frame and S.byAH then
     S.docked = true
     S:ClearAllPoints()
     S:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+  elseif S.byVendor and merchant and merchant:IsShown() then
+    S.docked = true
+    S:ClearAllPoints()
+    S:SetPoint("TOPLEFT", merchant, "TOPRIGHT", 4, 0)
   else
     S.docked = false
     ns.PlaceSaved(S, "CraftETAList", "CENTER", UIParent, "CENTER", -200, 0)
@@ -848,7 +890,24 @@ function ns.PlaceList()
 end
 
 S:SetScript("OnShow", function() ns.PlaceList(); ns.RefreshList() end)
-S:SetScript("OnHide", function() S.byAH = false end)
+S:SetScript("OnHide", function() S.byAH = false; S.byVendor = false end)
+
+-- a vendor opened (or closed): the list opens next to it when the vendor sells something from it,
+-- and closes with it again when it opened that way
+function ns.OnVendor(open)
+  if not ns.db then return end
+  if open then
+    local need = ns.VendorNeed and ns.VendorNeed()
+    if not S:IsShown() and need and #need > 0 then
+      S.byVendor = true
+      S:Show()
+    elseif S:IsShown() then
+      ns.RefreshList()
+    end
+  elseif S:IsShown() then
+    if S.byVendor then S:Hide() else ns.RefreshList() end
+  end
+end
 
 function ns.ToggleList()
   if S:IsShown() then S:Hide() else S.byAH = AH.open; S:Show() end
