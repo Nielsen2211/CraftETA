@@ -183,63 +183,79 @@ local function Tip(frame, fn)
 end
 
 ---------------------------------------------------------------------------
--- Hero: who you are, your experience and your gold
+-- The next step: one big card with what to do now, chosen by CraftETA: a trainer that stops you,
+-- else the step of the profession you work on (the open window's, the last one, or the first)
 ---------------------------------------------------------------------------
+local RANK_NAME = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
+
 local hero = Card(home)
-hero:SetPoint("TOPLEFT"); hero:SetPoint("RIGHT"); hero:SetHeight(92)
-Edge(hero, 0.2, 0.21, 0.25)
-local classIcon = hero:CreateTexture(nil, "ARTWORK")
-classIcon:SetSize(50, 50); classIcon:SetPoint("TOPLEFT", 16, -12)
-local nameText = ns.Font(hero, true, 22, 0.9, 0.91, 0.94)
-nameText:SetPoint("TOPLEFT", classIcon, "TOPRIGHT", 14, 2)
-local subText = ns.Font(hero, false, 11, 0.7, 0.72, 0.76)
-subText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -4)
-local goldLabel = Label(hero, ""); goldLabel:SetPoint("TOPRIGHT", -16, -16); goldLabel:SetJustifyH("RIGHT")
-local goldText = ns.Font(hero, true, 20, 1, 1, 1); goldText:SetPoint("TOPRIGHT", goldLabel, "BOTTOMRIGHT", 0, -4); goldText:SetJustifyH("RIGHT")
-local accountText = ns.Font(hero, false, 10, 0.5, 0.52, 0.57); accountText:SetPoint("TOPRIGHT", goldText, "BOTTOMRIGHT", 0, -3); accountText:SetJustifyH("RIGHT")
--- experience along the bottom of the card
-local xpBar = CreateFrame("Frame", nil, hero)
-xpBar:SetPoint("TOPLEFT", classIcon, "BOTTOMRIGHT", 14, -6); xpBar:SetPoint("RIGHT", hero, "RIGHT", -190, 0); xpBar:SetHeight(5)
-local xpBg = xpBar:CreateTexture(nil, "BACKGROUND"); xpBg:SetAllPoints(); xpBg:SetColorTexture(1, 1, 1, 0.08)
-local xpRest = xpBar:CreateTexture(nil, "BORDER"); xpRest:SetPoint("TOPLEFT"); xpRest:SetPoint("BOTTOMLEFT"); xpRest:SetColorTexture(0.3, 0.55, 1, 0.55)
-local xpFill = xpBar:CreateTexture(nil, "ARTWORK"); xpFill:SetPoint("TOPLEFT"); xpFill:SetPoint("BOTTOMLEFT"); xpFill:SetColorTexture(1, 0.82, 0.3, 1)
-local xpValue = ns.Font(hero, false, 9, 0.6, 0.62, 0.67); xpValue:SetPoint("BOTTOMLEFT", xpBar, "TOPLEFT", 0, 5)
-Tip(xpBar, function(tip)
-  local me = ns.Me()
-  tip:SetText(T("experience"), 1, 0.82, 0.3)
-  if me and (me.xpMax or 0) > 0 then
-    tip:AddDoubleLine(L("Now", "Nu"), (me.xp or 0) .. " / " .. me.xpMax, 0.85, 0.87, 0.9, 1, 1, 1)
-    tip:AddDoubleLine(T("rested"), me.rested or 0, 0.85, 0.87, 0.9, 0.44, 0.61, 1)
-  end
-end)
+hero:SetPoint("TOPLEFT"); hero:SetPoint("RIGHT"); hero:SetHeight(132)
+Edge(hero, 0.43, 0.35, 0.13)
+local heroIcon = hero:CreateTexture(nil, "ARTWORK")
+heroIcon:SetSize(60, 60); heroIcon:SetPoint("LEFT", 18, 0); heroIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+local heroLabel = ns.Font(hero, true, 10, 1, 0.82, 0.29)
+heroLabel:SetPoint("TOPLEFT", heroIcon, "TOPRIGHT", 16, 4)
+local heroTitle = ns.Font(hero, true, 18, 0.95, 0.96, 0.98)
+heroTitle:SetPoint("TOPLEFT", heroLabel, "BOTTOMLEFT", 0, -7); heroTitle:SetPoint("RIGHT", hero, "RIGHT", -186, 0)
+heroTitle:SetWordWrap(false)
+local heroSub = ns.Font(hero, false, 12, 0.66, 0.68, 0.73)
+heroSub:SetPoint("TOPLEFT", heroTitle, "BOTTOMLEFT", 0, -6); heroSub:SetPoint("RIGHT", hero, "RIGHT", -186, 0)
+heroSub:SetWordWrap(true); heroSub:SetMaxLines(2); heroSub:SetJustifyH("LEFT")
+local HB_W = CW - 18 - 60 - 16 - 186   -- the bar's width: from after the icon to before the buttons
+local heroBar = CreateFrame("Frame", nil, hero)
+heroBar:SetHeight(6); heroBar:SetPoint("BOTTOMLEFT", heroIcon, "BOTTOMRIGHT", 16, -12); heroBar:SetPoint("RIGHT", hero, "RIGHT", -186, 0)
+local heroBarBg = heroBar:CreateTexture(nil, "BACKGROUND"); heroBarBg:SetAllPoints(); heroBarBg:SetColorTexture(1, 1, 1, 0.08)
+local heroFill = heroBar:CreateTexture(nil, "ARTWORK"); heroFill:SetPoint("TOPLEFT"); heroFill:SetPoint("BOTTOMLEFT")
+heroFill:SetColorTexture(1, 0.82, 0.3, 1)
+local heroBtn = ns.Primary(ns.Button(hero, "", 152, 34), 13)
+heroBtn:SetPoint("TOPRIGHT", -18, -30)
+local heroBtn2 = ns.Button(hero, "", 152, 24)
+heroBtn2:SetPoint("TOP", heroBtn, "BOTTOM", 0, -8)
 
 ---------------------------------------------------------------------------
--- Four tiles: durability, bags, time played, favor
+-- Three small cards under it: shopping, the next trainer, and a heads-up (or what to keep for later)
 ---------------------------------------------------------------------------
-local TILE_ICONS = { "Interface\\Icons\\INV_Chest_Chain_05", "Interface\\Icons\\INV_Misc_Bag_08",
-  "Interface\\Icons\\INV_Misc_PocketWatch_01", "Interface\\Icons\\INV_Crate_01" }
-local TW = math.floor((CW - 3 * 8) / 4)
-local tiles = {}
-for i = 1, 4 do
-  local c = Card(home)
-  c:SetSize(TW, 54)
-  c:SetPoint("TOPLEFT", (i - 1) * (TW + 8), -100)
-  c.accent = c:CreateTexture(nil, "BORDER"); c.accent:SetPoint("TOPLEFT"); c.accent:SetPoint("BOTTOMLEFT"); c.accent:SetWidth(2); c.accent:SetAlpha(0)
-  c.icon = c:CreateTexture(nil, "ARTWORK"); c.icon:SetSize(30, 30); c.icon:SetPoint("LEFT", 12, 0)
-  c.icon:SetTexture(TILE_ICONS[i]); c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  c.label = Label(c, ""); c.label:SetPoint("TOPLEFT", c.icon, "TOPRIGHT", 10, -2)
-  c.value = ns.Font(c, true, 14, 0.9, 0.91, 0.94); c.value:SetPoint("BOTTOMLEFT", c.icon, "BOTTOMRIGHT", 10, 0)
-  tiles[i] = c
+local SMALL_W = math.floor((CW - 2 * 10) / 3)
+local small = {}
+for i = 1, 3 do
+  local s = CreateFrame("Button", nil, home)
+  s:SetSize(SMALL_W, 96)
+  s:SetPoint("TOPLEFT", (i - 1) * (SMALL_W + 10), -142)
+  ns.RoundBox(s, 0.086, 0.094, 0.122, 1)
+  local hl = ns.Round(s, "HIGHLIGHT", 0); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.03)
+  s.icon = s:CreateTexture(nil, "ARTWORK"); s.icon:SetSize(30, 30); s.icon:SetPoint("TOPLEFT", 14, -14)
+  s.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  s.label = ns.Font(s, true, 9, 0.55, 0.58, 0.64); s.label:SetPoint("TOPLEFT", s.icon, "TOPRIGHT", 10, -1)
+  s.label:SetPoint("RIGHT", s, "RIGHT", -10, 0); s.label:SetWordWrap(false)
+  s.title = ns.Font(s, true, 14, 0.92, 0.93, 0.96); s.title:SetPoint("TOPLEFT", s.label, "BOTTOMLEFT", 0, -5)
+  s.title:SetPoint("RIGHT", s, "RIGHT", -10, 0); s.title:SetWordWrap(true); s.title:SetMaxLines(2); s.title:SetJustifyH("LEFT")
+  s.sub = ns.Font(s, false, 11, 0.66, 0.68, 0.73); s.sub:SetPoint("TOPLEFT", s.icon, "BOTTOMLEFT", 0, -10)
+  s.sub:SetPoint("RIGHT", s, "RIGHT", -12, 0); s.sub:SetJustifyH("LEFT"); s.sub:SetWordWrap(true); s.sub:SetMaxLines(2)
+  s:SetScript("OnClick", function(self) if self.click then self.click() end end)
+  small[i] = s
 end
-tiles[4]:EnableMouse(true)
-tiles[4]:SetScript("OnMouseUp", function() ns.ToggleHub("favor") end)
+local function Small(i, icon, label, title, sub, click, lr, lg, lb)
+  local s = small[i]
+  s.icon:SetTexture(icon)
+  s.label:SetText(string.upper(label or ""))
+  s.label:SetTextColor(lr or 0.55, lg or 0.58, lb or 0.64)
+  s.title:SetText(title or "")
+  -- a long title takes two lines ("You can become a Tribal Leatherworker"): the line under it moves down
+  local two = (s.title:GetStringHeight() or 0) > 20
+  s.sub:ClearAllPoints()
+  s.sub:SetPoint("TOPLEFT", s, "TOPLEFT", 14, two and -68 or -54)
+  s.sub:SetPoint("RIGHT", s, "RIGHT", -12, 0)
+  s.sub:SetMaxLines(two and 1 or 2)
+  s.sub:SetText(sub or "")
+  s.click = click
+end
 
 ---------------------------------------------------------------------------
--- Professions (left) and next steps (right)
+-- Your professions, full width
 ---------------------------------------------------------------------------
-local COLW = math.floor((CW - 8) / 2)
+local COLW = CW
 local profCard = Card(home)
-profCard:SetPoint("TOPLEFT", 0, -162); profCard:SetPoint("BOTTOMLEFT"); profCard:SetWidth(COLW)
+profCard:SetPoint("TOPLEFT", 0, -248); profCard:SetPoint("BOTTOMRIGHT")
 local profLabel = Label(profCard, ""); profLabel:SetPoint("TOPLEFT", 14, -12)
 local PROF_H = 46
 local BAR_W = COLW - 28 - 34
@@ -255,14 +271,14 @@ local function ProfCard(i)
   r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   r.value = ns.Font(r, true, 11, 1, 1, 1); r.value:SetPoint("TOPRIGHT", 0, -2); r.value:SetJustifyH("RIGHT")
   r.name = ns.Font(r, true, 11, 0.9, 0.91, 0.94); r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, -1)
-  r.rank = ns.Font(r, false, 9, 0.5, 0.52, 0.57); r.rank:SetPoint("LEFT", r.name, "RIGHT", 6, 0)
+  r.rank = ns.Font(r, false, 10, 0.55, 0.58, 0.64); r.rank:SetPoint("LEFT", r.name, "RIGHT", 6, 0)
   r.bar = CreateFrame("Frame", nil, r); r.bar:SetSize(BAR_W, 6)
   r.bar:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, 2)
   r.bg = r.bar:CreateTexture(nil, "BACKGROUND"); r.bg:SetAllPoints(); r.bg:SetColorTexture(1, 1, 1, 0.07)
   r.cap = r.bar:CreateTexture(nil, "BORDER"); r.cap:SetPoint("TOPLEFT"); r.cap:SetPoint("BOTTOMLEFT"); r.cap:SetColorTexture(1, 1, 1, 0.07)
   r.fill = r.bar:CreateTexture(nil, "ARTWORK"); r.fill:SetPoint("TOPLEFT"); r.fill:SetPoint("BOTTOMLEFT")
   r.segs = {}
-  local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetPoint("TOPLEFT", -6, 2); hl:SetPoint("BOTTOMRIGHT", 6, -2); hl:SetColorTexture(1, 1, 1, 0.03)
+  local hl = ns.Round(r, "HIGHLIGHT", 0); hl:SetPoint("TOPLEFT", -6, 2); hl:SetPoint("BOTTOMRIGHT", 6, -2); hl:SetColorTexture(1, 1, 1, 0.03)
   r:SetScript("OnClick", function(self) if self.prof then ns.hubState.guide = self.prof; ns.ToggleHub("guide") end end)
   profRows[i] = r
   return r
@@ -307,88 +323,200 @@ local function Segments(r, id, rank, max)
   end
 end
 
-local stepCard = Card(home)
-stepCard:SetPoint("TOPRIGHT", 0, -162); stepCard:SetPoint("BOTTOMRIGHT"); stepCard:SetWidth(COLW)
-local stepLabel = Label(stepCard, ""); stepLabel:SetPoint("TOPLEFT", 14, -12)
-local pageText = ns.Font(stepCard, true, 10, 0.75, 0.77, 0.8)
-pageText:SetPoint("TOPRIGHT", -32, -11)
-local prevPage = ns.IconButton(stepCard, "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up", 16)
-prevPage.icon:SetTexCoord(0, 1, 0, 1)
-prevPage:SetPoint("RIGHT", pageText, "LEFT", -4, 0)
-local nextPage = ns.IconButton(stepCard, "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", 16)
-nextPage.icon:SetTexCoord(0, 1, 0, 1)
-nextPage:SetPoint("LEFT", pageText, "RIGHT", 4, 0)
-local stepPage, STEPS_PER = 1, 6
-local STEP_H = 50
-prevPage:SetScript("OnClick", function() stepPage = stepPage - 1; home:Refresh() end)
-nextPage:SetScript("OnClick", function() stepPage = stepPage + 1; home:Refresh() end)
-local stepRows = {}
-for i = 1, 9 do
-  local r = CreateFrame("Button", nil, stepCard)
-  r:SetSize(COLW - 28, STEP_H - 6)
-  r:SetPoint("TOPLEFT", 14, -32 - (i - 1) * STEP_H)
-  ns.RoundBox(r, 1, 1, 1, 0.025)
-  r.accent = r:CreateTexture(nil, "BORDER"); r.accent:SetPoint("TOPLEFT"); r.accent:SetPoint("BOTTOMLEFT"); r.accent:SetWidth(2); r.accent:SetAlpha(0)
-  r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(28, 28); r.icon:SetPoint("LEFT", 10, 0)
-  r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  r.title = ns.Font(r, true, 11, 0.9, 0.91, 0.94)
-  r.title:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, 0); r.title:SetPoint("RIGHT", r, "RIGHT", -8, 0); r.title:SetWordWrap(false)
-  r.sub = ns.Font(r, false, 9, 0.5, 0.52, 0.57)
-  r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, 0); r.sub:SetPoint("RIGHT", r, "RIGHT", -8, 0); r.sub:SetWordWrap(false)
-  local hl = ns.Round(r, "HIGHLIGHT", 0); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.04)
-  r:SetScript("OnClick", function(self)
-    if self.prof then ns.hubState.guide = self.prof; ns.ToggleHub("guide") end
-  end)
-  stepRows[i] = r
+-- the profession the big card is about
+local function MainProf(skills)
+  local open = ns.OpenProfession and ns.OpenProfession()
+  if open and skills[open.id] then return open.id end
+  local last = ns.db.lastProf and skills[ns.db.lastProf]
+  if last and last.rank < 300 then return ns.db.lastProf end
+  local list = SortedProfs(skills)
+  for _, p in ipairs(list) do if p.rank < 300 and ns.GUIDES[p.id] then return p.id end end
+  for _, p in ipairs(list) do if p.rank < 300 then return p.id end end
+  return list[1] and list[1].id or nil
+end
+
+local function ShopCost(items)
+  local n, cost, names = 0, 0, {}
+  for _, item in ipairs(items) do
+    if item.still > 0 then
+      n = n + 1
+      if #names < 3 then names[#names + 1] = item.name end
+      local c
+      if item.vendor and ns.VendorCost then
+        local v = ns.VendorCost(item.name); c = v and v * item.still
+      end
+      if not c and ns.BuyCost then local ok, v = pcall(ns.BuyCost, item.name, item.still); c = ok and v or nil end
+      if not c then local p = ns.Price(item.name); c = p and p * item.still end
+      cost = cost + (c or 0)
+    end
+  end
+  return n, cost, names
+end
+
+local function FillHero(skills)
+  heroBtn2:Hide(); heroBar:Show(); heroBtn:Show()
+  heroBtn:SetScript("OnClick", nil); heroBtn2:SetScript("OnClick", nil)
+  local id = MainProf(skills)
+  if not id then
+    heroIcon:SetTexture(134400); heroLabel:SetText("")
+    heroTitle:SetText(T("noProfs")); heroSub:SetText(L("Learn a profession at a trainer, and CraftETA shows the way to 300.", "Lær et fag hos en træner, så viser CraftETA vejen til 300."))
+    heroBar:Hide(); heroBtn:Hide()
+    return id
+  end
+  local s = skills[id]
+  local rank, max = s.rank, s.max or 300
+  local guide = ns.GUIDES[id] or ns.GATHER[id]
+  local f = ns.Faction()
+  heroLabel:SetText(L("NEXT STEP", "NÆSTE SKRIDT") .. "  ·  " .. string.upper(ns.ProfName(id)) .. "  " .. rank .. " / " .. max)
+  local idx = ns.StepIndex(guide, rank)
+  local step = idx and guide.steps[idx]
+  local train, rankName, where = ns.TrainNow(id, rank, max)
+  if rank >= 300 or not step then
+    heroIcon:SetTexture("Interface\\Icons\\Achievement_Quests_Completed_08")
+    heroTitle:SetText(L("%s is done: 300", "%s er færdig: 300"):format(ns.ProfName(id)))
+    heroSub:SetText(L("Pick another profession below.", "Vælg et andet fag nedenfor."))
+    heroFill:SetWidth(HB_W)
+    heroBtn:Hide()
+  elseif train then
+    local lvl = UnitLevel("player") or 0
+    heroIcon:SetTexture(ns.ProfIcon(id))
+    heroTitle:SetText(T("trainNow", rankName, guide.name))
+    heroSub:SetText(T("trainWhere", where) .. (lvl < (train.lvl or 0) and ("  ·  " .. T("trainLevel", train.lvl)) or ""))
+    heroFill:SetWidth(math.max(1, HB_W * math.min(1, rank / math.max(1, max))))
+    heroBtn:SetText(L("Show on map", "Vis på kortet"))
+    heroBtn:SetScript("OnClick", function() ns.ShowTrainer(id) end)
+  elseif ns.GUIDES[id] then
+    local entry, left, _, fix = ns.StepEntry(id, idx, step, rank)
+    heroIcon:SetTexture(ns.ItemIcon(entry[1], ns.ProfIcon(id)))
+    heroTitle:SetText(L("Craft %d %s", "Lav %d %s"):format(left, entry[1]))
+    local nxt = guide.steps[idx + 1]
+    local nextName = nxt and ((ns.Chosen(id, idx + 1, nxt))[1] or {})[1]
+    if fix then
+      heroSub:SetText("|cffffb060" .. T("fixShort", fix.short, fix.name, fix.forName) .. "|r")
+    else
+      -- "Then ..." only when the next step makes something else
+      local thenText = nextName and nextName ~= entry[1] and (" " .. L("Then %s.", "Så %s."):format(nextName)) or ""
+      heroSub:SetText(L("Up to %d.", "Op til %d."):format(step[2]) .. thenText .. (step.note and ("  " .. step.note) or ""))
+    end
+    local span = math.max(1, step[2] - step[1])
+    heroFill:SetWidth(math.max(1, HB_W * math.min(1, math.max(0, rank - step[1]) / span)))
+    local st = ns.panelState or {}
+    local ready = ns.ProfessionFrame and ns.ProfessionFrame() and st.prof == id and st.job
+    heroBtn:SetText(ready and T("craftN", st.job.count) or L("Open %s", "Åbn %s"):format(guide.name))
+    heroBtn:SetScript("OnClick", function()
+      local j = ns.panelState or {}
+      if ns.ProfessionFrame() and j.prof == id and j.job then ns.Craft(j.job.name, j.job.count) else ns.OpenProfessionWindow(id) end
+    end)
+    -- what you are missing for the crafts that are left
+    local per = ns.MatsPerCraft and ns.MatsPerCraft(entry) or {}
+    local miss, firstName, firstN = 0, nil, 0
+    for m = 1, #per, 2 do
+      local short = per[m + 1] * left - ns.Have(per[m])
+      if short > 0 then
+        miss = miss + 1
+        if not firstName then firstName, firstN = per[m], short end
+      end
+    end
+    if miss > 0 then
+      -- short enough for the button: the count and the item's icon; the name is in the tooltip
+      local icon = ns.ItemIcon(firstName, 134400)
+      heroBtn2:SetText(miss == 1 and (L("Missing %d", "Mangler %d"):format(firstN) .. "  |T" .. icon .. ":14:14:0:0:64:64:5:59:5:59|t")
+        or L("Missing %d things", "Mangler %d ting"):format(miss))
+      local names = {}
+      for m = 1, #per, 2 do
+        local short = per[m + 1] * left - ns.Have(per[m])
+        if short > 0 then names[#names + 1] = short .. " " .. per[m] end
+      end
+      heroBtn2.tip = table.concat(names, "\n") .. "\n\n" .. L("Click: put them on the shopping list", "Klik: læg dem på indkøbslisten")
+      heroBtn2:SetScript("OnClick", function()
+        ns.AddToList(nil, nil, id, step[2])
+        ns.Print(T("addedList") .. " (" .. rank .. " - " .. step[2] .. ")")
+        if not (ns.ListShown and ns.ListShown()) then ns.ToggleList() end
+      end)
+      heroBtn2:Show()
+    end
+  else
+    heroIcon:SetTexture(guide.icon or ns.ProfIcon(id))
+    heroTitle:SetText(step.what or "")
+    heroSub:SetText(step[f] or "")
+    local span = math.max(1, step[2] - step[1])
+    heroFill:SetWidth(math.max(1, HB_W * math.min(1, math.max(0, rank - step[1]) / span)))
+    heroBtn:SetText(L("Open the guide", "Åbn guiden"))
+    heroBtn:SetScript("OnClick", function() ns.hubState.guide = id; ns.ToggleHub("guide") end)
+  end
+  return id
+end
+
+local function FillSmall(skills, id)
+  -- 1: shopping
+  local okL, items = pcall(ns.ListItems)
+  local n, cost, names = ShopCost(okL and items or {})
+  Small(1, "Interface\\Icons\\INV_Misc_Note_05", L("Shopping", "Indkøb"),
+    n > 0 and (L("%d to buy", "%d at købe"):format(n) .. "  ·  " .. ns.Money(cost)) or L("Nothing to buy", "Intet at købe"),
+    n > 0 and table.concat(names, ", ") or L("Add a step with + in the profession panel.", "Læg et trin på med + i profession-panelet."),
+    function() ns.ToggleList() end)
+  -- 2: the next trainer
+  local s = id and skills[id]
+  local r = s and ns.NextRank(id, s.rank, s.max or 300)
+  if r then
+    local who = r[ns.Faction()] or ""
+    Small(2, ns.ProfIcon(id), L("Next stop", "Næste stop") .. "  ·  " .. r.at,
+      L("Train %s", "Træn %s"):format(RANK_NAME[r.at] or ""), who .. ((r.lvl or 0) > 0 and ("  ·  " .. L("level %d", "level %d"):format(r.lvl)) or ""),
+      function() ns.ShowTrainer(id) end, 1, 0.69, 0.38)
+  else
+    Small(2, "Interface\\Icons\\INV_Misc_Book_11", L("Next stop", "Næste stop"),
+      L("No trainer needed", "Ingen træner nødvendig"), L("You can level all the way.", "Du kan levle hele vejen."), nil)
+  end
+  -- 3: a heads-up (repair, bags, a cooldown that is ready, a specialization), else what to keep for later
+  for _, st in ipairs(ns.NextSteps()) do
+    if not st.prof then
+      Small(3, st.icon, L("Heads up", "Obs"), st.title, st.sub, nil, st.r, st.g, st.b)
+      return
+    end
+  end
+  local keep, kn = {}, 0
+  if ns.LaterUse then
+    for name, u in pairs(ns.LaterUse()) do
+      if u.prof and not u.now then
+        local iid = ns.ItemID(name)
+        if iid and ns.BagCount and ns.BagCount(iid) > 0 then
+          kn = kn + 1
+          if #keep < 3 then keep[#keep + 1] = name end
+        end
+      end
+    end
+  end
+  if kn > 0 then
+    Small(3, "Interface\\Icons\\INV_Misc_Bag_08", L("Keep for later", "Gem til senere"),
+      L("%d in your bags", "%d i tasken"):format(kn), table.concat(keep, ", ") .. ". " .. L("Bank them at the bank.", "Bank dem i banken."), nil)
+    return
+  end
+  -- your next cooldown
+  local me = ns.Me()
+  local best
+  for name, cd in pairs(me and me.cd or {}) do
+    if not best or (cd.ready or 0) < best.ready then best = { name = name, ready = cd.ready or 0 } end
+  end
+  if best then
+    local secs = best.ready - time()
+    Small(3, "Interface\\Icons\\INV_Misc_PocketWatch_01", L("Cooldown", "Cooldown"), best.name,
+      secs > 0 and L("Ready in %s", "Klar om %s"):format(ns.Duration(secs) or "") or L("Ready now", "Klar nu"),
+      function() ns.ToggleHub("cooldowns") end)
+  else
+    Small(3, "Interface\\Icons\\INV_Misc_Coin_02", L("Gold", "Guld"), ns.Money(GetMoney()), "", function() ns.ToggleHub("gold") end)
+  end
 end
 
 function home:Refresh()
   ns.Facts()
-  local me = ns.Me()
-  local color = me.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[me.class]
-  ns.ClassIcon(classIcon, me.class)
-  nameText:SetText(me.name or "")
-  nameText:SetTextColor(color and color.r or 1, color and color.g or 1, color and color.b or 1)
-  subText:SetText(T("levelLine", me.level or 0, me.race or "", UnitClass("player") or "") .. (me.zone and ("  |cff8c8f96·  " .. me.zone .. "|r") or ""))
-  -- gold: yours, and the whole account's
-  local account, n = 0, 0
-  for _, c in pairs(ns.db.chars) do account = account + (c.money or 0); n = n + 1 end
-  goldLabel:SetText(string.upper(T("gold")))
-  goldText:SetText(ns.Money(GetMoney()))
-  accountText:SetText(n > 1 and L("Account: %s", "Konto: %s"):format(ns.Money(account)) or "")
-  -- experience
-  local xp, max, rested = me.xp or 0, me.xpMax or 0, me.rested or 0
-  local w = xpBar:GetWidth() or (CW - 32)
-  if max > 0 and (me.level or 0) < (GetMaxPlayerLevel and GetMaxPlayerLevel() or 60) then
-    xpFill:SetWidth(math.max(1, w * xp / max))
-    xpRest:SetWidth(math.max(1, w * math.min(1, (xp + rested) / max)))
-    xpValue:SetText(("%s  %d%%   |cff6f9cff%s %d%%|r"):format(string.upper(T("experience")), xp / max * 100, T("rested"), math.floor(rested / max * 100)))
-  else
-    xpFill:SetWidth(w); xpRest:SetWidth(w)
-    xpValue:SetText(string.upper(T("experience")) .. "  ·  " .. T("maxLevel"))
-  end
-  -- tiles
-  local free, total = ns.BagSpace()
-  local played = ns.Played(me)
-  local dura = ns.Durability()
-  local favor = ns.FavorNow and ns.FavorNow()
-  local values = {
-    { T("durability"), ("%d%%"):format(dura * 100), dura < 0.3 and { 1, 0.4, 0.35 } or (dura < 0.6 and GOLD or { 0.35, 0.9, 0.4 }) },
-    { T("bagSpace"), T("bagsFree", free, total), free <= 4 and { 1, 0.4, 0.35 } or (free <= 10 and GOLD or { 0.35, 0.9, 0.4 }) },
-    { T("timePlayed"), played and ns.PlayedText(played) or "...", { 0.45, 0.75, 1 } },
-    { "Merchant's Favor", favor and tostring(favor) or "-", GOLD },
-  }
-  for i, c in ipairs(tiles) do
-    c.label:SetText(string.upper(values[i][1]))
-    c.value:SetText(values[i][2])
-    local a = values[i][3]
-    c.accent:SetColorTexture(a[1], a[2], a[3], 1)
-  end
+  local skills = ns.Skills(true)
+  local id = FillHero(skills)
+  FillSmall(skills, id)
   -- professions
-  profLabel:SetText(string.upper(T("t_guide")))
-  local list = SortedProfs(ns.Skills(true))
-  local room = math.max(1, math.floor(((profCard:GetHeight() or 390) - 36) / PROF_H))
-  for i, r in ipairs(profRows) do r:Hide() end
+  profLabel:SetText(string.upper(L("Your professions", "Dine fag")))
+  local list = SortedProfs(skills)
+  local room = math.max(1, math.floor(((profCard:GetHeight() or 330) - 36) / PROF_H))
+  for _, r in ipairs(profRows) do r:Hide() end
   for i = 1, math.min(#list, room) do
     local p, r = list[i], ProfCard(i)
     local maxR = p.max or 300
@@ -409,34 +537,6 @@ function home:Refresh()
     local r = ProfCard(1)
     r.icon:SetTexture(134400); r.name:SetText(T("noProfs")); r.rank:SetText(""); r.value:SetText("")
     r.fill:SetWidth(1); r.cap:SetWidth(1); Segments(r, 0, 0, 0); r:Show()
-  end
-  -- next steps
-  STEPS_PER = math.max(2, math.min(#stepRows, math.floor(((stepCard:GetHeight() or 390) - 36) / STEP_H)))
-  stepLabel:SetText(string.upper(T("nextSteps")))
-  local steps = ns.NextSteps()
-  local pages = math.max(1, math.ceil(#steps / STEPS_PER))
-  stepPage = math.max(1, math.min(pages, stepPage))
-  pageText:SetText(("%d / %d"):format(stepPage, pages))
-  prevPage:SetEnabled(stepPage > 1); nextPage:SetEnabled(stepPage < pages)
-  prevPage:SetAlpha(stepPage > 1 and 1 or 0.3); nextPage:SetAlpha(stepPage < pages and 1 or 0.3)
-  for i, r in ipairs(stepRows) do
-    local s = i <= STEPS_PER and steps[(stepPage - 1) * STEPS_PER + i]
-    if s then
-      r.icon:SetTexture(s.icon)
-      r.title:SetText(s.title)
-      r.title:SetTextColor(0.9, 0.91, 0.94)
-      r.accent:SetColorTexture(s.r or 1, s.g or 1, s.b or 1, 1)
-      ns.FitList(r.sub, s.sub or "")
-      r.prof = s.prof
-      r:Show()
-    else
-      r:Hide()
-    end
-  end
-  if #steps == 0 then
-    local r = stepRows[1]
-    r:Show(); r.icon:SetTexture("Interface\\Icons\\Achievement_Quests_Completed_08")
-    r.title:SetText(T("allGood")); r.title:SetTextColor(0.35, 0.9, 0.4); r.sub:SetText(""); r.accent:SetColorTexture(0.35, 0.9, 0.4, 1)
   end
 end
 function ns.RefreshHome()
