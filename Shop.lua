@@ -163,8 +163,43 @@ local pBg = S:CreateTexture(nil, "ARTWORK"); pBg:SetPoint("TOPLEFT", 14, -82); p
 pBg:SetColorTexture(1, 1, 1, 0.08)
 local pFill = S:CreateTexture(nil, "OVERLAY"); pFill:SetPoint("TOPLEFT", pBg); pFill:SetPoint("BOTTOMLEFT", pBg); pFill:SetWidth(1)
 pFill:SetColorTexture(1, 0.82, 0.3, 1)
+-- filters: everything, what you buy at the auction house, at a vendor, and what is done
+local LIST_Y = -124   -- the items start under the filters
+local FILTERS = { "all", "ah", "vendor", "done" }
+local chips = {}
+for i, key in ipairs(FILTERS) do
+  local b = CreateFrame("Button", nil, S)
+  b:SetHeight(20)
+  b.bg = ns.Round(b, "BACKGROUND", 0, 10); b.bg:SetAllPoints()
+  b.text = ns.Font(b, true, 10, 0.9, 0.91, 0.94); b.text:SetPoint("CENTER")
+  b.key = key
+  b:SetScript("OnClick", function(self) ns.db.listFilter = self.key; ns.RefreshList() end)
+  if i == 1 then b:SetPoint("TOPLEFT", 14, -96) else b:SetPoint("LEFT", chips[i - 1], "RIGHT", 6, 0) end
+  chips[i] = b
+end
+local function Match(item, f)
+  if f == "ah" then return item.still > 0 and not item.vendor end
+  if f == "vendor" then return item.still > 0 and item.vendor end
+  if f == "done" then return item.still == 0 end
+  return true
+end
+local function DrawChips(items)
+  local da = ns.db.lang == "da"
+  local f = ns.db.listFilter or "all"
+  local names = { all = da and "Alle" or "All", ah = "AH", vendor = "Vendor", done = da and "Klar" or "Done" }
+  for _, b in ipairs(chips) do
+    local n = 0
+    for _, item in ipairs(items) do if Match(item, b.key) then n = n + 1 end end
+    b.text:SetText(b.key == "all" and names.all or (names[b.key] .. "  " .. n))
+    b:SetWidth(b.text:GetStringWidth() + 20)
+    local on = b.key == f
+    b.bg:SetColorTexture(on and 1 or 0.11, on and 0.82 or 0.122, on and 0.3 or 0.157, 1)
+    b.text:SetTextColor(on and 0.1 or 0.9, on and 0.08 or 0.91, on and 0.02 or 0.94)
+  end
+end
+
 -- the card the items sit on
-local card = ns.Round(S, "BORDER", 0); card:SetPoint("TOPLEFT", 10, -96); card:SetPoint("RIGHT", S, "RIGHT", -10, 0)
+local card = ns.Round(S, "BORDER", 0); card:SetPoint("TOPLEFT", 10, LIST_Y); card:SetPoint("RIGHT", S, "RIGHT", -10, 0)
 card:SetColorTexture(0.086, 0.094, 0.122, 1)
 local moreText = ns.Font(S, false, 9, 0.45, 0.47, 0.52)
 
@@ -182,7 +217,7 @@ for i = 1, ROWS do
   -- an item: icon, name with a bar of what you have under it, "have / need" and the price on the right
   local r = ns.Row(S, ROW_H - 2)
   r:SetWidth(WIDTH - 20)
-  r:SetPoint("TOPLEFT", 10, -102 - (i - 1) * ROW_H)
+  r:SetPoint("TOPLEFT", 10, LIST_Y - 6 - (i - 1) * ROW_H)
   r.icon:SetSize(24, 24); r.icon:ClearAllPoints(); r.icon:SetPoint("LEFT", 10, 0)
   r.still = ns.Font(r, true, 11)
   r.still:SetPoint("TOPRIGHT", r, "TOPRIGHT", -10, -3); r.still:SetJustifyH("RIGHT")
@@ -255,6 +290,10 @@ local clearButton = ns.Button(S, T("clear"), 60, 22)
 local buyButton = ns.Primary(ns.Button(S, "", WIDTH - 28 - 74, 32), 13)
 local skipButton = ns.Button(S, T("next2"), 68, 32)
 local vendButton = ns.Primary(ns.Button(S, "", WIDTH - 28, 32), 13)
+-- at the bank: put what your guide uses later in the bank (Keep.lua)
+local bankButton = ns.Primary(ns.Button(S, "", WIDTH - 28, 32), 13)
+bankButton:Hide()
+bankButton:SetScript("OnClick", function() if ns.BankKeep then ns.BankKeep() end end)
 vendButton:SetScript("OnClick", function(self)
   if ns.VendorBuy then ns.VendorBuy() end
   -- one click, one purchase: the bags update before the next
@@ -743,8 +782,9 @@ function ns.RefreshList()
     local got = math.min(item.need, item.need - item.still)
     needAll, gotAll = needAll + item.need, gotAll + math.max(0, got)
     if item.still > 0 then left = left + 1 elseif not item.done then inMail = inMail + 1 end
-    idx = idx + 1
-    if idx > S.offset and shown < ROWS then
+    local match = Match(item, ns.db.listFilter or "all")
+    if match then idx = idx + 1 end
+    if match and idx > S.offset and shown < ROWS then
       shown = shown + 1
       local r = rows[shown]
       r.item, r.itemID = item.name, ns.ItemID(item.name)
@@ -783,9 +823,10 @@ function ns.RefreshList()
     end
   end
   for i = shown + 1, ROWS do rows[i]:Hide() end
-  emptyText:ClearAllPoints(); emptyText:SetPoint("TOPLEFT", 20, -110)
-  emptyText:SetShown(#items == 0)
-  emptyText:SetText(T("empty"))
+  emptyText:ClearAllPoints(); emptyText:SetPoint("TOPLEFT", 20, LIST_Y - 14)
+  emptyText:SetShown(shown == 0)
+  emptyText:SetText(#items == 0 and T("empty") or ((ns.db.lang == "da") and "Intet her." or "Nothing here."))
+  DrawChips(items)
 
   -- the header
   local da = ns.db.lang == "da"
@@ -806,14 +847,14 @@ function ns.RefreshList()
   -- the card under the rows, and what didn't fit
   local cardH = 12 + math.max(1, shown) * ROW_H
   if #items > ROWS then
-    moreText:ClearAllPoints(); moreText:SetPoint("TOPLEFT", 20, -96 - cardH + 2)
+    moreText:ClearAllPoints(); moreText:SetPoint("TOPLEFT", 20, LIST_Y - cardH + 2)
     moreText:SetText((da and "%d til %d af %d  ·  scroll for flere" or "%d-%d of %d  ·  scroll for more"):format(S.offset + 1, S.offset + shown, #items))
     moreText:Show(); cardH = cardH + 14
   else
     moreText:Hide()
   end
   card:SetHeight(cardH)
-  local y = -96 - cardH - 10
+  local y = LIST_Y - cardH - 10
   totalText:Hide()
 
   -- the buy guide, at the auction house
@@ -900,10 +941,20 @@ function ns.RefreshList()
     else
       vendButton:Hide()
     end
+    local nBank = ns.bankOpen and ns.KeepBankable and ns.KeepBankable() or 0
+    if nBank > 0 then
+      bankButton:SetText(((ns.db.lang == "da") and "Bank %d ting til senere" or "Bank %d things for later"):format(nBank))
+      bankButton.tip = (ns.db.lang == "da") and "Det din guide bruger senere, så det ikke bliver solgt ved en fejl" or "What your guide uses later, so it is not sold by mistake"
+      bankButton:ClearAllPoints(); bankButton:SetPoint("TOPLEFT", 14, y)
+      bankButton:Show()
+      y = y - 38
+    else
+      bankButton:Hide()
+    end
     clearButton:SetPoint("TOPLEFT", 14, y)
     y = y - 30
   end
-  if atAH then vendButton:Hide() end
+  if atAH then vendButton:Hide(); bankButton:Hide() end
   S:SetHeight(-y + 18)
 end
 
@@ -950,6 +1001,8 @@ function ns.OnVendor(open)
     if S.byVendor then S:Hide() else ns.RefreshList() end
   end
 end
+
+function ns.ListShown() return S:IsShown() end
 
 function ns.ToggleList()
   if S:IsShown() then S:Hide() else S.byAH = AH.open; S:Show() end
