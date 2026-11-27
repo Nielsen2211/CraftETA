@@ -586,7 +586,23 @@ function ns.PlacePanel()
     if side == "left" then
       P:SetPoint("TOPRIGHT", frame, "TOPLEFT", -14, 0)
     else
-      P:SetPoint("TOPLEFT", frame, "TOPRIGHT", 56, 0)   -- clear of the profession tabs along its right edge
+      -- clear of the side tabs along its right edge (the client's and ForeverCore's): measured, at least 56
+      local gap = 56
+      local fr = frame:GetRight()
+      if fr then
+        local function look(f, depth)
+          for _, ch in ipairs({ f:GetChildren() }) do
+            if ch ~= P and ch.IsShown and ch:IsShown() then
+              local r, l = ch:GetRight(), ch:GetLeft()
+              -- a tab sits just outside the right edge; anything far out is not part of the window
+              if r and l and l >= fr - 30 and r - fr < 120 then gap = math.max(gap, r - fr + 10) end
+              if depth < 2 then look(ch, depth + 1) end
+            end
+          end
+        end
+        pcall(look, frame, 1)
+      end
+      P:SetPoint("TOPLEFT", frame, "TOPRIGHT", gap, 0)
     end
   else
     P.docked = false
@@ -619,6 +635,8 @@ local function OpenWithWindow()
     ns.Refresh()
   end)
   C_Timer.After(0.4, function() if P:IsShown() then ns.PlacePanel(); ns.Refresh() end end)
+  -- side tabs from other addons are laid out a moment later: measure again
+  C_Timer.After(1.2, function() if P:IsShown() and P.docked then ns.PlacePanel() end end)
 end
 ns.Register("TRADE_SKILL_SHOW")
 ns.On("TRADE_SKILL_SHOW", OpenWithWindow)

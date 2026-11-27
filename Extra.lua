@@ -161,7 +161,13 @@ local function WindowLeft(entry)
     local okI, info = pcall(ui.GetRecipeInfo, id)
     if okI and type(info) == "table" and Plain(info.name) and info.learned ~= false then
       local ok, cd = pcall(ui.GetRecipeCooldown, id)
-      if ok then return math.max(0, Plain(cd) or 0) end
+      -- nil means ready; a hidden (secret) number means "can't tell", never "ready"
+      if ok then
+        if cd == nil then return 0 end
+        local v = Plain(cd)
+        if type(v) ~= "number" then return nil end
+        return math.max(0, v)
+      end
     end
   end
   return nil
@@ -193,6 +199,9 @@ function ns.ReadCooldowns()
         if was and was.ready - now > 8 * 86400 then c.cd[entry[1]] = nil end
       else
       local ready = now + math.max(0, left)
+      -- a running cooldown never gets shorter by itself: only the profession window may move it sooner.
+      -- Without this, a short or wrong number from the spell API made "ready" show up a day too early.
+      if not windowLeft and was and was.ready > now + 5 and ready < was.ready - 60 then ready = was.ready end
       -- the game sometimes answers 0 while the cooldown runs (the global cooldown, a hidden value):
       -- a cooldown we know is still running stays as it is
       if left <= 0 and was and was.ready > now + 5 and was.ready - now <= 8 * 86400 then ready = was.ready end

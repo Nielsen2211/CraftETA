@@ -58,6 +58,15 @@ local function Create()
   local border = b:CreateTexture(nil, "OVERLAY")
   border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
   border:SetSize(53, 53); border:SetPoint("TOPLEFT")
+  -- look like a LibDBIcon button: centred like the others in minimap bags, and skins such as
+  -- DarkMode (which dress every "LibDBIcon10_" button, ring included) dress this one too
+  bg:ClearAllPoints(); icon:ClearAllPoints(); border:ClearAllPoints(); border:SetPoint("TOPLEFT")
+  if AddonCompartmentFrame then
+    border:SetSize(50, 50); bg:SetSize(24, 24); bg:SetPoint("CENTER"); icon:SetSize(18, 18); icon:SetPoint("CENTER")
+  else
+    border:SetSize(53, 53); bg:SetSize(20, 20); bg:SetPoint("TOPLEFT", 7, -5); icon:SetSize(17, 17); icon:SetPoint("TOPLEFT", 7, -6)
+  end
+  if _G["LibDBIcon10_CraftETA"] == nil then _G["LibDBIcon10_CraftETA"] = b end
   b:SetScript("OnClick", function(_, which) Click(which) end)
   b:SetScript("OnDragStart", function(self) self:SetScript("OnUpdate", Drag) end)
   b:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)

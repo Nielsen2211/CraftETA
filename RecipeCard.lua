@@ -184,6 +184,23 @@ local function Obstacles(out, parent, depth)
   return out
 end
 
+-- how much of the card shows: "full", "noUps" (no skill-up part) or "min" (just the guide)
+local function Layout(mode)
+  local r = card.hasBar
+  local ups = mode == "full"
+  card.upHead:SetShown(ups); card.up:SetShown(ups); card.bar:SetShown(ups and r)
+  card.matHead:SetShown(mode ~= "min"); card.mat:SetShown(mode ~= "min")
+  card.matHead:ClearAllPoints(); card.mat:ClearAllPoints()
+  local y = ups and (r and -116 or -94) or -62
+  card.matHead:SetPoint("TOPLEFT", PAD, y)
+  card.mat:SetPoint("TOPLEFT", PAD, y - 12)
+  card.mat:SetPoint("RIGHT", card, "RIGHT", -PAD, 0)
+  local full = card.fullH or 150
+  if mode == "full" then return full end
+  if mode == "noUps" then return full - (r and 54 or 32) end
+  return 64
+end
+
 local function KeepClear()
   if not card or not card:IsShown() or not form then return end
   local base = 30
@@ -191,7 +208,6 @@ local function KeepClear()
   local fl, fr = form:GetLeft(), form:GetRight()
   if not (fb and ft and fl and fr) then return end
   local formH, formW = ft - fb, fr - fl
-  local h = card:GetHeight()
   local left, right = fl + 8, fr - 8
   -- the lowest thing above the card's spot: the card's top has to stay under it
   local floor = formH
@@ -212,20 +228,28 @@ local function KeepClear()
     end
   end
   card:ClearAllPoints()
-  if floor - 4 - base >= h then
+  -- stay inside the window: drop the skill-up part, then the materials, before going outside it
+  local room = floor - 4 - base
+  local h
+  for _, mode in ipairs({ "full", "noUps", "min" }) do
+    h = Layout(mode)
+    if h <= room then break end
+    h = nil
+  end
+  if h then
+    card:SetHeight(h)
     card:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 8, base)
     card:SetPoint("BOTTOMRIGHT", form, "BOTTOMRIGHT", -8, base)
     anchored = "in"
   else
-    -- no room inside: outside the window
+    -- no room even for the guide line: under the CraftETA panel
+    card:SetHeight(Layout("full"))
     local panel = ns.Panel
-    local pl = panel and panel:IsShown() and panel:GetLeft()
-    local wr = ProfessionsFrame and ProfessionsFrame:GetRight()
-    if pl and wr and math.abs(pl - wr) < 40 then
+    if panel and panel:IsShown() then
       card:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 0, -6)
       card:SetWidth(panel:GetWidth())
     elseif ProfessionsFrame then
-      card:SetPoint("TOPLEFT", ProfessionsFrame, "TOPRIGHT", 4, -60)
+      card:SetPoint("TOPLEFT", ProfessionsFrame, "TOPRIGHT", 56, -60)   -- clear of the side tabs
       card:SetWidth(math.max(300, formW - 16))
     else
       card:SetPoint("BOTTOMLEFT", form, "BOTTOMLEFT", 8, base)
@@ -379,12 +403,8 @@ local function Update()
     card.list:Hide()
   end
   card.mat:SetText(table.concat(parts, "\n"))
-  card:SetHeight((r and 160 or 140) + lines * 14)
-  if r then
-    card.matHead:SetPoint("TOPLEFT", PAD, -116); card.mat:SetPoint("TOPLEFT", PAD, -128)
-  else
-    card.matHead:SetPoint("TOPLEFT", PAD, -94); card.mat:SetPoint("TOPLEFT", PAD, -106)
-  end
+  card.hasBar = r and true or false
+  card.fullH = (r and 160 or 140) + lines * 14
   card:Show()
   KeepClear()
 end

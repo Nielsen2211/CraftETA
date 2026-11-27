@@ -54,7 +54,7 @@ local ID = {
   ["Shiny Red Apple"] = 4536, ["Silk Bandage"] = 6450, ["Silk Cloth"] = 4306, ["Silken Thread"] = 4291,
   ["Silver Bar"] = 2842, ["Silver Contact"] = 4404, ["Silver Rod"] = 6338, ["Slitherskin Mackerel"] = 787,
   ["Small Silk Pack"] = 4245, ["Smoked Bear Meat"] = 6890, ["Solid Blasting Powder"] = 10505,
-  ["Solid Grinding Stone"] = 7966, ["Solid Stone"] = 7912, ["Soothing Spices"] = 3713,
+  ["Solid Grinding Stone"] = 7966, ["Solid Sharpening Stone"] = 7964, ["Greater Magic Wand"] = 11288, ["Simple Wood"] = 4470, ["Solid Stone"] = 7912, ["Soothing Spices"] = 3713,
   ["Soothing Turtle Bisque"] = 3729, ["Spotted Yellowtail"] = 6887, ["Standard Scope"] = 4406, ["Star Ruby"] = 7910,
   ["Steel Bar"] = 3859, ["Stonescale Eel"] = 13422, ["Stonescale Oil"] = 13423, ["Stranglethorn Seed"] = 17035,
   ["Strider Meat"] = 5469, ["Strider Stew"] = 5477, ["Stringy Wolf Meat"] = 2672, ["Tangy Clam Meat"] = 5504,
