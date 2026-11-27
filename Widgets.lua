@@ -190,6 +190,7 @@ function ns.Window(name, width, title)
   stroke:SetSize(22, 2)
   stroke:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -5)
   stroke:SetColorTexture(1, 0.8, 0.35, 0.9)
+  f.stroke = stroke
   local close = CreateFrame("Button", nil, f)
   close:SetSize(20, 20)
   close:SetPoint("TOPRIGHT", -8, -8)

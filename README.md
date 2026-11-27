@@ -18,6 +18,12 @@
 - **Specializations**, **Crafters** (who in your guild can make it), **Gold** (craft profit and what is worth farming), **Codex** (recipes and where materials come from), **Camping** and **Cooldowns**.
 - **Item tracker** and **farming tracker** (loot, value, gold per hour).
 
+## Crafting: make a number of one thing
+- **"I want 20 Iron Grenades"**: press **Craft...** on the CraftETA card in the profession window, use the **Crafting** page in the main window, or type `/ceta craft 20 Iron Grenade`.
+- CraftETA works out every material behind it, makes the ones you can make yourself first (Heavy Blasting Powder before the grenades), and takes off what you already have.
+- **Steps in order** with a Craft button, a **shopping list** for the rest, and the cost next to buying the finished items on the auction house. Several at once; it counts what you make and clears an order when it is done.
+- In the panel beside the profession window it is its own tab: **Professions** (the guide) and **Crafting**.
+
 ## Skill-up chance
 - **The chance of a skill-up on every recipe** in the profession window, in its colour (orange, yellow, green, grey), and a green + on a craft that earns money.
 - Hover a recipe: a bar of where it turns yellow, green and grey with your skill on it, and what one skill-up costs in materials.

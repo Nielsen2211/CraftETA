@@ -11,6 +11,7 @@ local H = ns.Window("CraftETAHub", WIDTH)
 ns.Hub = H
 H:SetHeight(HEIGHT)
 H.title:Hide()
+H.stroke:Hide()   -- the gold stroke under the (hidden) title stuck out of the logo
 H.close:ClearAllPoints()
 H.close:SetPoint("TOPRIGHT", -6, -6)
 H.close:SetSize(16, 16)
@@ -35,6 +36,7 @@ ns.ProfIcon = ProfIcon
 local MENU = {
   { "home", "Interface\\Icons\\INV_Misc_Note_01" },
   { "guide", "Interface\\Icons\\INV_Misc_Book_11" },
+  { "craft", "Interface\\Icons\\Trade_Engineering" },
   { "list", "Interface\\Icons\\INV_Misc_Note_05", function() ns.ToggleList() end },
   { "sep" },
   { "alts", "Interface\\Icons\\INV_Misc_GroupLooking" },

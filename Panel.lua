@@ -23,7 +23,7 @@ end
 
 local profIcon = P:CreateTexture(nil, "ARTWORK")
 profIcon:SetSize(28, 28)
-profIcon:SetPoint("TOPLEFT", 14, -40)
+profIcon:SetPoint("TOPLEFT", 14, -66)   -- under the tabs
 profIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 local profText = ns.Font(P, true, 14, 0.9, 0.91, 0.94)
 profText:SetPoint("TOPLEFT", profIcon, "TOPRIGHT", 9, 1)
@@ -32,7 +32,7 @@ profText:SetWordWrap(false)
 local profSub = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
 profSub:SetPoint("BOTTOMLEFT", profIcon, "BOTTOMRIGHT", 9, 0)
 local bigRank = ns.Font(P, true, 20, 1, 0.82, 0.29)
-bigRank:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, -38)
+bigRank:SetPoint("TOPRIGHT", P, "TOPRIGHT", -14, -64)
 bigRank:SetJustifyH("RIGHT")
 local bigOf = ns.Font(P, false, 9, 0.36, 0.38, 0.42)
 bigOf:SetPoint("TOPRIGHT", bigRank, "BOTTOMRIGHT", 0, -1)
@@ -65,11 +65,33 @@ compactButton:SetScript("OnEnter", function(self)
 end)
 compactButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+-- two tabs under the title: the leveling guide, and Crafting (make a number of one thing, Crafting.lua)
+local tabs = {}
+local function TabLook()
+  local on = (ns.db and ns.db.panelTab) or "guide"
+  for key, b in pairs(tabs) do
+    local sel = key == on
+    b.bg:SetColorTexture(sel and 0.16 or 0.1, sel and 0.17 or 0.11, sel and 0.21 or 0.14, 0.95)
+    b.label:SetTextColor(sel and 1 or 0.6, sel and 0.82 or 0.62, sel and 0.3 or 0.67)
+  end
+end
+for i, key in ipairs({ "guide", "craft" }) do
+  local b = ns.Button(P, "", (WIDTH - 28 - 6) / 2, 20)
+  b:SetPoint("TOPLEFT", 14 + (i - 1) * ((WIDTH - 28 - 6) / 2 + 6), -36)
+  b.label:SetFont(ns.F_BOLD, 11, "")
+  b:SetScript("OnClick", function()
+    ns.db.panelTab = key
+    ns.RefreshPanel()
+  end)
+  tabs[key] = b
+end
+ns.PanelTabLook = TabLook
+
 local bar = ns.Bar(P, WIDTH - 28)
-bar:SetPoint("TOPLEFT", 14, -80)
+bar:SetPoint("TOPLEFT", 14, -106)
 
 local etaRank = ns.Font(P, false, 10, 0.85, 0.87, 0.9)
-etaRank:SetPoint("TOPLEFT", 14, -93)
+etaRank:SetPoint("TOPLEFT", 14, -119)
 etaRank:SetPoint("RIGHT", P, "RIGHT", -14, 0)
 local etaAll = ns.Font(P, false, 10, 0.5, 0.52, 0.57)
 etaAll:SetPoint("TOPLEFT", etaRank, "BOTTOMLEFT", 0, -3)
@@ -283,8 +305,22 @@ local function PickProfession(skills)
   return nil
 end
 
+local GUIDE_PARTS
 function ns.RefreshPanel()
   if not P:IsShown() or not ns.db then return end
+  tabs.guide:SetText(T("t_guide")); tabs.craft:SetText("Crafting"); TabLook()
+  GUIDE_PARTS = GUIDE_PARTS or { profIcon, profText, profSub, bigRank, bigOf, compactButton, bar, etaRank, etaAll, warn, warnBg, warnPin, card, stepHead,
+    recipeIcon, recipeName, diffDot, recipeCount, leftPill, prevChoice, nextChoice, note, craftBtn, addList, status, nextHead, nextLine, source, skipBack, skipNext }
+  if ns.db.panelTab == "craft" and ns.RefreshCraftView then
+    for _, w in ipairs(GUIDE_PARTS) do w:Hide() end
+    for _, r in ipairs(matRows) do r:Hide() end
+    local h = ns.RefreshCraftView()
+    P:SetHeight(62 + h + 10)
+    return
+  end
+  if ns.HideCraftView then ns.HideCraftView() end
+  compactButton:Show()
+  profText:Show()
   compactButton.icon:SetTexture(ns.db.panelCompact and "Interface\\Buttons\\Arrow-Down-Up" or "Interface\\Buttons\\Arrow-Up-Up")
   local skills = ns.Skills()
   local profID, open = PickProfession(skills)
@@ -300,7 +336,7 @@ function ns.RefreshPanel()
     profText:SetText(T("noProf"))
     for _, w in ipairs({ bar, etaRank, etaAll, warn, warnBg, card, stepHead, recipeName, recipeCount, diffDot, leftPill, note, craftBtn, addList, status, nextHead, nextLine, source, profSub, bigRank, bigOf }) do w:Hide() end
     recipeIcon:Hide()
-    P:SetHeight(90)
+    P:SetHeight(116)
     return
   end
   local skill = skills[profID] or { rank = open and open.rank or 1, max = open and open.max or 75 }
@@ -336,7 +372,7 @@ function ns.RefreshPanel()
     local rate = ns.PerHour(profID)
     etaAll:SetText(state.target < 300 and etaLine(300, T("to300")) or (rate and T("perHour", rate) or ""))
   end
-  y = -93 - 30
+  y = -119 - 30
 
   -- a rank to learn
   local nextRank = ns.NextRank(profID, rank, max)
@@ -548,7 +584,7 @@ function ns.RefreshPanel()
     -- compact: the craft, how many are left, and the Craft button, right under your skill
     for _, r in ipairs(matRows) do r:Hide() end
     for _, w in ipairs({ etaRank, etaAll, note, status, nextHead, nextLine, stepHead, skipBack, skipNext, prevChoice, nextChoice }) do w:Hide() end
-    local cy = -92
+    local cy = -118
     if warnBg:IsShown() then
       local h = warn:GetStringHeight() + 14
       warn:ClearAllPoints(); warn:SetPoint("TOPLEFT", 24, cy - 14); warn:SetPoint("RIGHT", P, "RIGHT", -40, 0)
@@ -694,7 +730,7 @@ function ns.RefreshGatherPanel(open)
   etaRank:SetText(rank >= 300 and ("|cff4dcc66" .. T("done") .. "|r") or ("|cffffffff" .. T("toRank", math.min(300, max)) .. "|r  ·  " .. math.max(0, math.min(300, max) - rank) .. " skill"))
   etaAll:SetText(rate and T("perHour", rate) or "")
   etaRank:Show(); etaAll:Show()
-  local y = -93 - 30
+  local y = -119 - 30
 
   -- a rank to learn, with the map button
   local nextRank = ns.NextRank(open.id, rank, max)

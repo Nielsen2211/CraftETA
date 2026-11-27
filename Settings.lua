@@ -145,6 +145,9 @@ end
 SLASH_CRAFTETA1 = "/ceta"
 SLASH_CRAFTETA2 = "/crafteta"
 SlashCmdList.CRAFTETA = function(msg)
+  -- /ceta craft 20 Iron Grenade: the item name keeps its letters, so before the lower-casing
+  local craftRest = string.match(msg or "", "^%s*[Cc][Rr][Aa][Ff][Tt]%s+(.+)$")
+  if craftRest and ns.db and ns.OrderCommand then ns.OrderCommand(craftRest); return end
   msg = string.lower(string.match(msg or "", "^%s*(.-)%s*$") or "")
   if not ns.db then return end
   if msg == "" or msg == "hub" then ns.ToggleHub()
