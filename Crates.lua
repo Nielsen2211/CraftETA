@@ -620,7 +620,7 @@ local scanAge = ns.Font(plan, false, 9, 0.45, 0.47, 0.52); scanAge:SetPoint("BOT
 local fillBtn = CreateFrame("Button", "CraftETAFillCrate", plan, "SecureActionButtonTemplate")
 fillBtn:SetSize(220, 26); fillBtn:SetPoint("BOTTOMLEFT", 16, 12)
 fillBtn:RegisterForClicks("AnyUp", "AnyDown")
-fillBtn:SetAttribute("type", "item")
+fillBtn:SetAttribute("type", "macro")
 fillBtn.bg = ns.Round(fillBtn, "BACKGROUND", 0); fillBtn.bg:SetAllPoints()
 fillBtn.label = ns.Font(fillBtn, true, 11, 0.1, 0.08, 0.03); fillBtn.label:SetPoint("CENTER"); fillBtn.label:SetShadowOffset(0, 0)
 local fillHl = ns.Round(fillBtn, "HIGHLIGHT", 0); fillHl:SetAllPoints(); fillHl:SetColorTexture(1, 1, 1, 0.12)
@@ -633,7 +633,7 @@ fillBtn:HookScript("OnEnter", function(self)
   GameTooltip:SetOwner(self, "ANCHOR_TOP")
   GameTooltip:SetText(L("Fill a crate", "Fyld en kasse"), 1, 0.82, 0.3)
   if self.crate then
-    GameTooltip:AddLine(L("Click: uses %s. With the materials in your bags the game seals it.", "Klik: bruger %s. Med materialerne i tasken forsegler spillet den."):format(self.crate), 0.85, 0.87, 0.9, true)
+    GameTooltip:AddLine(L("Click: fills %s with %s by itself.", "Klik: fylder %s med %s af sig selv."):format(self.crate, self.mat or "?"), 0.85, 0.87, 0.9, true)
   else
     GameTooltip:AddLine(L("No crate in your bags that you have the materials for.", "Ingen kasse i tasken, som du har materialerne til."), 0.85, 0.87, 0.9, true)
   end
@@ -641,7 +641,26 @@ fillBtn:HookScript("OnEnter", function(self)
 end)
 fillBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
--- the crates you can fill now: { name, bag, slot }
+-- where a material lies in your bags (the biggest stack), so the click can point the crate at it by itself
+local function MatSlot(name)
+  local id = MatID(name)
+  local C = C_Container
+  if not (id and C and C.GetContainerNumSlots and C.GetContainerItemInfo) then return end
+  local best, bb, bs = 0
+  for bag = 0, 5 do
+    local okN, slots = pcall(C.GetContainerNumSlots, bag)
+    for slot = 1, (okN and tonumber(Plain(slots)) or 0) do
+      local ok, info = pcall(C.GetContainerItemInfo, bag, slot)
+      if ok and type(info) == "table" and Plain(info.itemID) == id then
+        local n = tonumber(Plain(info.stackCount)) or 1
+        if n > best then best, bb, bs = n, bag, slot end
+      end
+    end
+  end
+  return bb, bs
+end
+
+-- the crates you can fill now: { name, bag, slot, mat, mbag, mslot }
 local function Fillable()
   local out = {}
   local level = UnitLevel("player") or 1
@@ -649,7 +668,11 @@ local function Fillable()
     local c = b.crate
     if c and not b.sealed and b.bag and level >= (LVL[c[1]] or 1) then
       for k = 4, #c do
-        if Have(c[k][1]) >= c[k][2] then out[#out + 1] = { name = b.name, bag = b.bag, slot = b.slot }; break end
+        if Have(c[k][1]) >= c[k][2] then
+          local mb, ms = MatSlot(c[k][1])
+          out[#out + 1] = { name = b.name, bag = b.bag, slot = b.slot, mat = c[k][1], mbag = mb, mslot = ms }
+          break
+        end
       end
     end
   end
@@ -660,12 +683,16 @@ function page:UpdateFill()
   local list = Fillable()
   local first = list[1]
   if first then
-    fillBtn:SetAttribute("item", first.bag .. " " .. first.slot)
+    -- use the crate, then the material: the hand cursor gets its target in the same click
+    local text = "/use " .. first.bag .. " " .. first.slot
+    if first.mbag then text = text .. "\n/use " .. first.mbag .. " " .. first.mslot .. "\n/run if SpellIsTargeting() then SpellStopTargeting() end" end
+    fillBtn:SetAttribute("macrotext", text)
     fillBtn.crate = first.name
+    fillBtn.mat = first.mat
     fillBtn.label:SetText(L("Fill crate (%d ready)", "Fyld kasse (%d klar)"):format(#list))
     FillLook(true)
   else
-    fillBtn:SetAttribute("item", nil)
+    fillBtn:SetAttribute("macrotext", "")
     fillBtn.crate = nil
     fillBtn.label:SetText(L("No crate to fill", "Ingen kasse at fylde"))
     FillLook(false)

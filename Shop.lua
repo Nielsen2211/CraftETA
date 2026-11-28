@@ -358,6 +358,7 @@ local function ScanNext()
   if not item then
     scanning = nil
     ns.Refresh()
+    C_Timer.After(0.5, function() if ns.NextCrate then ns.NextCrate() end end)
     return
   end
   scanning.current = item
@@ -516,6 +517,34 @@ local function Current(items)
   return nil
 end
 
+-- a crate is sold one by one: look up the cheapest, so the next click on the buy button buys it
+local function FindCrate(item)
+  local id = ns.ItemID(item.name)
+  if not id then return end
+  local key = C_AuctionHouse.MakeItemKey(id)
+  buying = { name = item.name, id = id, qty = 1, crate = true, key = key }
+  Throttled(function()
+    local sort = Enum and Enum.AuctionHouseSortOrder and { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } } or {}
+    C_AuctionHouse.SendSearchQuery(key, sort, true)
+  end)
+  C_Timer.After(6, function()
+    if buying and buying.crate and buying.id == id and not buying.auctionID then
+      buying = nil; AH.skip[item.name] = true
+      ns.Print(T("notListed") .. ": " .. item.name)
+      ns.Refresh()
+    end
+  end)
+  ns.Refresh()
+end
+-- the next crate on the list gets looked up by itself (after a buy, and when the auction house opens),
+-- so each crate is one click instead of two, like the materials
+local function NextCrate()
+  if not AH.open or buying or scanning then return end
+  local ok, item = pcall(Current, ns.ListItems())
+  if ok and item and item.crate then pcall(FindCrate, item) end
+end
+ns.NextCrate = NextCrate
+
 buyButton:SetScript("OnClick", function()
   if buying and buying.crate then
     -- a crate (sold one by one): first click finds the cheapest, the next one buys it
@@ -547,20 +576,7 @@ buyButton:SetScript("OnClick", function()
   local id = ns.ItemID(item.name)
   if not id then return end
   if item.crate then
-    local key = C_AuctionHouse.MakeItemKey(id)
-    buying = { name = item.name, id = id, qty = 1, crate = true, key = key }
-    Throttled(function()
-      local sort = Enum and Enum.AuctionHouseSortOrder and { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } } or {}
-      C_AuctionHouse.SendSearchQuery(key, sort, true)
-    end)
-    C_Timer.After(6, function()
-      if buying and buying.crate and not buying.auctionID then
-        buying = nil; AH.skip[item.name] = true
-        ns.Print(T("notListed") .. ": " .. item.name)
-        ns.Refresh()
-      end
-    end)
-    ns.Refresh()
+    FindCrate(item)
     return
   end
   local qty = math.min(item.still, (s and s.avail) or item.still)
@@ -578,6 +594,7 @@ skipButton:SetScript("OnClick", function()
   local item = Current(ns.ListItems())
   if item then AH.skip[item.name] = true end
   ns.Refresh()
+  C_Timer.After(0.3, function() if ns.NextCrate then ns.NextCrate() end end)
 end)
 
 local function OnPrice(unitPrice, totalPrice)
@@ -622,6 +639,7 @@ local function OnCrateBought()
   session.est = (session.est or 0) + ((ns.CratePrice and ns.CratePrice(b.name)) or b.total or 0)
   ns.Print(T("boughtMsg", 1, b.name, ns.Money(b.total)))
   ns.Refresh()
+  C_Timer.After(0.8, function() if ns.NextCrate then ns.NextCrate() end end)
 end
 
 local function OnFailed()
@@ -644,6 +662,7 @@ for event, fn in pairs({
           if AH.open and not scanning then ns.ScanPrices() end
         end)
       end
+      C_Timer.After(2.5, function() if ns.NextCrate then ns.NextCrate() end end)
     end
   end,
   AUCTION_HOUSE_CLOSED = function()
