@@ -159,6 +159,7 @@ local function Ago(t)
 end
 function ns.UpdateScanButton()
   if not ns.db then return end
+  ns.UpdateDataStatus()
   local da = ns.db.lang == "da"
   local i, n, last = ns.QuickScanState()
   local atAH = AuctionHouseFrame and AuctionHouseFrame:IsShown()
@@ -169,7 +170,20 @@ function ns.UpdateScanButton()
     scanBtn:SetText((da and "Indkøbsliste %d / %d" or "Shopping list %d / %d"):format(math.min(i, n), n))
     scanBtn:Enable()
   else
-    scanBtn:SetText(da and "Scan AH" or "Scan AH")
+    -- the age of the prices on the button: "Scan AH  ·  12 min"
+    local last = ns.DataLast and ns.DataLast()
+    local age
+    if last then
+      local m = math.floor((time() - last) / 60)
+      if m < 1 then age = da and "nu" or "now"
+      elseif m < 60 then age = m .. " min"
+      elseif m < 1440 then age = math.floor(m / 60) .. (da and " t" or " h")
+      else age = math.floor(m / 1440) .. " d" end
+      -- dark green under 2 h, dark red after a day (the button is gold)
+      local col = m < 120 and "|cff1d5a22" or (m < 1440 and "|cff3a2e10" or "|cff7a1a12")
+      age = col .. age .. "|r"
+    end
+    scanBtn:SetText("Scan AH" .. (age and ("  ·  " .. age) or ""))
     scanBtn:SetEnabled(atAH and true or false)
   end
   scanBtn.tip = (i and (da and "Klik for at stoppe." or "Click to stop.") or
@@ -178,6 +192,68 @@ function ns.UpdateScanButton()
     .. (atAH and "" or ("\n" .. (da and "Åbn auktionshuset først." or "Open the auction house first.")))))
     .. (last and ("\n" .. (da and "Sidste scan: " or "Last scan: ") .. Ago(last)) or "")
 end
+-- the data CraftETA works from: a line over the scan button (a dot by age), all of it in the tooltip
+-- sits on the Scan AH button itself: a dot by the age of the prices, and the details in its tooltip
+local dataBtn = scanBtn
+local dataDot = ns.Round(scanBtn, "OVERLAY", 2)
+dataDot:SetSize(7, 7); dataDot:SetPoint("LEFT", 8, 0); dataDot:Hide()
+local dataText = { SetText = function() end }
+local function Newest(...)
+  local best
+  for i = 1, select("#", ...) do
+    local t = select(i, ...)
+    if t and (not best or t > best) then best = t end
+  end
+  return best
+end
+function ns.DataLast()
+  local newest
+  if ns.PriceStats then _, _, newest = ns.PriceStats() end
+  return Newest(ns.db.lastQuickScan, newest, ns.db.crateAH and ns.db.crateAH.t)
+end
+function ns.UpdateDataStatus()
+  if not ns.db then return end
+  local da = ns.db.lang == "da"
+  local _, _, newest = 0, 0, nil
+  if ns.PriceStats then _, _, newest = ns.PriceStats() end
+  local last = ns.DataLast()
+  local age = last and (time() - last) or nil
+  if not age then dataDot:SetColorTexture(0.45, 0.47, 0.52, 1)
+  elseif age < 2 * 3600 then dataDot:SetColorTexture(0.35, 0.78, 0.42, 1)
+  elseif age < 24 * 3600 then dataDot:SetColorTexture(1, 0.82, 0.29, 1)
+  else dataDot:SetColorTexture(0.85, 0.35, 0.3, 1) end
+  dataText:SetText((da and "Priser: " or "Prices: ") .. (last and Ago(last) or (da and "ingen endnu" or "none yet")))
+end
+dataBtn:HookScript("OnEnter", function(self)
+  local da = ns.db.lang == "da"
+  local function L(en, dk) return da and dk or en end
+  local function When(t) return t and Ago(t) or ("|cff8c8f96" .. L("never", "aldrig") .. "|r") end
+  local W, G = 1, 1
+  if not GameTooltip:IsOwned(self) then GameTooltip:SetOwner(self, "ANCHOR_RIGHT") else GameTooltip:AddLine(" ") end
+  GameTooltip:AddLine(L("The data CraftETA uses", "Data CraftETA bruger"), 1, 0.82, 0.3)
+  GameTooltip:AddDoubleLine(L("Auction house scan", "Scanning af AH"), When(ns.db.lastQuickScan), 0.85, 0.87, 0.9, W, W, W)
+  if ns.PriceStats then
+    local fresh, known, newest, keep = ns.PriceStats()
+    GameTooltip:AddDoubleLine(L("Material prices", "Materialepriser"),
+      L("%d fresh of %d", "%d friske af %d"):format(fresh, known), 0.85, 0.87, 0.9, W, W, W)
+    GameTooltip:AddDoubleLine(L("  newest price", "  nyeste pris"), When(newest), 0.6, 0.62, 0.67, W, W, W)
+  end
+  local crates = ns.db.crateAH
+  GameTooltip:AddDoubleLine(L("Crate scan", "Kasse-scanning"),
+    crates and (Ago(crates.t) .. "  ·  " .. L("%d kinds", "%d slags"):format(#(crates.list or {}))) or When(nil), 0.85, 0.87, 0.9, W, W, W)
+  GameTooltip:AddDoubleLine(L("Favor plan calculated", "Favor-plan regnet ud"), When(ns.db.favorPlanAt), 0.85, 0.87, 0.9, W, W, W)
+  local names = {}
+  for _, src in ipairs(ns.ActiveSources and ns.ActiveSources() or {}) do names[#names + 1] = src.name or src.key end
+  GameTooltip:AddDoubleLine(L("Price addons", "Pris-addons"),
+    #names > 0 and table.concat(names, ", ") or ("|cff8c8f96" .. L("none: CraftETA's own scan", "ingen: CraftETA's egen scan") .. "|r"), 0.85, 0.87, 0.9, W, W, W)
+  GameTooltip:AddLine(" ")
+  GameTooltip:AddLine(L("Prices from your own scan are used for 2 hours. After that the price addons' prices are used, else the last known.",
+    "Priser fra din egen scanning bruges i 2 timer. Derefter bruges pris-addonsenes priser, ellers den sidst kendte."), 0.6, 0.62, 0.67, true)
+  GameTooltip:AddLine(L("Green: under 2 h  ·  yellow: under a day  ·  red: older", "Grøn: under 2 t  ·  gul: under et døgn  ·  rød: ældre"), 0.6, 0.62, 0.67, true)
+  GameTooltip:Show()
+end)
+C_Timer.NewTicker(30, function() if H:IsShown() and ns.UpdateScanButton then ns.UpdateScanButton() end end)
+
 local meName = ns.Font(side, true, 12)
 meName:SetPoint("BOTTOMLEFT", 14, 28)
 local meSub = ns.Font(side, false, 10, 0.55, 0.58, 0.64)

@@ -58,6 +58,22 @@ local function Fresh(id)
   return nil
 end
 
+-- how much price data CraftETA has: { fresh, known, newest } over the ladders and the browse prices
+function ns.PriceStats()
+  local now, fresh, known, newest = time(), 0, 0, nil
+  local seen = {}
+  local function Count(id, t)
+    if not t or seen[id] then return end
+    seen[id] = true
+    known = known + 1
+    if now - t < FRESH then fresh = fresh + 1 end
+    if not newest or t > newest then newest = t end
+  end
+  for id, l in pairs(Ladders() or {}) do Count(id, l.t) end
+  for id, b in pairs(ns.db and ns.db.browse or {}) do if b.p then Count(id, b.t) end end
+  return fresh, known, newest, FRESH
+end
+
 -- one unit at today's price: a fresh ladder, else the auction addons (Sources.lua: their latest scan,
 -- then usual), else CraftETA's own scan
 function ns.BuyUnit(name)

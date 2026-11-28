@@ -271,43 +271,110 @@ local function StockNow()
 end
 
 -- the plan to reach `goal` favor: crates in your bags first, then the auction house's, cheapest favor first
+-- the plan is worked out once per crate scan (and favor to go): only a newer scan, a new goal or a new
+-- level works it out again. Working it out on every redraw is what made the window slow to open
+local planCache = {}
+local function PlanDirty() wipe(planCache) end
+ns.FavorPlanDirty = PlanDirty
+ns.Register("PLAYER_LEVEL_UP"); ns.On("PLAYER_LEVEL_UP", PlanDirty)
+local Work
+-- a plan not worked out yet is worked out a bit at a time (a few ms each frame), so the game doesn't stall;
+-- meanwhile FavorPlan returns nil and ns.FavorWorking() says how far it is
+local jobs, queue = {}, {}
+local runner = CreateFrame("Frame")
+runner:Hide()
+runner:SetScript("OnUpdate", function(self)
+  local start = debugprofilestop()
+  while queue[1] and debugprofilestop() - start < 6 do
+    local key = queue[1]
+    local j = jobs[key]
+    local ok, a, b, g = coroutine.resume(j.co)
+    if not ok then
+      table.remove(queue, 1); jobs[key] = nil
+      planCache[key] = { {}, 0, 0 }
+      geterrorhandler()(a)
+    elseif coroutine.status(j.co) == "dead" then
+      table.remove(queue, 1); jobs[key] = nil
+      planCache[key] = { a, b, g }
+      ns.db.favorPlanned = true
+      ns.db.favorPlanAt = time()
+      C_Timer.After(0, function()
+        if ns.RefreshHub then ns.RefreshHub() end
+        if ns.Refresh then pcall(ns.Refresh) end
+      end)
+    else
+      j.done = a or j.done
+    end
+  end
+  if not queue[1] then self:Hide() end
+  if ns.FavorProgress then ns.FavorProgress() end
+end)
+function ns.FavorWorking()
+  local key = queue[1]
+  if not key then return nil end
+  return jobs[key].done or 0, not ns.db.favorPlanned
+end
 function ns.FavorPlan(goal)
+  local key = goal .. ":" .. tostring(ns.db.crateAH and ns.db.crateAH.t)
+  local c = planCache[key]
+  if c then return c[1], c[2], c[3] end
+  if not jobs[key] then
+    jobs[key] = { co = coroutine.create(function() return Work(goal) end), done = 0 }
+    queue[#queue + 1] = key
+    runner:Show()
+  end
+  return nil
+end
+Work = function(goal)
   local level = UnitLevel("player") or 1
   local stock = StockNow()
+  coroutine.yield(0.02)
   local byKey = {}
   for _, c in ipairs(ns.CRATES) do byKey[CrateName(c)] = c end
   local sources = {}
   for _, b in ipairs(ns.BagCrates()) do
     if b.crate and not b.sealed and b.crate[3] and level >= LVL[b.crate[1]] and (b.quality or 1) <= 2 then
-      for _ = 1, b.count do sources[#sources + 1] = { crate = b.crate, from = "bag", cost = 0, name = b.name, id = b.id, back = Back(b.crate, b.quality) } end
+      sources[#sources + 1] = { crate = b.crate, from = "bag", cost = 0, name = b.name, id = b.id, back = Back(b.crate, b.quality), left = b.count }
     end
   end
   local ah = ns.db.crateAH and ns.db.crateAH.list or {}
   for _, a in ipairs(ah) do
     local c = a.key and byKey[a.key]
     if c and c[3] and level >= LVL[c[1]] and (a.quality or 1) <= 2 then
-      for _ = 1, math.min(a.qty or 0, 20) do
-        sources[#sources + 1] = { crate = c, from = "ah", cost = a.price or 0, name = a.name, id = a.id, back = Back(c, a.quality) }
-      end
+      local n = math.min(a.qty or 0, 20)
+      if n > 0 then sources[#sources + 1] = { crate = c, from = "ah", cost = a.price or 0, name = a.name, id = a.id, back = Back(c, a.quality), left = n } end
     end
   end
   local steps, got, gold, bought = {}, 0, 0, {}
+  -- the best bundle of a crate kind, worked out again only when one of its materials was used
+  local bundles = {}
+  local function Bundle(cr)
+    local k = CrateName(cr)
+    if bundles[k] == nil then bundles[k] = BestBundle(cr, stock, bought) or false end
+    return bundles[k] or nil
+  end
   while got < goal and #sources > 0 do
     -- the source with the lowest gold per favor right now (bundles get dearer as your stock runs out)
     local bestI, bestV, bestB
     for i, s in ipairs(sources) do
-      local b = BestBundle(s.crate, stock, bought)
+      local b = Bundle(s.crate)
       if b then
         local v = (s.cost + b.spend - s.back) / s.crate[3]
         if not bestV or v < bestV then bestI, bestV, bestB = i, v, b end
       end
     end
     if not bestI then break end
-    local s = table.remove(sources, bestI)
+    local s = sources[bestI]
+    s.left = s.left - 1
+    if s.left <= 0 then table.remove(sources, bestI) end
     stock[bestB.mat] = (stock[bestB.mat] or 0) - bestB.have
     bought[bestB.mat] = (bought[bestB.mat] or 0) + bestB.buy
+    for _, cr in ipairs(ns.CRATES) do
+      for i = 4, #cr do if cr[i][1] == bestB.mat then bundles[CrateName(cr)] = nil; break end end
+    end
     got = got + s.crate[3]
     gold = gold + s.cost + bestB.spend - s.back
+    coroutine.yield(math.min(0.99, got / math.max(1, goal)))
     steps[#steps + 1] = { crate = s.crate, from = s.from, cost = s.cost, bundle = bestB, id = s.id, name = s.name, back = s.back }
   end
   return steps, got, gold
@@ -316,7 +383,7 @@ end
 -- what the favor plan needs on the shopping list: { [name] = count }, ordered names, and which are crates.
 -- Whole counts: the list takes off what you have (crates in your bags included)
 function ns.FavorNeeds(goal)
-  local steps = ns.FavorPlan(math.max(0, goal - (ns.FavorNow() or 0)))
+  local steps = ns.FavorPlan(math.max(0, goal - (ns.FavorNow() or 0))) or {}
   local mats, order, crates = {}, {}, {}
   local function Add(name, n, id)
     if not name or n <= 0 then return end
@@ -715,8 +782,12 @@ local function Step(i)
   s.num = ns.Font(s.badge, true, 10, 0.08, 0.06, 0.02); s.num:SetPoint("CENTER"); s.num:SetShadowOffset(0, 0)
   s.title = ns.Font(s, true, 11, 0.9, 0.91, 0.94); s.title:SetPoint("LEFT", s.badge, "RIGHT", 8, 0)
   s.right = ns.Font(s, true, 11, 1, 1, 1); s.right:SetPoint("TOPRIGHT", 0, -3); s.right:SetJustifyH("RIGHT")
-  s.lines = {}
-  for l = 1, STEP_LINES do
+  -- show all / show fewer: a small button by the title, like the goal presets
+  s.more = ns.Button(s, "", 90, 18)
+  s.more:SetPoint("LEFT", s.title, "RIGHT", 10, 0)
+  s.more.label:SetFont(ns.F_BOLD, 9, "")
+  s.more:Hide()
+  s.lines = setmetatable({}, { __index = function(t, l)
     local r = CreateFrame("Frame", nil, s); r:SetSize(CW - 58, 18)
     r:SetPoint("TOPLEFT", 26, -22 - (l - 1) * 19)
     r.icon = Icon(r, 16); r.icon:SetPoint("LEFT")
@@ -724,10 +795,35 @@ local function Step(i)
     r.text = ns.Font(r, false, 10, 0.78, 0.8, 0.84); r.text:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
     r.text:SetPoint("RIGHT", r.value, "LEFT", -8, 0); r.text:SetWordWrap(false)
     r:EnableMouse(true)
-    s.lines[l] = r
-  end
+    rawset(t, l, r)
+    return r
+  end })
   steps[i] = s
   return s
+end
+
+-- while the plan is worked out: a cover over the plan card with what is happening and how far it is
+local busy = CreateFrame("Frame", nil, plan)
+busy:SetAllPoints(plan)
+busy:SetFrameLevel(plan:GetFrameLevel() + 30)
+busy:EnableMouse(true)
+ns.RoundBox(busy, 0.07, 0.075, 0.09, 0.97, nil, "BACKGROUND", 0)
+local busyIcon = Icon(busy, 36); busyIcon:SetPoint("CENTER", 0, 34); busyIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_05")
+local busyHead = ns.Font(busy, true, 13, GOLD[1], GOLD[2], GOLD[3]); busyHead:SetPoint("TOP", busyIcon, "BOTTOM", 0, -12)
+local busySub = ns.Font(busy, false, 10, 0.6, 0.62, 0.67); busySub:SetPoint("TOP", busyHead, "BOTTOM", 0, -6)
+local busyBg = Fill(busy, 0.05, 0.055, 0.07, 1, "ARTWORK")
+busyBg:SetSize(220, 6); busyBg:SetPoint("TOP", busySub, "BOTTOM", 0, -12)
+local busyBar = Fill(busy, GOLD[1], GOLD[2], GOLD[3], 1, "ARTWORK", 2)
+busyBar:SetPoint("TOPLEFT", busyBg); busyBar:SetPoint("BOTTOMLEFT", busyBg); busyBar:SetWidth(1)
+busy:Hide()
+function ns.FavorProgress()
+  local done, first = ns.FavorWorking()
+  if not (done and page.working) then busy:Hide(); return end
+  busyHead:SetText(first and L("Calculating prices for the first time", "Regner priserne ud første gang")
+    or L("Recalculating with the new scan", "Regner om med den nye scanning"))
+  busySub:SetText(L("A bit at a time, so the game doesn't lag  ·  %d%%", "Lidt ad gangen, så spillet ikke lagger  ·  %d%%"):format(math.floor(done * 100)))
+  busyBar:SetWidth(math.max(1, 220 * done))
+  busy:Show()
 end
 
 -- the cheapest crates
@@ -824,6 +920,9 @@ function page:Refresh()
 
   -- the plan, grouped into steps
   local list, got, gold = ns.FavorPlan(left)
+  page.working = left > 0 and list == nil
+  if page.working then list, got, gold = {}, 0, 0 end
+  ns.FavorProgress()
   local buyCrates, bagCrates, mats, fills, back = {}, {}, {}, {}, 0
   local cOrder, mOrder, fOrder = {}, {}, {}
   for _, st in ipairs(list) do
@@ -857,6 +956,7 @@ function page:Refresh()
   for _, s in ipairs(steps) do s:Hide() end
   local y = -40
   if left == 0 then
+    page.open = nil
     planTotal:SetText(""); planPer:SetText("")
     planEmpty:SetText(L("Goal reached. Set a higher goal to plan more.", "Mål nået. Sæt et højere mål for at planlægge mere."))
     planEmpty:Show(); y = -64
@@ -884,19 +984,36 @@ function page:Refresh()
         "Kasser og mats kommer på listen og holder sig opdateret, mens du køber og afleverer. Ved auktionshuset køber køb-knappen dem."), 0.85, 0.87, 0.9, true)
     end)
 
+    local specs = {}
+    local function AddStep(title, right, lines) specs[#specs + 1] = { title, right, lines } end
     local n = 0
-    local function AddStep(title, right, lines)
+    -- one step open at a time; the card below makes room. Only the layout is redone, not the plan
+    local function Toggle(b, i)
+      b:SetScript("OnClick", function()
+        page.open = page.open ~= i and i or nil
+        if page.Relayout then page.Relayout() else page:Refresh() end
+      end)
+    end
+    local function Draw(title, right, lines, max)
       n = n + 1
       local s = Step(n)
       s:ClearAllPoints(); s:SetPoint("TOPLEFT", 16, y)
       s.num:SetText(n); s.title:SetText(title); s.right:SetText(right or "")
-      local shown = math.min(#lines, STEP_LINES)
-      for l = 1, STEP_LINES do
+      local open = page.open == n and #lines > STEP_LINES
+      local shown = open and math.min(#lines, max) or math.min(#lines, STEP_LINES)
+      if #lines > STEP_LINES then
+        s.more:SetText(open and L("Show fewer", "Vis færre") or L("Show all %d", "Vis alle %d"):format(#lines))
+        s.more:SetWidth(s.more.label:GetStringWidth() + 20)
+        s.more.label:SetTextColor(open and 0.85 or GOLD[1], open and 0.87 or GOLD[2], open and 0.9 or GOLD[3])
+        Toggle(s.more, n)
+        s.more:Show()
+      else
+        s.more:Hide()
+      end
+      local l = 1
+      while rawget(s.lines, l) or l <= shown do
         local r, d = s.lines[l], lines[l]
         if d and l <= shown then
-          if l == STEP_LINES and #lines > STEP_LINES then
-            d = { icon = d.icon, text = d.text .. L("  ·  +%d more", "  ·  +%d mere"):format(#lines - STEP_LINES), value = d.value, tip = d.tip }
-          end
           -- an atlas (the blue "?" of a repeatable quest) or a texture
           local okA, set = false, nil
           if d.atlas and r.icon.SetAtlas then okA, set = pcall(r.icon.SetAtlas, r.icon, d.atlas) end
@@ -910,6 +1027,7 @@ function page:Refresh()
         else
           r:Hide()
         end
+        l = l + 1
       end
       s:SetHeight(22 + shown * 19)
       s:Show()
@@ -961,8 +1079,29 @@ function page:Refresh()
     AddStep(L("Hand them in", "Aflever dem"), "|cffffd24a+" .. got .. " favor|r", {
       { atlas = "QuestRepeatableTurnin", icon = "Interface\\GossipFrame\\DailyActiveQuestIcon", text = TURN_IN[f], value = back > 0 and ("|cff73d973+" .. ns.Money(back) .. L(" back", " tilbage") .. "|r") or "" },
     })
+
+    -- the open step shows as many lines as fit on the page
+    local y0 = y
+    local function Layout()
+      n, y = 0, y0
+      for _, st in ipairs(steps) do st:Hide() end
+      if page.open and not (specs[page.open] and #specs[page.open][3] > STEP_LINES) then page.open = nil end
+      local room = (page:GetHeight() or 0) - top:GetHeight() - 8
+      local used = -y + 76
+      for i, sp in ipairs(specs) do
+        if page.open ~= i then used = used + 22 + math.min(#sp[3], STEP_LINES) * 19 + 8 end
+      end
+      local max = page.open and math.max(STEP_LINES, math.floor((room - used - 30) / 19)) or STEP_LINES
+      for _, sp in ipairs(specs) do Draw(sp[1], sp[2], sp[3], max) end
+      cheap:SetShown(not page.open)
+      plan:SetHeight(-y + 76)
+    end
+    page.Relayout = Layout
+    Layout()
   end
-  plan:SetHeight(-y + 76)
+  if left == 0 then page.Relayout = nil end
+  cheap:SetShown(not page.open)
+  plan:SetHeight(page.working and math.max(-y + 76, 220) or (-y + 76))
   page:UpdateFill()
 
   -- the bottom card: the cheapest crates, or what you can buy for favor
@@ -1499,8 +1638,12 @@ function win:Refresh()
     bTitle:SetText(L("%d in the basket  ·  %d favor", "%d i kurven  ·  %d favor"):format(n, need))
     if missing > 0 then
       local _, got, g = ns.FavorPlan(missing)
+      if not got then
+        bSub:SetText(L("Working out the cheapest way...", "Regner den billigste vej ud..."))
+      else
       bSub:SetText(L("You need %d more  ·  the cheapest way: %s%s on the auction house", "Du mangler %d  ·  billigste vej: %s%s på AH"):format(
         missing, got < missing and "~" or "", ns.Money(math.max(0, g))) .. (got < missing and L("  (not enough crates scanned)", "  (for få kasser scannet)") or ""))
+      end
     else
       bSub:SetText("|cff73d973" .. L("You have the favor for it all. Go buy it.", "Du har favor nok til det hele. Gå ud og køb det.") .. "|r")
     end

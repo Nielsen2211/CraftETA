@@ -1,14 +1,50 @@
 -- CraftETA: the ETA family look (dark panel, Inter, gold accent) for every window.
 local _, ns = ...
 
+-- every text CraftETA makes; a text cut off with "..." shows its whole self in a tooltip when you point at it
+local texts = setmetatable({}, { __mode = "k" })
 function ns.Font(parent, bold, size, r, g, b)
   local t = parent:CreateFontString(nil, "OVERLAY")
   t:SetFont(bold and ns.F_BOLD or ns.F_SEMI, math.max(size or 11, 10), "")
   t:SetShadowOffset(0, 0)
   t:SetTextColor(r or 0.85, g or 0.87, b or 0.9)
   t:SetJustifyH("LEFT")
+  texts[t] = true
   return t
 end
+
+local function Cut(fs)
+  if fs.IsTruncated then
+    local ok, cut = pcall(fs.IsTruncated, fs)
+    if ok then return cut end
+  end
+  local w = fs:GetWidth() or 0
+  return w > 0 and (fs:GetNumLines() or 1) <= 1 and ns.TextWidth(fs) > w + 1
+end
+local fullTip = CreateFrame("Frame")
+local showing, wait = nil, 0
+fullTip:SetScript("OnUpdate", function(_, elapsed)
+  wait = wait + elapsed
+  if wait < 0.12 then return end
+  wait = 0
+  local found
+  for fs in pairs(texts) do
+    if fs:IsVisible() and fs:IsMouseOver() then
+      local text = fs:GetText()
+      if text and text ~= "" and Cut(fs) then found = fs; break end
+    end
+  end
+  if found == showing then return end
+  if showing and GameTooltip:GetOwner() == fullTip then GameTooltip:Hide() end
+  showing = nil
+  -- another tooltip is up (a row's own): leave it alone
+  if found and not (GameTooltip:IsShown() and GameTooltip:GetOwner() ~= fullTip) then
+    GameTooltip:SetOwner(fullTip, "ANCHOR_CURSOR")
+    GameTooltip:SetText(found:GetText(), 1, 1, 1, 1, true)
+    GameTooltip:Show()
+    showing = found
+  end
+end)
 
 -- width of the text on one line, without the "..." the client adds when it is too long
 function ns.TextWidth(fs)
